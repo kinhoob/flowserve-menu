@@ -15,12 +15,17 @@ import { useAuth } from "@/features/auth/auth-provider";
 import { FluxLogo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 
-type NavItem = { label: string; to: "/dashboard"; icon: typeof LayoutDashboard; soon?: boolean };
+type NavItem = {
+  label: string;
+  to: "/dashboard" | "/menu" | "/onboarding";
+  icon: typeof LayoutDashboard;
+  soon?: boolean;
+};
 
 const NAV: NavItem[] = [
   { label: "Overview", to: "/dashboard", icon: LayoutDashboard },
   { label: "Orders", to: "/dashboard", icon: ClipboardList, soon: true },
-  { label: "Menu", to: "/dashboard", icon: UtensilsCrossed, soon: true },
+  { label: "Menu", to: "/menu", icon: UtensilsCrossed },
   { label: "Kitchen", to: "/dashboard", icon: ChefHat, soon: true },
   { label: "QR Codes", to: "/dashboard", icon: QrCode, soon: true },
   { label: "Settings", to: "/dashboard", icon: Settings, soon: true },
