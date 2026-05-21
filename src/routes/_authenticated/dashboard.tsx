@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, DollarSign, Receipt, Users, Flame } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-provider";
+import { useRestaurant } from "@/features/restaurant/use-restaurant";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
