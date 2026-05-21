@@ -156,4 +156,22 @@
   .ring-gold-soft {
     box-shadow: 0 0 0 1px oklch(0.78 0.13 84 / 0.35), 0 8px 30px -10px oklch(0.78 0.13 84 / 0.25);
   }
+  .input-field {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: var(--color-foreground);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .input-field::placeholder {
+    color: oklch(0.55 0.01 80 / 0.7);
+  }
+  .input-field:focus {
+    border-color: oklch(0.78 0.13 84 / 0.5);
+    box-shadow: 0 0 0 3px oklch(0.78 0.13 84 / 0.12);
+  }
 }

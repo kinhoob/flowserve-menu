@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, DollarSign, Receipt, Users, Flame } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-provider";
+import { useRestaurant } from "@/features/restaurant/use-restaurant";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -18,7 +19,10 @@ const STATS = [
 
 function DashboardPage() {
   const { user } = useAuth();
+  const { data: restaurant } = useRestaurant();
   const name = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "there";
+  const ctaTo = restaurant ? "/menu" : "/onboarding";
+  const ctaLabel = restaurant ? "Manage your menu" : "Set up your restaurant";
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
@@ -33,10 +37,13 @@ function DashboardPage() {
             Here's how your venue is performing today.
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90">
-          Set up your restaurant
+        <Link
+          to={ctaTo}
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+        >
+          {ctaLabel}
           <ArrowUpRight className="h-4 w-4" />
-        </button>
+        </Link>
       </div>
 
       {/* Stats */}
