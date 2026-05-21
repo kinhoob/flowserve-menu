@@ -47,7 +47,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </div>
         <nav className="flex-1 space-y-1 px-3">
           {NAV.map(({ label, to, icon: Icon, soon }) => {
-            const active = pathname === to && label === "Overview";
+            const active = pathname === to && !soon;
             return (
               <Link
                 key={label}
