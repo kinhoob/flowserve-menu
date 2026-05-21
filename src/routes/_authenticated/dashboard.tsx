@@ -19,7 +19,10 @@ const STATS = [
 
 function DashboardPage() {
   const { user } = useAuth();
+  const { data: restaurant } = useRestaurant();
   const name = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "there";
+  const ctaTo = restaurant ? "/menu" : "/onboarding";
+  const ctaLabel = restaurant ? "Manage your menu" : "Set up your restaurant";
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
