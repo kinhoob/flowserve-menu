@@ -37,10 +37,13 @@ function DashboardPage() {
             Here's how your venue is performing today.
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90">
-          Set up your restaurant
+        <Link
+          to={ctaTo}
+          className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+        >
+          {ctaLabel}
           <ArrowUpRight className="h-4 w-4" />
-        </button>
+        </Link>
       </div>
 
       {/* Stats */}
