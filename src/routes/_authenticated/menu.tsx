@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/menu")({
-  head: () => ({ meta: [{ title: "Menu — Flux" }] }),
+  head: () => ({ meta: [{ title: "Cardápio — Flux" }] }),
   component: MenuPage,
 });
 
@@ -76,10 +76,7 @@ function MenuPage() {
     }
   }, [categories, activeCatId]);
 
-  const { data: items = [], isLoading: iLoading } = useMenuItems(
-    restaurantId,
-    activeCatId ?? undefined,
-  );
+  const { data: items = [], isLoading: iLoading } = useMenuItems(restaurantId, activeCatId ?? undefined);
 
   const filtered = items.filter((i) =>
     query ? i.name.toLowerCase().includes(query.toLowerCase()) : true,
@@ -94,20 +91,18 @@ function MenuPage() {
   }
 
   if (!restaurant) return null;
-
   const currency = restaurant.currency;
 
   return (
     <div className="mx-auto w-full max-w-7xl">
-      {/* Header */}
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-primary">Menu</p>
+          <p className="text-xs uppercase tracking-[0.18em] text-primary">Cardápio</p>
           <h1 className="mt-2 font-display text-4xl tracking-tight">
             <span className="text-gradient-gold italic">{restaurant.name}</span>
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Organize your categories and items. Changes go live instantly.
+            Organize categorias e itens. As mudanças vão ao ar instantaneamente.
           </p>
         </div>
         <Button
@@ -116,12 +111,11 @@ function MenuPage() {
           size="lg"
           className="gap-2"
         >
-          <Plus className="h-4 w-4" /> New item
+          <Plus className="h-4 w-4" /> Novo item
         </Button>
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-[280px_1fr]">
-        {/* Categories sidebar */}
         <CategoriesPanel
           restaurantId={restaurantId!}
           categories={categories}
@@ -131,12 +125,11 @@ function MenuPage() {
           onDelete={setDelCat}
         />
 
-        {/* Items */}
         <div className="space-y-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
-              placeholder="Search items…"
+              placeholder="Buscar itens…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="input-field pl-10"
@@ -145,8 +138,8 @@ function MenuPage() {
 
           {!activeCatId ? (
             <EmptyState
-              title="No category selected"
-              hint="Create your first category to start adding items."
+              title="Nenhuma categoria selecionada"
+              hint="Crie sua primeira categoria para começar a adicionar itens."
             />
           ) : iLoading ? (
             <div className="flex h-40 items-center justify-center">
@@ -154,18 +147,22 @@ function MenuPage() {
             </div>
           ) : filtered.length === 0 ? (
             <EmptyState
-              title={query ? "No matches" : "No items yet"}
-              hint={query ? "Try a different search." : "Add your first dish or drink to this category."}
+              title={query ? "Sem resultados" : "Nenhum item ainda"}
+              hint={
+                query
+                  ? "Tente uma busca diferente."
+                  : "Adicione seu primeiro prato ou bebida nesta categoria."
+              }
               action={
                 !query && (
                   <Button onClick={() => setItemDialog({ open: true, item: null })} className="mt-4">
-                    <Plus className="h-4 w-4" /> Add item
+                    <Plus className="h-4 w-4" /> Adicionar item
                   </Button>
                 )
               }
             />
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2">
+            <ul className="grid gap-3 stagger sm:grid-cols-2">
               {filtered.map((item) => (
                 <ItemCard
                   key={item.id}
@@ -180,7 +177,6 @@ function MenuPage() {
         </div>
       </div>
 
-      {/* Item dialog */}
       {activeCatId && restaurantId && (
         <ItemDialog
           open={itemDialog.open}
@@ -191,57 +187,55 @@ function MenuPage() {
         />
       )}
 
-      {/* Delete item confirm */}
       <AlertDialog open={!!delItem} onOpenChange={(v) => !v && setDelItem(null)}>
         <AlertDialogContent className="border-border bg-surface">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{delItem?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>Excluir "{delItem?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (!delItem) return;
                 try {
                   await deleteItem.mutateAsync(delItem.id);
-                  toast.success("Item deleted");
+                  toast.success("Item excluído");
                 } catch (e: any) {
                   toast.error(e.message);
                 }
                 setDelItem(null);
               }}
             >
-              Delete
+              Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete category confirm */}
       <AlertDialog open={!!delCat} onOpenChange={(v) => !v && setDelCat(null)}>
         <AlertDialogContent className="border-border bg-surface">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{delCat?.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir "{delCat?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              All items in this category will be permanently removed.
+              Todos os itens desta categoria serão removidos permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 if (!delCat) return;
                 try {
                   await deleteCat.mutateAsync(delCat.id);
-                  toast.success("Category deleted");
+                  toast.success("Categoria excluída");
                 } catch (e: any) {
                   toast.error(e.message);
                 }
                 setDelCat(null);
               }}
             >
-              Delete
+              Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -301,7 +295,7 @@ function CategoriesPanel({
     <aside className="rounded-2xl border border-border bg-surface p-3">
       <div className="flex items-center justify-between px-2 py-2">
         <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Categories
+          Categorias
         </span>
         <button
           onClick={() => setAdding(true)}
@@ -324,8 +318,10 @@ function CategoriesPanel({
               <li key={c.id}>
                 <div
                   className={
-                    "group flex items-center gap-1 rounded-xl px-2 py-2 text-sm transition " +
-                    (active ? "bg-gold-soft text-foreground" : "text-muted-foreground hover:bg-background")
+                    "group flex items-center gap-1 rounded-xl px-2 py-2 text-sm transition-all duration-300 " +
+                    (active
+                      ? "bg-gold-soft text-foreground"
+                      : "text-muted-foreground hover:bg-background hover:translate-x-0.5")
                   }
                 >
                   <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
@@ -363,13 +359,13 @@ function CategoriesPanel({
                           setEditName(c.name);
                         }}
                       >
-                        <Pencil className="h-3.5 w-3.5" /> Rename
+                        <Pencil className="h-3.5 w-3.5" /> Renomear
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
                         onClick={() => onDelete(c)}
                       >
-                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                        <Trash2 className="h-3.5 w-3.5" /> Excluir
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -381,7 +377,7 @@ function CategoriesPanel({
       )}
 
       {adding ? (
-        <div className="mt-2 space-y-2 rounded-xl border border-border bg-background p-2">
+        <div className="mt-2 space-y-2 rounded-xl border border-border bg-background p-2 animate-scale-in">
           <input
             autoFocus
             value={name}
@@ -393,15 +389,15 @@ function CategoriesPanel({
                 setName("");
               }
             }}
-            placeholder="e.g. Cocktails"
+            placeholder="ex.: Coquetéis"
             className="input-field h-9"
           />
           <div className="flex justify-end gap-1">
             <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button size="sm" onClick={submit} disabled={create.isPending}>
-              Add
+              Adicionar
             </Button>
           </div>
         </div>
@@ -410,7 +406,7 @@ function CategoriesPanel({
           onClick={() => setAdding(true)}
           className="mt-2 flex w-full items-center gap-2 rounded-xl border border-dashed border-border px-3 py-3 text-xs text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
         >
-          <Plus className="h-3.5 w-3.5" /> Add first category
+          <Plus className="h-3.5 w-3.5" /> Adicionar primeira categoria
         </button>
       ) : null}
     </aside>
@@ -432,13 +428,17 @@ function ItemCard({
   return (
     <li
       className={
-        "group relative flex gap-3 overflow-hidden rounded-2xl border border-border bg-surface p-3 transition hover:border-[oklch(0.78_0.13_84_/_0.3)] " +
+        "group relative flex gap-3 overflow-hidden rounded-2xl border border-border bg-surface p-3 hover-lift hover:border-[oklch(0.78_0.13_84_/_0.3)] " +
         (item.is_available ? "" : "opacity-60")
       }
     >
       <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-background/60">
         {item.image_url ? (
-          <img src={item.image_url} alt="" className="h-full w-full object-cover" />
+          <img
+            src={item.image_url}
+            alt=""
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+          />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-muted-foreground/40">
             <UtensilsCrossed className="h-6 w-6" />
@@ -453,7 +453,7 @@ function ItemCard({
           </div>
         </div>
         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-          {item.description || "No description"}
+          {item.description || "Sem descrição"}
         </p>
         <div className="mt-auto flex items-center justify-between pt-2">
           <div className="flex flex-wrap gap-1">
@@ -462,12 +462,12 @@ function ItemCard({
                 key={t}
                 className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground"
               >
-                {t}
+                {translateTag(t)}
               </span>
             ))}
             {!item.is_available && (
               <span className="rounded-full border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-destructive">
-                Hidden
+                Oculto
               </span>
             )}
           </div>
@@ -484,7 +484,7 @@ function ItemCard({
               }
               className="rounded-md px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground transition hover:bg-background hover:text-foreground"
             >
-              {item.is_available ? "Hide" : "Show"}
+              {item.is_available ? "Ocultar" : "Exibir"}
             </button>
             <button
               onClick={onEdit}
@@ -515,7 +515,7 @@ function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/40 py-16 text-center">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/40 py-16 text-center animate-fade-up">
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
         <UtensilsCrossed className="h-5 w-5 text-primary" />
       </div>
@@ -526,9 +526,21 @@ function EmptyState({
   );
 }
 
-function formatPrice(n: number, currency: string) {
+const TAG_LABELS: Record<string, string> = {
+  vegan: "Vegano",
+  vegetarian: "Vegetariano",
+  "gluten-free": "Sem glúten",
+  spicy: "Picante",
+  new: "Novidade",
+};
+function translateTag(t: string) {
+  return TAG_LABELS[t] ?? t;
+}
+
+export function formatPrice(n: number, currency: string) {
   try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency }).format(n);
+    const locale = currency === "BRL" ? "pt-BR" : undefined;
+    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(n);
   } catch {
     return `${currency} ${n.toFixed(2)}`;
   }

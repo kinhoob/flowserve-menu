@@ -12,12 +12,18 @@ import { Switch } from "@/components/ui/switch";
 import type { MenuItem } from "./menu-queries";
 import { useUpsertMenuItem } from "./menu-queries";
 
-const DIETARY = ["vegan", "vegetarian", "gluten-free", "spicy", "new"] as const;
+const DIETARY = [
+  { value: "vegan", label: "Vegano" },
+  { value: "vegetarian", label: "Vegetariano" },
+  { value: "gluten-free", label: "Sem glúten" },
+  { value: "spicy", label: "Picante" },
+  { value: "new", label: "Novidade" },
+] as const;
 
 const schema = z.object({
-  name: z.string().trim().min(1, "Required").max(80),
+  name: z.string().trim().min(1, "Obrigatório").max(80),
   description: z.string().trim().max(280).optional(),
-  price: z.coerce.number().min(0, "Must be ≥ 0").max(99999),
+  price: z.coerce.number().min(0, "Deve ser ≥ 0").max(99999),
   is_available: z.boolean(),
   dietary_tags: z.array(z.string()),
   image_url: z.string().nullable().optional(),
@@ -78,7 +84,7 @@ export function ItemDialog({
   const uploadImage = async (file: File) => {
     if (!user) return;
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image too large (max 5MB)");
+      toast.error("Imagem muito grande (máx 5MB)");
       return;
     }
     setUploading(true);
@@ -109,7 +115,7 @@ export function ItemDialog({
         dietary_tags: values.dietary_tags,
         image_url: values.image_url ?? null,
       });
-      toast.success(item ? "Item updated" : "Item created");
+      toast.success(item ? "Item atualizado" : "Item criado");
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e.message);
@@ -121,19 +127,18 @@ export function ItemDialog({
       <DialogContent className="max-w-lg border-border bg-surface">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-tight">
-            {item ? "Edit item" : "New item"}
+            {item ? "Editar item" : "Novo item"}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {/* Image */}
           <div className="space-y-2">
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Photo
+              Foto
             </span>
             {imageUrl ? (
               <div className="group relative aspect-[3/2] overflow-hidden rounded-xl border border-border">
-                <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+                <img src={imageUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                 <button
                   type="button"
                   onClick={() => form.setValue("image_url", null, { shouldDirty: true })}
@@ -154,7 +159,7 @@ export function ItemDialog({
                 ) : (
                   <>
                     <ImagePlus className="h-5 w-5" />
-                    <span className="text-xs">Click to upload (max 5MB)</span>
+                    <span className="text-xs">Clique para enviar (máx 5MB)</span>
                   </>
                 )}
               </button>
@@ -175,7 +180,7 @@ export function ItemDialog({
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Name
+                Nome
               </label>
               <input {...form.register("name")} className="input-field mt-1.5" autoFocus />
               {form.formState.errors.name && (
@@ -184,7 +189,7 @@ export function ItemDialog({
             </div>
             <div>
               <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Price
+                Preço
               </label>
               <input
                 {...form.register("price")}
@@ -198,36 +203,36 @@ export function ItemDialog({
 
           <div>
             <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Description
+              Descrição
             </label>
             <textarea
               {...form.register("description")}
               rows={3}
               className="input-field mt-1.5 resize-none"
-              placeholder="Short, sensory description"
+              placeholder="Uma descrição curta e sensorial"
             />
           </div>
 
           <div>
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Dietary tags
+              Tags dietéticas
             </span>
             <div className="mt-2 flex flex-wrap gap-2">
               {DIETARY.map((t) => {
-                const active = tags.includes(t);
+                const active = tags.includes(t.value);
                 return (
                   <button
                     type="button"
-                    key={t}
-                    onClick={() => toggleTag(t)}
+                    key={t.value}
+                    onClick={() => toggleTag(t.value)}
                     className={
-                      "rounded-full border px-3 py-1 text-xs capitalize transition " +
+                      "rounded-full border px-3 py-1 text-xs transition " +
                       (active
                         ? "border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft text-primary"
                         : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground")
                     }
                   >
-                    {t}
+                    {t.label}
                   </button>
                 );
               })}
@@ -236,8 +241,8 @@ export function ItemDialog({
 
           <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3">
             <div>
-              <div className="text-sm font-medium">Available</div>
-              <div className="text-xs text-muted-foreground">Visible to guests on the menu</div>
+              <div className="text-sm font-medium">Disponível</div>
+              <div className="text-xs text-muted-foreground">Visível para os clientes no cardápio</div>
             </div>
             <Switch
               checked={form.watch("is_available")}
@@ -247,11 +252,11 @@ export function ItemDialog({
 
           <div className="flex items-center justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button type="submit" disabled={upsert.isPending || uploading}>
               {upsert.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              {item ? "Save changes" : "Create item"}
+              {item ? "Salvar alterações" : "Criar item"}
             </Button>
           </div>
         </form>

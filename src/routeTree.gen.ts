@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MSlugRouteImport } from './routes/m.$slug'
+import { Route as AuthenticatedQrcodesRouteImport } from './routes/_authenticated/qrcodes'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedMenuRouteImport } from './routes/_authenticated/menu'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -29,6 +31,16 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const MSlugRoute = MSlugRouteImport.update({
+  id: '/m/$slug',
+  path: '/m/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedQrcodesRoute = AuthenticatedQrcodesRouteImport.update({
+  id: '/qrcodes',
+  path: '/qrcodes',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   id: '/onboarding',
@@ -52,6 +64,8 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/menu': typeof AuthenticatedMenuRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/qrcodes': typeof AuthenticatedQrcodesRoute
+  '/m/$slug': typeof MSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -59,6 +73,8 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/menu': typeof AuthenticatedMenuRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/qrcodes': typeof AuthenticatedQrcodesRoute
+  '/m/$slug': typeof MSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,12 +84,28 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/menu': typeof AuthenticatedMenuRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/qrcodes': typeof AuthenticatedQrcodesRoute
+  '/m/$slug': typeof MSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard' | '/menu' | '/onboarding'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/menu'
+    | '/onboarding'
+    | '/qrcodes'
+    | '/m/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/menu' | '/onboarding'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/menu'
+    | '/onboarding'
+    | '/qrcodes'
+    | '/m/$slug'
   id:
     | '__root__'
     | '/'
@@ -82,12 +114,15 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/menu'
     | '/_authenticated/onboarding'
+    | '/_authenticated/qrcodes'
+    | '/m/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   AuthRoute: typeof AuthRoute
+  MSlugRoute: typeof MSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -112,6 +147,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/m/$slug': {
+      id: '/m/$slug'
+      path: '/m/$slug'
+      fullPath: '/m/$slug'
+      preLoaderRoute: typeof MSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/qrcodes': {
+      id: '/_authenticated/qrcodes'
+      path: '/qrcodes'
+      fullPath: '/qrcodes'
+      preLoaderRoute: typeof AuthenticatedQrcodesRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/onboarding': {
       id: '/_authenticated/onboarding'
@@ -141,12 +190,14 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedMenuRoute: typeof AuthenticatedMenuRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedQrcodesRoute: typeof AuthenticatedQrcodesRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedMenuRoute: AuthenticatedMenuRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedQrcodesRoute: AuthenticatedQrcodesRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -157,6 +208,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   AuthRoute: AuthRoute,
+  MSlugRoute: MSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
