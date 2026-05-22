@@ -60,8 +60,9 @@ function PublicMenuPage() {
     if (data?.categories.length && !activeCat) setActiveCat(data.categories[0].id);
   }, [data, activeCat]);
 
+  type PublicItem = NonNullable<typeof data>["items"][number];
   const itemsByCat = useMemo(() => {
-    const map = new Map<string, typeof data.items>();
+    const map = new Map<string, PublicItem[]>();
     data?.items.forEach((i) => {
       const arr = map.get(i.category_id) ?? [];
       arr.push(i);
