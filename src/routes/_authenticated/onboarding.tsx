@@ -13,24 +13,24 @@ import { Button } from "@/components/ui/button";
 import { useEffect } from "react";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
-  head: () => ({ meta: [{ title: "Set up your restaurant — Flux" }] }),
+  head: () => ({ meta: [{ title: "Configurar restaurante — Flux" }] }),
   component: OnboardingPage,
 });
 
 const schema = z.object({
-  name: z.string().trim().min(2, "Name is too short").max(80),
+  name: z.string().trim().min(2, "Nome muito curto").max(80),
   slug: z
     .string()
     .trim()
     .min(2)
     .max(40)
-    .regex(/^[a-z0-9-]+$/, "Lowercase letters, numbers and dashes only"),
+    .regex(/^[a-z0-9-]+$/, "Use letras minúsculas, números e hífens"),
   description: z.string().trim().max(280).optional(),
-  currency: z.enum(["USD", "EUR", "GBP", "BRL", "MXN", "JPY", "AUD", "CAD"]),
+  currency: z.enum(["BRL", "USD", "EUR", "GBP", "MXN", "JPY", "AUD", "CAD"]),
 });
 type FormVals = z.infer<typeof schema>;
 
-const CURRENCIES: FormVals["currency"][] = ["USD", "EUR", "GBP", "BRL", "MXN", "JPY", "AUD", "CAD"];
+const CURRENCIES: FormVals["currency"][] = ["BRL", "USD", "EUR", "GBP", "MXN", "JPY", "AUD", "CAD"];
 
 function slugify(s: string) {
   return s
@@ -51,7 +51,7 @@ function OnboardingPage() {
 
   const form = useForm<FormVals>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", slug: "", description: "", currency: "USD" },
+    defaultValues: { name: "", slug: "", description: "", currency: "BRL" },
   });
   const name = form.watch("name");
   const slug = form.watch("slug");
@@ -78,10 +78,12 @@ function OnboardingPage() {
     });
     setSubmitting(false);
     if (error) {
-      toast.error(error.message.includes("duplicate") ? "That URL is taken. Try another." : error.message);
+      toast.error(
+        error.message.includes("duplicate") ? "Essa URL já está em uso. Escolha outra." : error.message,
+      );
       return;
     }
-    toast.success("Restaurant created");
+    toast.success("Restaurante criado");
     await qc.invalidateQueries({ queryKey: ["restaurant"] });
     navigate({ to: "/menu" });
   };
@@ -95,45 +97,44 @@ function OnboardingPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="mx-auto w-full max-w-2xl animate-fade-up">
       <div className="mb-8 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-primary">
-        <Sparkles className="h-3.5 w-3.5" /> Step 1 of 1
+        <Sparkles className="h-3.5 w-3.5" /> Passo 1 de 1
       </div>
       <h1 className="font-display text-4xl tracking-tight sm:text-5xl">
-        Let's set up your <span className="text-gradient-gold italic">venue</span>
+        Vamos configurar seu <span className="text-gradient-gold italic">estabelecimento</span>
       </h1>
       <p className="mt-3 max-w-lg text-sm text-muted-foreground">
-        We'll create your tenant workspace. You can refine branding, hours and team later.
+        Criamos seu workspace agora. Marca, horários e equipe você ajusta depois.
       </p>
 
-      <form onSubmit={form.handleSubmit(onSubmit)} className="mt-10 space-y-5">
-        <Field label="Restaurant name" error={form.formState.errors.name?.message}>
-          <input
-            {...form.register("name")}
-            placeholder="Lumen & Co."
-            className="input-field"
-            autoFocus
-          />
+      <form onSubmit={form.handleSubmit(onSubmit)} className="mt-10 space-y-5 stagger">
+        <Field label="Nome do restaurante" error={form.formState.errors.name?.message}>
+          <input {...form.register("name")} placeholder="Lumen & Co." className="input-field" autoFocus />
         </Field>
 
         <Field
-          label="Public URL"
-          hint={`flux.app/m/${slug || "your-venue"}`}
+          label="URL pública"
+          hint={`flux.app/m/${slug || "seu-estabelecimento"}`}
           error={form.formState.errors.slug?.message}
         >
           <input {...form.register("slug")} placeholder="lumen-co" className="input-field" />
         </Field>
 
-        <Field label="Short description" hint="Shown on your public menu" error={form.formState.errors.description?.message}>
+        <Field
+          label="Descrição curta"
+          hint="Aparece no seu cardápio público"
+          error={form.formState.errors.description?.message}
+        >
           <textarea
             {...form.register("description")}
             rows={3}
-            placeholder="A modern bar serving seasonal cocktails…"
+            placeholder="Um bar moderno servindo coquetéis sazonais…"
             className="input-field resize-none"
           />
         </Field>
 
-        <Field label="Default currency" error={form.formState.errors.currency?.message}>
+        <Field label="Moeda padrão" error={form.formState.errors.currency?.message}>
           <select {...form.register("currency")} className="input-field">
             {CURRENCIES.map((c) => (
               <option key={c} value={c}>
@@ -146,7 +147,7 @@ function OnboardingPage() {
         <div className="flex items-center justify-end pt-4">
           <Button type="submit" size="lg" disabled={submitting} className="gap-2">
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-            Create restaurant
+            Criar restaurante
           </Button>
         </div>
       </form>
@@ -168,7 +169,9 @@ function Field({
   return (
     <label className="block">
       <div className="mb-1.5 flex items-baseline justify-between gap-2">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </span>
         {hint && <span className="text-[11px] text-muted-foreground/70">{hint}</span>}
       </div>
       {children}

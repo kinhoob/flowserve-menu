@@ -57,16 +57,17 @@
 
   --shadow-elevated: 0 1px 0 0 oklch(1 0 0 / 0.04) inset, 0 30px 60px -30px oklch(0 0 0 / 0.6);
   --shadow-glow: 0 0 0 1px oklch(0.78 0.13 84 / 0.25), 0 20px 60px -20px oklch(0.78 0.13 84 / 0.35);
+
+  --ease-flux: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 :root {
-  /* Default = dark. Flux is a dark-first product. */
   --radius: 1rem;
 
-  --background: oklch(0.165 0 0);            /* #111111 */
-  --foreground: oklch(0.96 0.012 80);        /* #F5F1EB */
+  --background: oklch(0.165 0 0);
+  --foreground: oklch(0.96 0.012 80);
 
-  --surface: oklch(0.21 0 0);                /* #1A1A1A */
+  --surface: oklch(0.21 0 0);
   --surface-2: oklch(0.255 0 0);
 
   --card: oklch(0.21 0 0);
@@ -75,7 +76,7 @@
   --popover: oklch(0.21 0 0);
   --popover-foreground: var(--foreground);
 
-  --primary: oklch(0.78 0.13 84);            /* gold #D4AF37 */
+  --primary: oklch(0.78 0.13 84);
   --primary-foreground: oklch(0.18 0.02 70);
 
   --gold: oklch(0.78 0.13 84);
@@ -85,7 +86,7 @@
   --secondary-foreground: var(--foreground);
 
   --muted: oklch(0.235 0 0);
-  --muted-foreground: oklch(0.74 0.012 70);  /* #B8B1A7 */
+  --muted-foreground: oklch(0.74 0.012 70);
 
   --accent: oklch(0.27 0 0);
   --accent-foreground: var(--foreground);
@@ -96,7 +97,7 @@
   --success: oklch(0.66 0.13 152);
   --success-foreground: oklch(0.12 0 0);
 
-  --border: oklch(0.295 0 0);                /* #2A2A2A */
+  --border: oklch(0.295 0 0);
   --input: oklch(0.295 0 0);
   --ring: oklch(0.78 0.13 84 / 0.5);
 
@@ -111,7 +112,7 @@
 }
 
 .dark {
-  /* Same tokens — single dark theme. */
+  /* single dark theme */
 }
 
 @layer base {
@@ -137,6 +138,18 @@
   ::selection {
     background: oklch(0.78 0.13 84 / 0.35);
     color: var(--color-foreground);
+  }
+
+  /* Transições globais suaves em elementos interativos */
+  a,
+  button {
+    transition:
+      color 220ms var(--ease-flux),
+      background-color 220ms var(--ease-flux),
+      border-color 220ms var(--ease-flux),
+      opacity 220ms var(--ease-flux),
+      transform 320ms var(--ease-flux),
+      box-shadow 320ms var(--ease-flux);
   }
 }
 
@@ -165,7 +178,10 @@
     font-size: 0.875rem;
     color: var(--color-foreground);
     outline: none;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      border-color 200ms var(--ease-flux),
+      box-shadow 200ms var(--ease-flux),
+      background-color 200ms var(--ease-flux);
   }
   .input-field::placeholder {
     color: oklch(0.55 0.01 80 / 0.7);
@@ -174,4 +190,55 @@
     border-color: oklch(0.78 0.13 84 / 0.5);
     box-shadow: 0 0 0 3px oklch(0.78 0.13 84 / 0.12);
   }
+
+  /* Animações fluídas */
+  @keyframes flux-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes flux-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes flux-scale-in {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes flux-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .animate-fade-up {
+    animation: flux-fade-up 600ms var(--ease-flux) both;
+  }
+  .animate-fade-in {
+    animation: flux-fade-in 500ms var(--ease-flux) both;
+  }
+  .animate-scale-in {
+    animation: flux-scale-in 400ms var(--ease-flux) both;
+  }
+  .hover-lift {
+    transition: transform 320ms var(--ease-flux), box-shadow 320ms var(--ease-flux), border-color 320ms var(--ease-flux);
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 20px 60px -30px oklch(0 0 0 / 0.55);
+  }
+  .stagger > * {
+    animation: flux-fade-up 600ms var(--ease-flux) both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 40ms; }
+  .stagger > *:nth-child(2) { animation-delay: 90ms; }
+  .stagger > *:nth-child(3) { animation-delay: 140ms; }
+  .stagger > *:nth-child(4) { animation-delay: 190ms; }
+  .stagger > *:nth-child(5) { animation-delay: 240ms; }
+  .stagger > *:nth-child(6) { animation-delay: 290ms; }
+  .stagger > *:nth-child(7) { animation-delay: 340ms; }
+  .stagger > *:nth-child(8) { animation-delay: 390ms; }
 }
