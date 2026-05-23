@@ -4,7 +4,6 @@ import {
   ClipboardList,
   UtensilsCrossed,
   QrCode,
-  ChefHat,
   Settings,
   LogOut,
   Bell,
