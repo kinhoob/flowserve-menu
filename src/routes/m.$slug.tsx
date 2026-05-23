@@ -121,6 +121,7 @@ function PublicMenuPage() {
       if (iErr) throw iErr;
       setSent(true);
       setCart([]);
+      setCustomerName("");
       setTimeout(() => {
         setSent(false);
         setOpenCart(false);
