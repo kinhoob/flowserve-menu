@@ -27,7 +27,6 @@ const NAV: NavItem[] = [
   { label: "Visão geral", to: "/dashboard", icon: LayoutDashboard },
   { label: "Pedidos", to: "/kitchen", icon: ClipboardList },
   { label: "Cardápio", to: "/menu", icon: UtensilsCrossed },
-  { label: "Cozinha", to: "/kitchen", icon: ChefHat },
   { label: "QR Codes", to: "/qrcodes", icon: QrCode },
   { label: "Configurações", to: "/dashboard", icon: Settings, soon: true },
 ];
