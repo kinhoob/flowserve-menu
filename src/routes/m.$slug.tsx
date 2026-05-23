@@ -90,6 +90,10 @@ function PublicMenuPage() {
 
   const placeOrder = async () => {
     if (!data || cart.length === 0) return;
+    if (!customerName.trim()) {
+      toast.error("Informe seu nome para enviar o pedido");
+      return;
+    }
     setSubmitting(true);
     try {
       const { data: order, error } = await supabase
@@ -97,6 +101,7 @@ function PublicMenuPage() {
         .insert({
           restaurant_id: data.restaurant.id,
           table_label: table ? `Mesa ${table}` : null,
+          customer_name: customerName.trim(),
           subtotal: total,
           currency: data.restaurant.currency,
           status: "pending",
