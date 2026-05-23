@@ -55,6 +55,7 @@ function PublicMenuPage() {
   const [openCart, setOpenCart] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [customerName, setCustomerName] = useState("");
 
   useEffect(() => {
     if (data?.categories.length && !activeCat) setActiveCat(data.categories[0].id);
