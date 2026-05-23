@@ -55,6 +55,7 @@ function PublicMenuPage() {
   const [openCart, setOpenCart] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [customerName, setCustomerName] = useState("");
 
   useEffect(() => {
     if (data?.categories.length && !activeCat) setActiveCat(data.categories[0].id);
@@ -89,6 +90,10 @@ function PublicMenuPage() {
 
   const placeOrder = async () => {
     if (!data || cart.length === 0) return;
+    if (!customerName.trim()) {
+      toast.error("Informe seu nome para enviar o pedido");
+      return;
+    }
     setSubmitting(true);
     try {
       const { data: order, error } = await supabase
@@ -96,6 +101,7 @@ function PublicMenuPage() {
         .insert({
           restaurant_id: data.restaurant.id,
           table_label: table ? `Mesa ${table}` : null,
+          customer_name: customerName.trim(),
           subtotal: total,
           currency: data.restaurant.currency,
           status: "pending",
@@ -115,6 +121,7 @@ function PublicMenuPage() {
       if (iErr) throw iErr;
       setSent(true);
       setCart([]);
+      setCustomerName("");
       setTimeout(() => {
         setSent(false);
         setOpenCart(false);
@@ -358,6 +365,17 @@ function PublicMenuPage() {
                     ))}
                   </ul>
                   <div className="border-t border-border px-5 py-4">
+                    <label className="mb-3 block">
+                      <span className="mb-1.5 block text-xs uppercase tracking-wider text-muted-foreground">
+                        Seu nome
+                      </span>
+                      <input
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="Como podemos te chamar?"
+                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                      />
+                    </label>
                     <div className="flex items-center justify-between pb-3">
                       <span className="text-sm text-muted-foreground">Subtotal</span>
                       <span className="font-display text-2xl tracking-tight">
@@ -366,7 +384,7 @@ function PublicMenuPage() {
                     </div>
                     <button
                       onClick={placeOrder}
-                      disabled={submitting || cart.length === 0}
+                      disabled={submitting || cart.length === 0 || !customerName.trim()}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
                     >
                       {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
