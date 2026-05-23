@@ -18,16 +18,16 @@ import { cn } from "@/lib/utils";
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/menu" | "/onboarding" | "/qrcodes";
+  to: "/dashboard" | "/menu" | "/onboarding" | "/qrcodes" | "/kitchen";
   icon: typeof LayoutDashboard;
   soon?: boolean;
 };
 
 const NAV: NavItem[] = [
   { label: "Visão geral", to: "/dashboard", icon: LayoutDashboard },
-  { label: "Pedidos", to: "/dashboard", icon: ClipboardList, soon: true },
+  { label: "Pedidos", to: "/kitchen", icon: ClipboardList },
   { label: "Cardápio", to: "/menu", icon: UtensilsCrossed },
-  { label: "Cozinha", to: "/dashboard", icon: ChefHat, soon: true },
+  { label: "Cozinha", to: "/kitchen", icon: ChefHat },
   { label: "QR Codes", to: "/qrcodes", icon: QrCode },
   { label: "Configurações", to: "/dashboard", icon: Settings, soon: true },
 ];
