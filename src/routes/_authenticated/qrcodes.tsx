@@ -5,6 +5,7 @@ import jsPDF from "jspdf";
 import { toast } from "sonner";
 import { Download, ExternalLink, Loader2, Plus, QrCode as QrIcon, Trash2 } from "lucide-react";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
+import { useOrders } from "@/features/orders/order-queries";
 import {
   useCreateManyTables,
   useCreateTable,
@@ -13,6 +14,7 @@ import {
   type VenueTable,
 } from "@/features/tables/table-queries";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/qrcodes")({
   head: () => ({ meta: [{ title: "QR Codes — Flux" }] }),
