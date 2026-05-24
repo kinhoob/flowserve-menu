@@ -163,7 +163,36 @@ function DashboardPage() {
         </Link>
       </div>
 
+      {pendingCalls.length > 0 && (
+        <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft p-4 animate-fade-up">
+          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-primary">
+            <Bell className="h-4 w-4 animate-pulse" />
+            {pendingCalls.length} {pendingCalls.length === 1 ? "chamada de garçom" : "chamadas de garçom"}
+          </div>
+          <ul className="space-y-1.5">
+            {pendingCalls.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2 text-sm">
+                <span>
+                  <span className="font-medium">{c.table_label ?? "Balcão"}</span>
+                  {c.customer_name && <span className="text-muted-foreground"> · {c.customer_name}</span>}
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {new Date(c.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </span>
+                <button
+                  onClick={() => resolveCall.mutate(c.id)}
+                  className="rounded-lg border border-border bg-background px-3 py-1 text-xs transition hover:border-primary/40"
+                >
+                  Atender
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="grid gap-4 stagger sm:grid-cols-2 lg:grid-cols-4">
+
         {STATS.map(({ label, value, delta, icon: Icon }) => (
           <div
             key={label}
