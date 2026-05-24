@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, ChefHat, CheckCircle2, XCircle, ArrowRight, Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Clock, ChefHat, CheckCircle2, XCircle, ArrowRight, Loader2, Volume2, VolumeX } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import {
   useOrders,
@@ -13,6 +13,7 @@ import {
 } from "@/features/orders/order-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { cn } from "@/lib/utils";
+import { playChime } from "@/lib/sound";
 
 export const Route = createFileRoute("/_authenticated/kitchen")({
   head: () => ({ meta: [{ title: "Cozinha — Flux" }] }),
@@ -41,6 +42,9 @@ function KitchenPage() {
   const { data: orders, isLoading } = useOrders(restaurant?.id);
   const update = useUpdateOrderStatus(restaurant?.id);
   const [showServed, setShowServed] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const prevPending = useRef<Set<string>>(new Set());
+  const initialized = useRef(false);
 
   const columns = useMemo(() => {
     const visible = STATUS_FLOW.filter((s) => (showServed ? true : s !== "served"));
@@ -53,6 +57,20 @@ function KitchenPage() {
   const totalActive = (orders ?? []).filter(
     (o) => o.status !== "served" && o.status !== "cancelled",
   ).length;
+
+  useEffect(() => {
+    const pending = new Set((orders ?? []).filter((o) => o.status === "pending").map((o) => o.id));
+    if (initialized.current && soundOn) {
+      for (const id of pending) {
+        if (!prevPending.current.has(id)) {
+          playChime();
+          break;
+        }
+      }
+    }
+    prevPending.current = pending;
+    if (orders) initialized.current = true;
+  }, [orders, soundOn]);
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6">
@@ -67,6 +85,13 @@ function KitchenPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSoundOn((v) => !v)}
+            title={soundOn ? "Som ativo" : "Som mudo"}
+            className="rounded-xl border border-border bg-surface p-2.5 text-sm text-muted-foreground transition hover:text-foreground"
+          >
+            {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </button>
           <button
             onClick={() => setShowServed((v) => !v)}
             className="rounded-xl border border-border bg-surface px-4 py-2 text-sm text-muted-foreground transition hover:text-foreground"
