@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, DollarSign, Receipt, Users, Flame } from "lucide-react";
-import { useMemo } from "react";
+import { ArrowUpRight, Bell, DollarSign, Receipt, Users, Flame, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/auth-provider";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
-import { useOrders } from "@/features/orders/order-queries";
+import { useOrders, STATUS_LABELS, type Order } from "@/features/orders/order-queries";
+import { useWaiterCalls, useResolveWaiterCall } from "@/features/waiter/waiter-queries";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/routes/_authenticated/menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
