@@ -27,6 +27,10 @@ function DashboardPage() {
   const { user } = useAuth();
   const { data: restaurant } = useRestaurant();
   const { data: orders } = useOrders(restaurant?.id);
+  const { data: waiterCalls = [] } = useWaiterCalls(restaurant?.id);
+  const resolveCall = useResolveWaiterCall(restaurant?.id);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const pendingCalls = waiterCalls.filter((c) => !c.resolved);
   const currency = restaurant?.currency ?? "BRL";
 
   const { data: tablesCount } = useQuery({
@@ -248,33 +252,92 @@ function DashboardPage() {
         ) : (
           <ul className="mt-5 divide-y divide-border">
             {recent.map((o) => (
-              <li key={o.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">
-                    {o.table_label ?? "Balcão"}
-                    {o.customer_name ? ` · ${o.customer_name}` : ""}
+              <li key={o.id}>
+                <button
+                  onClick={() => setSelectedOrder(o)}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg py-3 text-left transition hover:bg-background/60 px-2 -mx-2"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">
+                      {o.table_label ?? "Balcão"}
+                      {o.customer_name ? ` · ${o.customer_name}` : ""}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {o.order_items.length} {o.order_items.length === 1 ? "item" : "itens"} ·{" "}
+                      {new Date(o.created_at).toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {o.order_items.length} {o.order_items.length === 1 ? "item" : "itens"} ·{" "}
-                    {new Date(o.created_at).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                  <div className="flex items-center gap-3">
+                    <span className="rounded-full bg-background px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground ring-1 ring-border">
+                      {STATUS_LABELS[o.status]}
+                    </span>
+                    <span className="font-display text-base tracking-tight">
+                      {formatPrice(Number(o.subtotal), currency)}
+                    </span>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-background px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground ring-1 ring-border">
-                    {o.status}
-                  </span>
-                  <span className="font-display text-base tracking-tight">
-                    {formatPrice(Number(o.subtotal), currency)}
-                  </span>
-                </div>
+                </button>
               </li>
             ))}
           </ul>
         )}
       </div>
+
+      <Dialog open={!!selectedOrder} onOpenChange={(v) => !v && setSelectedOrder(null)}>
+        <DialogContent className="max-w-md border-border bg-surface">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl tracking-tight">
+              {selectedOrder?.table_label ?? "Balcão"}
+              {selectedOrder?.customer_name ? ` · ${selectedOrder.customer_name}` : ""}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>
+                  {new Date(selectedOrder.created_at).toLocaleString("pt-BR")}
+                </span>
+                <span className="rounded-full bg-gold-soft px-2 py-0.5 uppercase tracking-wider text-primary">
+                  {STATUS_LABELS[selectedOrder.status]}
+                </span>
+              </div>
+              <ul className="divide-y divide-border rounded-xl border border-border">
+                {selectedOrder.order_items.map((it) => {
+                  const mods = (it.modifiers_snapshot as unknown as { name: string }[]) ?? [];
+                  return (
+                    <li key={it.id} className="p-3">
+                      <div className="flex justify-between gap-2 text-sm">
+                        <span>
+                          <span className="font-medium text-primary">{it.quantity}×</span>{" "}
+                          {it.name_snapshot}
+                        </span>
+                        <span className="text-muted-foreground">
+                          {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
+                        </span>
+                      </div>
+                      {Array.isArray(mods) && mods.length > 0 && (
+                        <ul className="mt-1 space-y-0.5 pl-3 text-[11px] text-muted-foreground">
+                          {mods.map((m, i) => (
+                            <li key={i}>· {m.name}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="flex items-center justify-between border-t border-border pt-3">
+                <span className="text-sm text-muted-foreground">Total</span>
+                <span className="font-display text-2xl tracking-tight">
+                  {formatPrice(Number(selectedOrder.subtotal), currency)}
+                </span>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
