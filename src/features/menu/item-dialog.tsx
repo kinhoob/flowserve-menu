@@ -9,8 +9,10 @@ import { useAuth } from "@/features/auth/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MenuItem } from "./menu-queries";
 import { useUpsertMenuItem } from "./menu-queries";
+import { ModifiersEditor } from "./modifiers-editor";
 
 const DIETARY = [
   { value: "vegan", label: "Vegano" },
@@ -47,6 +49,8 @@ export function ItemDialog({
   const upsert = useUpsertMenuItem(restaurantId);
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [currentItem, setCurrentItem] = useState<MenuItem | null>(item);
+  const [tab, setTab] = useState("details");
 
   const form = useForm<Vals>({
     resolver: zodResolver(schema),
@@ -62,6 +66,8 @@ export function ItemDialog({
 
   useEffect(() => {
     if (open) {
+      setCurrentItem(item);
+      setTab("details");
       form.reset({
         name: item?.name ?? "",
         description: item?.description ?? "",
@@ -105,8 +111,8 @@ export function ItemDialog({
 
   const onSubmit = async (values: Vals) => {
     try {
-      await upsert.mutateAsync({
-        id: item?.id,
+      const saved = await upsert.mutateAsync({
+        id: currentItem?.id,
         category_id: categoryId,
         name: values.name,
         description: values.description || null,
@@ -115,8 +121,10 @@ export function ItemDialog({
         dietary_tags: values.dietary_tags,
         image_url: values.image_url ?? null,
       });
-      toast.success(item ? "Item atualizado" : "Item criado");
-      onOpenChange(false);
+      toast.success(currentItem ? "Item atualizado" : "Item criado — agora adicione opções se quiser");
+      setCurrentItem(saved as MenuItem);
+      if (!currentItem) setTab("modifiers");
+      else onOpenChange(false);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -124,142 +132,168 @@ export function ItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg border-border bg-surface">
+      <DialogContent className="max-h-[92vh] max-w-lg overflow-y-auto border-border bg-surface">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl tracking-tight">
-            {item ? "Editar item" : "Novo item"}
+            {currentItem ? "Editar item" : "Novo item"}
           </DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Foto
-            </span>
-            {imageUrl ? (
-              <div className="group relative aspect-[3/2] overflow-hidden rounded-xl border border-border">
-                <img src={imageUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-                <button
-                  type="button"
-                  onClick={() => form.setValue("image_url", null, { shouldDirty: true })}
-                  className="absolute right-2 top-2 rounded-lg bg-background/80 p-1.5 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading}
-                className="flex aspect-[3/2] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background/40 text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
-              >
-                {uploading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+        <Tabs value={tab} onValueChange={setTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="details">Detalhes</TabsTrigger>
+            <TabsTrigger value="modifiers" disabled={!currentItem}>
+              Opções {currentItem ? "" : "(salve primeiro)"}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="details" className="mt-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="space-y-2">
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Foto
+                </span>
+                {imageUrl ? (
+                  <div className="group relative aspect-[3/2] overflow-hidden rounded-xl border border-border">
+                    <img src={imageUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                    <button
+                      type="button"
+                      onClick={() => form.setValue("image_url", null, { shouldDirty: true })}
+                      className="absolute right-2 top-2 rounded-lg bg-background/80 p-1.5 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
                 ) : (
-                  <>
-                    <ImagePlus className="h-5 w-5" />
-                    <span className="text-xs">Clique para enviar (máx 5MB)</span>
-                  </>
-                )}
-              </button>
-            )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) uploadImage(f);
-                e.target.value = "";
-              }}
-            />
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Nome
-              </label>
-              <input {...form.register("name")} className="input-field mt-1.5" autoFocus />
-              {form.formState.errors.name && (
-                <p className="mt-1 text-xs text-destructive">{form.formState.errors.name.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Preço
-              </label>
-              <input
-                {...form.register("price")}
-                type="number"
-                step="0.01"
-                min="0"
-                className="input-field mt-1.5"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Descrição
-            </label>
-            <textarea
-              {...form.register("description")}
-              rows={3}
-              className="input-field mt-1.5 resize-none"
-              placeholder="Uma descrição curta e sensorial"
-            />
-          </div>
-
-          <div>
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Tags dietéticas
-            </span>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {DIETARY.map((t) => {
-                const active = tags.includes(t.value);
-                return (
                   <button
                     type="button"
-                    key={t.value}
-                    onClick={() => toggleTag(t.value)}
-                    className={
-                      "rounded-full border px-3 py-1 text-xs transition " +
-                      (active
-                        ? "border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft text-primary"
-                        : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground")
-                    }
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                    className="flex aspect-[3/2] w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background/40 text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
                   >
-                    {t.label}
+                    {uploading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <>
+                        <ImagePlus className="h-5 w-5" />
+                        <span className="text-xs">Clique para enviar (máx 5MB)</span>
+                      </>
+                    )}
                   </button>
-                );
-              })}
-            </div>
-          </div>
+                )}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadImage(f);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3">
-            <div>
-              <div className="text-sm font-medium">Disponível</div>
-              <div className="text-xs text-muted-foreground">Visível para os clientes no cardápio</div>
-            </div>
-            <Switch
-              checked={form.watch("is_available")}
-              onCheckedChange={(v) => form.setValue("is_available", v, { shouldDirty: true })}
-            />
-          </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Nome
+                  </label>
+                  <input {...form.register("name")} className="input-field mt-1.5" autoFocus />
+                  {form.formState.errors.name && (
+                    <p className="mt-1 text-xs text-destructive">{form.formState.errors.name.message}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Preço
+                  </label>
+                  <input
+                    {...form.register("price")}
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="input-field mt-1.5"
+                  />
+                </div>
+              </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={upsert.isPending || uploading}>
-              {upsert.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-              {item ? "Salvar alterações" : "Criar item"}
-            </Button>
-          </div>
-        </form>
+              <div>
+                <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Descrição
+                </label>
+                <textarea
+                  {...form.register("description")}
+                  rows={3}
+                  className="input-field mt-1.5 resize-none"
+                  placeholder="Uma descrição curta e sensorial"
+                />
+              </div>
+
+              <div>
+                <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Tags dietéticas
+                </span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {DIETARY.map((t) => {
+                    const active = tags.includes(t.value);
+                    return (
+                      <button
+                        type="button"
+                        key={t.value}
+                        onClick={() => toggleTag(t.value)}
+                        className={
+                          "rounded-full border px-3 py-1 text-xs transition " +
+                          (active
+                            ? "border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft text-primary"
+                            : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground")
+                        }
+                      >
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3">
+                <div>
+                  <div className="text-sm font-medium">Disponível</div>
+                  <div className="text-xs text-muted-foreground">Visível para os clientes no cardápio</div>
+                </div>
+                <Switch
+                  checked={form.watch("is_available")}
+                  onCheckedChange={(v) => form.setValue("is_available", v, { shouldDirty: true })}
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                  Fechar
+                </Button>
+                <Button type="submit" disabled={upsert.isPending || uploading}>
+                  {upsert.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {currentItem ? "Salvar alterações" : "Criar item"}
+                </Button>
+              </div>
+            </form>
+          </TabsContent>
+
+          <TabsContent value="modifiers" className="mt-4">
+            {currentItem ? (
+              <ModifiersEditor menuItemId={currentItem.id} restaurantId={restaurantId} />
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Salve o item primeiro para gerenciar opções.
+              </p>
+            )}
+            <div className="mt-4 flex justify-end">
+              <Button onClick={() => onOpenChange(false)} variant="secondary">
+                Concluir
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
