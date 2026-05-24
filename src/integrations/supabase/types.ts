@@ -115,11 +115,97 @@ export type Database = {
           },
         ]
       }
+      modifier_groups: {
+        Row: {
+          created_at: string
+          id: string
+          is_required: boolean
+          max_select: number
+          menu_item_id: string
+          min_select: number
+          name: string
+          position: number
+          restaurant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          max_select?: number
+          menu_item_id: string
+          min_select?: number
+          name: string
+          position?: number
+          restaurant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_required?: boolean
+          max_select?: number
+          menu_item_id?: string
+          min_select?: number
+          name?: string
+          position?: number
+          restaurant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modifier_groups_menu_item_id_fkey"
+            columns: ["menu_item_id"]
+            isOneToOne: false
+            referencedRelation: "menu_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      modifier_options: {
+        Row: {
+          created_at: string
+          group_id: string
+          id: string
+          name: string
+          position: number
+          price_delta: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          group_id: string
+          id?: string
+          name: string
+          position?: number
+          price_delta?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          group_id?: string
+          id?: string
+          name?: string
+          position?: number
+          price_delta?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modifier_options_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "modifier_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
           id: string
           menu_item_id: string | null
+          modifiers_snapshot: Json
           name_snapshot: string
           notes: string | null
           order_id: string
@@ -130,6 +216,7 @@ export type Database = {
           created_at?: string
           id?: string
           menu_item_id?: string | null
+          modifiers_snapshot?: Json
           name_snapshot: string
           notes?: string | null
           order_id: string
@@ -140,6 +227,7 @@ export type Database = {
           created_at?: string
           id?: string
           menu_item_id?: string | null
+          modifiers_snapshot?: Json
           name_snapshot?: string
           notes?: string | null
           order_id?: string
@@ -323,6 +411,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      waiter_calls: {
+        Row: {
+          created_at: string
+          customer_name: string | null
+          id: string
+          message: string | null
+          resolved: boolean
+          resolved_at: string | null
+          restaurant_id: string
+          table_label: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          message?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          restaurant_id: string
+          table_label?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_name?: string | null
+          id?: string
+          message?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          restaurant_id?: string
+          table_label?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
