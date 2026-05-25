@@ -149,6 +149,7 @@ function QRCodesPage() {
                 key={t.id}
                 table={t}
                 slug={restaurant.slug}
+                occupied={occupiedLabels.has(t.label)}
                 onDelete={async () => {
                   try { await del.mutateAsync(t.id); toast.success("Mesa removida"); }
                   catch (e: any) { toast.error(e.message); }
