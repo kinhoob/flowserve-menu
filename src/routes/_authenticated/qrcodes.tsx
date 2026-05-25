@@ -246,11 +246,13 @@ function QRCodesPage() {
 function TableCard({
   table,
   slug,
+  occupied,
   onDelete,
   onDownload,
 }: {
   table: VenueTable;
   slug: string;
+  occupied: boolean;
   onDelete: () => void;
   onDownload: () => void;
 }) {
@@ -267,8 +269,33 @@ function TableCard({
   }, [url]);
 
   return (
-    <li className="group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 hover-lift hover:border-[oklch(0.78_0.13_84_/_0.3)]">
-      <div className="flex items-start justify-between gap-2">
+    <li
+      className={cn(
+        "group relative flex flex-col gap-3 rounded-2xl border bg-surface p-4 hover-lift transition-colors",
+        occupied
+          ? "border-[oklch(0.62_0.21_25_/_0.55)] hover:border-[oklch(0.62_0.21_25_/_0.85)]"
+          : "border-border hover:border-[oklch(0.78_0.13_84_/_0.3)]",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+          occupied
+            ? "bg-[oklch(0.62_0.21_25_/_0.15)] text-[oklch(0.78_0.18_25)]"
+            : "bg-[oklch(0.62_0.18_150_/_0.12)] text-[oklch(0.78_0.18_150)]",
+        )}
+      >
+        <span
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            occupied
+              ? "bg-[oklch(0.72_0.2_25)] animate-pulse"
+              : "bg-[oklch(0.72_0.18_150)]",
+          )}
+        />
+        {occupied ? "Ocupada" : "Livre"}
+      </span>
+      <div className="flex items-start justify-between gap-2 pr-20">
         <div className="min-w-0">
           <div className="truncate font-display text-xl tracking-tight">{table.label}</div>
           <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
