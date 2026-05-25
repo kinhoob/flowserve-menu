@@ -30,9 +30,16 @@ function QRCodesPage() {
   const navigate = useNavigate();
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
   const { data: tables = [], isLoading: tLoading } = useTables(restaurant?.id);
+  const { data: orders = [] } = useOrders(restaurant?.id);
   const createOne = useCreateTable(restaurant?.id);
   const createMany = useCreateManyTables(restaurant?.id);
   const del = useDeleteTable(restaurant?.id);
+
+  const occupiedLabels = new Set(
+    orders
+      .filter((o) => o.status !== "served" && o.status !== "cancelled" && o.table_label)
+      .map((o) => o.table_label as string),
+  );
 
   const [label, setLabel] = useState("");
   const [bulk, setBulk] = useState({ from: 1, to: 10, prefix: "Mesa" });
