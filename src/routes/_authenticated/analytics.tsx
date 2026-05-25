@@ -12,18 +12,13 @@ import {
   Download,
 } from "lucide-react";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
-import { DashboardShell } from "@/features/dashboard/dashboard-shell";
 import { useOrders, STATUS_LABELS, type Order, type OrderStatus } from "@/features/orders/order-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/analytics")({
   head: () => ({ meta: [{ title: "Análises — Flux" }] }),
-  component: () => (
-    <DashboardShell>
-      <AnalyticsPage />
-    </DashboardShell>
-  ),
+  component: AnalyticsPage,
 });
 
 type Range = "7d" | "30d" | "90d";
