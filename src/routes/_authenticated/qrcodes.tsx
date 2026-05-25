@@ -120,6 +120,18 @@ function QRCodesPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             Gere QR codes por mesa apontando para o seu cardápio público em <span className="text-foreground">/m/{restaurant.slug}</span>.
           </p>
+          {tables.length > 0 && (
+            <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[oklch(0.72_0.2_25)] animate-pulse" />
+                {occupiedLabels.size} ocupada{occupiedLabels.size === 1 ? "" : "s"}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[oklch(0.72_0.18_150)]" />
+                {tables.length - occupiedLabels.size} livre{tables.length - occupiedLabels.size === 1 ? "" : "s"}
+              </span>
+            </div>
+          )}
         </div>
         <Button onClick={downloadAllPdf} disabled={downloading || tables.length === 0} size="lg" className="gap-2">
           {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
