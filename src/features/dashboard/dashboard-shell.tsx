@@ -4,6 +4,7 @@ import {
   ClipboardList,
   UtensilsCrossed,
   QrCode,
+  BarChart3,
   Settings,
   LogOut,
   Bell,
@@ -17,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/menu" | "/onboarding" | "/qrcodes" | "/kitchen";
+  to: "/dashboard" | "/menu" | "/onboarding" | "/qrcodes" | "/kitchen" | "/analytics";
   icon: typeof LayoutDashboard;
   soon?: boolean;
 };
@@ -27,6 +28,7 @@ const NAV: NavItem[] = [
   { label: "Pedidos", to: "/kitchen", icon: ClipboardList },
   { label: "Cardápio", to: "/menu", icon: UtensilsCrossed },
   { label: "QR Codes", to: "/qrcodes", icon: QrCode },
+  { label: "Análises", to: "/analytics", icon: BarChart3 },
   { label: "Configurações", to: "/dashboard", icon: Settings, soon: true },
 ];
 
