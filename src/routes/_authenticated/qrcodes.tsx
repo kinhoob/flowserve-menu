@@ -30,9 +30,16 @@ function QRCodesPage() {
   const navigate = useNavigate();
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
   const { data: tables = [], isLoading: tLoading } = useTables(restaurant?.id);
+  const { data: orders = [] } = useOrders(restaurant?.id);
   const createOne = useCreateTable(restaurant?.id);
   const createMany = useCreateManyTables(restaurant?.id);
   const del = useDeleteTable(restaurant?.id);
+
+  const occupiedLabels = new Set(
+    orders
+      .filter((o) => o.status !== "served" && o.status !== "cancelled" && o.table_label)
+      .map((o) => o.table_label as string),
+  );
 
   const [label, setLabel] = useState("");
   const [bulk, setBulk] = useState({ from: 1, to: 10, prefix: "Mesa" });
@@ -113,6 +120,18 @@ function QRCodesPage() {
           <p className="mt-2 text-sm text-muted-foreground">
             Gere QR codes por mesa apontando para o seu cardápio público em <span className="text-foreground">/m/{restaurant.slug}</span>.
           </p>
+          {tables.length > 0 && (
+            <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[oklch(0.72_0.2_25)] animate-pulse" />
+                {occupiedLabels.size} ocupada{occupiedLabels.size === 1 ? "" : "s"}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[oklch(0.72_0.18_150)]" />
+                {tables.length - occupiedLabels.size} livre{tables.length - occupiedLabels.size === 1 ? "" : "s"}
+              </span>
+            </div>
+          )}
         </div>
         <Button onClick={downloadAllPdf} disabled={downloading || tables.length === 0} size="lg" className="gap-2">
           {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
@@ -142,6 +161,7 @@ function QRCodesPage() {
                 key={t.id}
                 table={t}
                 slug={restaurant.slug}
+                occupied={occupiedLabels.has(t.label)}
                 onDelete={async () => {
                   try { await del.mutateAsync(t.id); toast.success("Mesa removida"); }
                   catch (e: any) { toast.error(e.message); }
@@ -238,11 +258,13 @@ function QRCodesPage() {
 function TableCard({
   table,
   slug,
+  occupied,
   onDelete,
   onDownload,
 }: {
   table: VenueTable;
   slug: string;
+  occupied: boolean;
   onDelete: () => void;
   onDownload: () => void;
 }) {
@@ -259,8 +281,33 @@ function TableCard({
   }, [url]);
 
   return (
-    <li className="group flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 hover-lift hover:border-[oklch(0.78_0.13_84_/_0.3)]">
-      <div className="flex items-start justify-between gap-2">
+    <li
+      className={cn(
+        "group relative flex flex-col gap-3 rounded-2xl border bg-surface p-4 hover-lift transition-colors",
+        occupied
+          ? "border-[oklch(0.62_0.21_25_/_0.55)] hover:border-[oklch(0.62_0.21_25_/_0.85)]"
+          : "border-border hover:border-[oklch(0.78_0.13_84_/_0.3)]",
+      )}
+    >
+      <span
+        className={cn(
+          "absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+          occupied
+            ? "bg-[oklch(0.62_0.21_25_/_0.15)] text-[oklch(0.78_0.18_25)]"
+            : "bg-[oklch(0.62_0.18_150_/_0.12)] text-[oklch(0.78_0.18_150)]",
+        )}
+      >
+        <span
+          className={cn(
+            "h-1.5 w-1.5 rounded-full",
+            occupied
+              ? "bg-[oklch(0.72_0.2_25)] animate-pulse"
+              : "bg-[oklch(0.72_0.18_150)]",
+          )}
+        />
+        {occupied ? "Ocupada" : "Livre"}
+      </span>
+      <div className="flex items-start justify-between gap-2 pr-20">
         <div className="min-w-0">
           <div className="truncate font-display text-xl tracking-tight">{table.label}</div>
           <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
