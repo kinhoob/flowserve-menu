@@ -101,7 +101,27 @@ function KitchenPage() {
             {totalActive} {totalActive === 1 ? "pedido ativo" : "pedidos ativos"} · atualizado em tempo real
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-xl border border-border bg-surface p-0.5 text-xs">
+            {([
+              { k: "all" as const, l: "Tudo" },
+              { k: "food" as const, l: "Cozinha" },
+              { k: "drink" as const, l: "Bar" },
+            ]).map(({ k, l }) => (
+              <button
+                key={k}
+                onClick={() => setScope(k)}
+                className={
+                  "rounded-lg px-3 py-1.5 transition " +
+                  (scope === k
+                    ? "bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]"
+                    : "text-muted-foreground hover:text-foreground")
+                }
+              >
+                {l}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => setSoundOn((v) => !v)}
             title={soundOn ? "Som ativo" : "Som mudo"}
@@ -114,6 +134,20 @@ function KitchenPage() {
             className="rounded-xl border border-border bg-surface px-4 py-2 text-sm text-muted-foreground transition hover:text-foreground"
           >
             {showServed ? "Ocultar entregues" : "Mostrar entregues"}
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const n = await archive.mutateAsync();
+                toast.success(n > 0 ? `${n} pedido(s) arquivado(s)` : "Nada para arquivar");
+              } catch (e: any) {
+                toast.error(e.message ?? "Erro ao arquivar");
+              }
+            }}
+            disabled={archive.isPending}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground disabled:opacity-60"
+          >
+            <Archive className="h-4 w-4" /> Arquivar concluídos
           </button>
           <span className="inline-flex items-center gap-2 rounded-full bg-gold-soft px-3 py-1.5 text-xs text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
             <span className="relative flex h-2 w-2">
