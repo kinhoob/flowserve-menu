@@ -36,6 +36,7 @@ type CartLine = {
   basePrice: number;
   unitPrice: number; // base + modifier deltas
   qty: number;
+  note: string;
   modifiers: { group: string; name: string; price_delta: number }[];
 };
 
