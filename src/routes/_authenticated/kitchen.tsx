@@ -43,20 +43,35 @@ function KitchenPage() {
   const { data: restaurant } = useRestaurant();
   const { data: orders, isLoading } = useOrders(restaurant?.id);
   const update = useUpdateOrderStatus(restaurant?.id);
+  const archive = useArchiveServedOrders(restaurant?.id);
   const [showServed, setShowServed] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [scope, setScope] = useState<"all" | "food" | "drink">("all");
   const prevPending = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
+
+  const scopedOrders = useMemo(() => {
+    if (scope === "all") return orders ?? [];
+    return (orders ?? [])
+      .map((o) => {
+        const items = o.order_items.filter((it) => {
+          const kind = (it as any)?.menu_items?.categories?.kind ?? "food";
+          return kind === scope;
+        });
+        return { ...o, order_items: items };
+      })
+      .filter((o) => o.order_items.length > 0);
+  }, [orders, scope]);
 
   const columns = useMemo(() => {
     const visible = STATUS_FLOW.filter((s) => (showServed ? true : s !== "served"));
     return visible.map((status) => ({
       status,
-      orders: (orders ?? []).filter((o) => o.status === status),
+      orders: scopedOrders.filter((o) => o.status === status),
     }));
-  }, [orders, showServed]);
+  }, [scopedOrders, showServed]);
 
-  const totalActive = (orders ?? []).filter(
+  const totalActive = scopedOrders.filter(
     (o) => o.status !== "served" && o.status !== "cancelled",
   ).length;
 
