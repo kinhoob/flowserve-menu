@@ -159,6 +159,10 @@ function PublicMenuPage() {
     );
   };
 
+  const setNote = (lineId: string, note: string) => {
+    setCart((c) => c.map((x) => (x.lineId === lineId ? { ...x, note } : x)));
+  };
+
   const placeOrder = async () => {
     if (!data || cart.length === 0) return;
     if (!customerName.trim()) {
