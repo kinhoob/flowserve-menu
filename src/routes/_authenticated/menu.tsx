@@ -263,16 +263,27 @@ function CategoriesPanel({
   const update = useUpdateCategory(restaurantId);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
+  const [newKind, setNewKind] = useState<"food" | "drink">("food");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
   const submit = async () => {
     if (!name.trim()) return;
     try {
-      const cat = await create.mutateAsync({ name: name.trim() });
+      const cat = await create.mutateAsync({ name: name.trim(), kind: newKind });
       onPick(cat.id);
       setName("");
+      setNewKind("food");
       setAdding(false);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const toggleKind = async (c: Category) => {
+    const next = ((c as any).kind === "drink" ? "food" : "drink") as "food" | "drink";
+    try {
+      await update.mutateAsync({ id: c.id, patch: { kind: next } as any });
     } catch (e: any) {
       toast.error(e.message);
     }
