@@ -191,6 +191,7 @@ function PublicMenuPage() {
           name_snapshot: c.name,
           price_snapshot: c.unitPrice,
           quantity: c.qty,
+          notes: c.note || null,
           modifiers_snapshot: c.modifiers,
         })),
       );
