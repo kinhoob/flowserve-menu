@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, ChefHat, CheckCircle2, XCircle, ArrowRight, Loader2, Volume2, VolumeX } from "lucide-react";
+import { Clock, ChefHat, CheckCircle2, XCircle, ArrowRight, Loader2, Volume2, VolumeX, Archive } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import {
   useOrders,
   useUpdateOrderStatus,
+  useArchiveServedOrders,
   STATUS_FLOW,
   STATUS_LABELS,
   type Order,
