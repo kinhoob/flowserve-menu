@@ -109,11 +109,12 @@ function PublicMenuPage() {
       basePrice: Number(it.price),
       unitPrice: Number(it.price),
       qty: 1,
+      note: "",
       modifiers: [],
     };
     setCart((c) => {
-      // merge with identical line without modifiers
-      const existing = c.find((x) => x.itemId === it.id && x.modifiers.length === 0);
+      // merge with identical line without modifiers and no note
+      const existing = c.find((x) => x.itemId === it.id && x.modifiers.length === 0 && !x.note);
       if (existing) return c.map((x) => (x === existing ? { ...x, qty: x.qty + 1 } : x));
       return [...c, line];
     });
