@@ -58,12 +58,14 @@ export async function callWaiter(input: {
   table_label?: string | null;
   customer_name?: string | null;
   message?: string | null;
+  kind?: "call" | "bill";
 }) {
   const { error } = await supabase.from("waiter_calls").insert({
     restaurant_id: input.restaurant_id,
     table_label: input.table_label ?? null,
     customer_name: input.customer_name ?? null,
     message: input.message ?? null,
-  });
+    ...(input.kind ? ({ kind: input.kind } as any) : {}),
+  } as any);
   if (error) throw error;
 }
