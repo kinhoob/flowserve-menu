@@ -145,6 +145,7 @@ function PublicMenuPage() {
         basePrice: Number(it.price),
         unitPrice: Number(it.price) + delta,
         qty: 1,
+        note: "",
         modifiers: selected,
       },
     ]);
