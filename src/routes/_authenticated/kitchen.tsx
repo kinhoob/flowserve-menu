@@ -254,14 +254,21 @@ function KitchenColumn({
 
                 <ul className="mt-3 space-y-1.5 border-t border-border pt-3 text-sm">
                   {o.order_items.map((it) => (
-                    <li key={it.id} className="flex justify-between gap-2">
-                      <span className="text-foreground">
-                        <span className="font-medium text-primary">{it.quantity}×</span>{" "}
-                        {it.name_snapshot}
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
-                      </span>
+                    <li key={it.id} className="flex flex-col gap-0.5">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-foreground">
+                          <span className="font-medium text-primary">{it.quantity}×</span>{" "}
+                          {it.name_snapshot}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
+                        </span>
+                      </div>
+                      {it.notes && (
+                        <span className="pl-5 text-[11px] italic text-primary/80">
+                          obs: {it.notes}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
