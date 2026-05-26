@@ -419,6 +419,23 @@ function CategoriesPanel({
             placeholder="ex.: Coquetéis"
             className="input-field h-9"
           />
+          <div className="flex gap-1">
+            {(["food", "drink"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setNewKind(k)}
+                className={
+                  "flex-1 rounded-lg px-2 py-1.5 text-[11px] uppercase tracking-wider transition " +
+                  (newKind === k
+                    ? "bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]"
+                    : "border border-border text-muted-foreground hover:text-foreground")
+                }
+              >
+                {k === "food" ? "Cozinha" : "Bar"}
+              </button>
+            ))}
+          </div>
           <div className="flex justify-end gap-1">
             <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
               Cancelar
