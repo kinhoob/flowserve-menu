@@ -283,6 +283,27 @@ function PublicMenuPage() {
                 Chamar garçom
               </button>
             )}
+            {table && (
+              <button
+                onClick={async () => {
+                  if (!data) return;
+                  try {
+                    await callWaiter({
+                      restaurant_id: data.restaurant.id,
+                      table_label: `Mesa ${table}`,
+                      customer_name: customerName.trim() || null,
+                      kind: "bill",
+                    });
+                    toast.success("Conta solicitada", { duration: 2000 });
+                  } catch (e: any) {
+                    toast.error(e.message ?? "Erro");
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1 text-xs text-muted-foreground transition hover:text-foreground"
+              >
+                <Check className="h-3 w-3" /> Pedir a conta
+              </button>
+            )}
           </div>
         </motion.div>
 
