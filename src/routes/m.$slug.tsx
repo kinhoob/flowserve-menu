@@ -521,6 +521,12 @@ function PublicMenuPage() {
                               </button>
                             </div>
                           </div>
+                          <input
+                            value={c.note}
+                            onChange={(e) => setNote(c.lineId, e.target.value)}
+                            placeholder="Observação (ex.: sem cebola, gelo e limão)"
+                            className="mt-2 w-full rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs outline-none transition placeholder:text-muted-foreground/60 focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                          />
                         </motion.li>
                       ))}
                     </AnimatePresence>
