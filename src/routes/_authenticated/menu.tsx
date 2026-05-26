@@ -353,7 +353,19 @@ function CategoriesPanel({
                       onClick={() => onPick(c.id)}
                       className="flex flex-1 items-center justify-between truncate text-left"
                     >
-                      <span className="truncate">{c.name}</span>
+                      <span className="flex items-center gap-2 truncate">
+                        <span className="truncate">{c.name}</span>
+                        <span
+                          className={
+                            "rounded-full px-1.5 py-0.5 text-[9px] uppercase tracking-wider ring-1 " +
+                            ((c as any).kind === "drink"
+                              ? "bg-[oklch(0.65_0.18_250_/_0.15)] text-[oklch(0.78_0.13_250)] ring-[oklch(0.65_0.18_250_/_0.3)]"
+                              : "bg-gold-soft text-primary ring-[oklch(0.78_0.13_84_/_0.3)]")
+                          }
+                        >
+                          {(c as any).kind === "drink" ? "Bar" : "Cozinha"}
+                        </span>
+                      </span>
                       {active && <ChevronRight className="h-3.5 w-3.5 text-primary" />}
                     </button>
                   )}
@@ -371,6 +383,10 @@ function CategoriesPanel({
                         }}
                       >
                         <Pencil className="h-3.5 w-3.5" /> Renomear
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => toggleKind(c)}>
+                        <UtensilsCrossed className="h-3.5 w-3.5" />
+                        {(c as any).kind === "drink" ? "Mover p/ Cozinha" : "Mover p/ Bar"}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
