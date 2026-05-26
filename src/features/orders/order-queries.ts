@@ -52,13 +52,33 @@ export function useOrders(restaurantId: string | undefined) {
     queryFn: async (): Promise<Order[]> => {
       const { data, error } = await supabase
         .from("orders")
-        .select("*, order_items(*)")
+        .select("*, order_items(*, menu_items(category_id, categories(kind)))")
         .eq("restaurant_id", restaurantId!)
+        .eq("archived", false as any)
         .order("created_at", { ascending: false })
         .limit(200);
       if (error) throw error;
       return (data ?? []) as Order[];
     },
+  });
+}
+
+export function useArchiveServedOrders(restaurantId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { error, count } = await supabase
+        .from("orders")
+        .update({ archived: true } as any, { count: "exact" })
+        .eq("restaurant_id", restaurantId!)
+        .in("status", ["served", "cancelled"])
+        .lt("updated_at", cutoff)
+        .eq("archived", false as any);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders", restaurantId] }),
   });
 }
 
