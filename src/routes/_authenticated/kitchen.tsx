@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, ChefHat, CheckCircle2, XCircle, ArrowRight, Loader2, Volume2, VolumeX } from "lucide-react";
+import { Clock, ChefHat, CheckCircle2, XCircle, ArrowRight, Loader2, Volume2, VolumeX, Archive } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import {
   useOrders,
   useUpdateOrderStatus,
+  useArchiveServedOrders,
   STATUS_FLOW,
   STATUS_LABELS,
   type Order,
@@ -41,20 +43,35 @@ function KitchenPage() {
   const { data: restaurant } = useRestaurant();
   const { data: orders, isLoading } = useOrders(restaurant?.id);
   const update = useUpdateOrderStatus(restaurant?.id);
+  const archive = useArchiveServedOrders(restaurant?.id);
   const [showServed, setShowServed] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [scope, setScope] = useState<"all" | "food" | "drink">("all");
   const prevPending = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
+
+  const scopedOrders = useMemo(() => {
+    if (scope === "all") return orders ?? [];
+    return (orders ?? [])
+      .map((o) => {
+        const items = o.order_items.filter((it) => {
+          const kind = (it as any)?.menu_items?.categories?.kind ?? "food";
+          return kind === scope;
+        });
+        return { ...o, order_items: items };
+      })
+      .filter((o) => o.order_items.length > 0);
+  }, [orders, scope]);
 
   const columns = useMemo(() => {
     const visible = STATUS_FLOW.filter((s) => (showServed ? true : s !== "served"));
     return visible.map((status) => ({
       status,
-      orders: (orders ?? []).filter((o) => o.status === status),
+      orders: scopedOrders.filter((o) => o.status === status),
     }));
-  }, [orders, showServed]);
+  }, [scopedOrders, showServed]);
 
-  const totalActive = (orders ?? []).filter(
+  const totalActive = scopedOrders.filter(
     (o) => o.status !== "served" && o.status !== "cancelled",
   ).length;
 
@@ -84,7 +101,27 @@ function KitchenPage() {
             {totalActive} {totalActive === 1 ? "pedido ativo" : "pedidos ativos"} · atualizado em tempo real
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-xl border border-border bg-surface p-0.5 text-xs">
+            {([
+              { k: "all" as const, l: "Tudo" },
+              { k: "food" as const, l: "Cozinha" },
+              { k: "drink" as const, l: "Bar" },
+            ]).map(({ k, l }) => (
+              <button
+                key={k}
+                onClick={() => setScope(k)}
+                className={
+                  "rounded-lg px-3 py-1.5 transition " +
+                  (scope === k
+                    ? "bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]"
+                    : "text-muted-foreground hover:text-foreground")
+                }
+              >
+                {l}
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => setSoundOn((v) => !v)}
             title={soundOn ? "Som ativo" : "Som mudo"}
@@ -97,6 +134,20 @@ function KitchenPage() {
             className="rounded-xl border border-border bg-surface px-4 py-2 text-sm text-muted-foreground transition hover:text-foreground"
           >
             {showServed ? "Ocultar entregues" : "Mostrar entregues"}
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const n = await archive.mutateAsync();
+                toast.success(n > 0 ? `${n} pedido(s) arquivado(s)` : "Nada para arquivar");
+              } catch (e: any) {
+                toast.error(e.message ?? "Erro ao arquivar");
+              }
+            }}
+            disabled={archive.isPending}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground disabled:opacity-60"
+          >
+            <Archive className="h-4 w-4" /> Arquivar concluídos
           </button>
           <span className="inline-flex items-center gap-2 rounded-full bg-gold-soft px-3 py-1.5 text-xs text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
             <span className="relative flex h-2 w-2">
@@ -203,14 +254,21 @@ function KitchenColumn({
 
                 <ul className="mt-3 space-y-1.5 border-t border-border pt-3 text-sm">
                   {o.order_items.map((it) => (
-                    <li key={it.id} className="flex justify-between gap-2">
-                      <span className="text-foreground">
-                        <span className="font-medium text-primary">{it.quantity}×</span>{" "}
-                        {it.name_snapshot}
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
-                      </span>
+                    <li key={it.id} className="flex flex-col gap-0.5">
+                      <div className="flex justify-between gap-2">
+                        <span className="text-foreground">
+                          <span className="font-medium text-primary">{it.quantity}×</span>{" "}
+                          {it.name_snapshot}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
+                        </span>
+                      </div>
+                      {it.notes && (
+                        <span className="pl-5 text-[11px] italic text-primary/80">
+                          obs: {it.notes}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

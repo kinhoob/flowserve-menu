@@ -263,16 +263,27 @@ function CategoriesPanel({
   const update = useUpdateCategory(restaurantId);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
+  const [newKind, setNewKind] = useState<"food" | "drink">("food");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
   const submit = async () => {
     if (!name.trim()) return;
     try {
-      const cat = await create.mutateAsync({ name: name.trim() });
+      const cat = await create.mutateAsync({ name: name.trim(), kind: newKind });
       onPick(cat.id);
       setName("");
+      setNewKind("food");
       setAdding(false);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const toggleKind = async (c: Category) => {
+    const next = ((c as any).kind === "drink" ? "food" : "drink") as "food" | "drink";
+    try {
+      await update.mutateAsync({ id: c.id, patch: { kind: next } as any });
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -342,7 +353,19 @@ function CategoriesPanel({
                       onClick={() => onPick(c.id)}
                       className="flex flex-1 items-center justify-between truncate text-left"
                     >
-                      <span className="truncate">{c.name}</span>
+                      <span className="flex items-center gap-2 truncate">
+                        <span className="truncate">{c.name}</span>
+                        <span
+                          className={
+                            "rounded-full px-1.5 py-0.5 text-[9px] uppercase tracking-wider ring-1 " +
+                            ((c as any).kind === "drink"
+                              ? "bg-[oklch(0.65_0.18_250_/_0.15)] text-[oklch(0.78_0.13_250)] ring-[oklch(0.65_0.18_250_/_0.3)]"
+                              : "bg-gold-soft text-primary ring-[oklch(0.78_0.13_84_/_0.3)]")
+                          }
+                        >
+                          {(c as any).kind === "drink" ? "Bar" : "Cozinha"}
+                        </span>
+                      </span>
                       {active && <ChevronRight className="h-3.5 w-3.5 text-primary" />}
                     </button>
                   )}
@@ -360,6 +383,10 @@ function CategoriesPanel({
                         }}
                       >
                         <Pencil className="h-3.5 w-3.5" /> Renomear
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => toggleKind(c)}>
+                        <UtensilsCrossed className="h-3.5 w-3.5" />
+                        {(c as any).kind === "drink" ? "Mover p/ Cozinha" : "Mover p/ Bar"}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
@@ -392,6 +419,23 @@ function CategoriesPanel({
             placeholder="ex.: Coquetéis"
             className="input-field h-9"
           />
+          <div className="flex gap-1">
+            {(["food", "drink"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setNewKind(k)}
+                className={
+                  "flex-1 rounded-lg px-2 py-1.5 text-[11px] uppercase tracking-wider transition " +
+                  (newKind === k
+                    ? "bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]"
+                    : "border border-border text-muted-foreground hover:text-foreground")
+                }
+              >
+                {k === "food" ? "Cozinha" : "Bar"}
+              </button>
+            ))}
+          </div>
           <div className="flex justify-end gap-1">
             <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>
               Cancelar

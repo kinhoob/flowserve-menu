@@ -20,6 +20,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          kind: string
           name: string
           position: number
           restaurant_id: string
@@ -30,6 +31,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          kind?: string
           name: string
           position?: number
           restaurant_id: string
@@ -40,6 +42,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          kind?: string
           name?: string
           position?: number
           restaurant_id?: string
@@ -253,6 +256,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          archived: boolean
           created_at: string
           currency: string
           customer_name: string | null
@@ -266,6 +270,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived?: boolean
           created_at?: string
           currency?: string
           customer_name?: string | null
@@ -279,6 +284,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived?: boolean
           created_at?: string
           currency?: string
           customer_name?: string | null
@@ -417,6 +423,7 @@ export type Database = {
           created_at: string
           customer_name: string | null
           id: string
+          kind: string
           message: string | null
           resolved: boolean
           resolved_at: string | null
@@ -427,6 +434,7 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           id?: string
+          kind?: string
           message?: string | null
           resolved?: boolean
           resolved_at?: string | null
@@ -437,6 +445,7 @@ export type Database = {
           created_at?: string
           customer_name?: string | null
           id?: string
+          kind?: string
           message?: string | null
           resolved?: boolean
           resolved_at?: string | null

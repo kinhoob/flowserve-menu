@@ -36,6 +36,7 @@ type CartLine = {
   basePrice: number;
   unitPrice: number; // base + modifier deltas
   qty: number;
+  note: string;
   modifiers: { group: string; name: string; price_delta: number }[];
 };
 
@@ -108,11 +109,12 @@ function PublicMenuPage() {
       basePrice: Number(it.price),
       unitPrice: Number(it.price),
       qty: 1,
+      note: "",
       modifiers: [],
     };
     setCart((c) => {
-      // merge with identical line without modifiers
-      const existing = c.find((x) => x.itemId === it.id && x.modifiers.length === 0);
+      // merge with identical line without modifiers and no note
+      const existing = c.find((x) => x.itemId === it.id && x.modifiers.length === 0 && !x.note);
       if (existing) return c.map((x) => (x === existing ? { ...x, qty: x.qty + 1 } : x));
       return [...c, line];
     });
@@ -143,6 +145,7 @@ function PublicMenuPage() {
         basePrice: Number(it.price),
         unitPrice: Number(it.price) + delta,
         qty: 1,
+        note: "",
         modifiers: selected,
       },
     ]);
@@ -154,6 +157,10 @@ function PublicMenuPage() {
     setCart((c) =>
       qty <= 0 ? c.filter((x) => x.lineId !== lineId) : c.map((x) => (x.lineId === lineId ? { ...x, qty } : x)),
     );
+  };
+
+  const setNote = (lineId: string, note: string) => {
+    setCart((c) => c.map((x) => (x.lineId === lineId ? { ...x, note } : x)));
   };
 
   const placeOrder = async () => {
@@ -184,6 +191,7 @@ function PublicMenuPage() {
           name_snapshot: c.name,
           price_snapshot: c.unitPrice,
           quantity: c.qty,
+          notes: c.note || null,
           modifiers_snapshot: c.modifiers,
         })),
       );
@@ -273,6 +281,27 @@ function PublicMenuPage() {
               >
                 {callingWaiter ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bell className="h-3 w-3" />}
                 Chamar garçom
+              </button>
+            )}
+            {table && (
+              <button
+                onClick={async () => {
+                  if (!data) return;
+                  try {
+                    await callWaiter({
+                      restaurant_id: data.restaurant.id,
+                      table_label: `Mesa ${table}`,
+                      customer_name: customerName.trim() || null,
+                      kind: "bill",
+                    });
+                    toast.success("Conta solicitada", { duration: 2000 });
+                  } catch (e: any) {
+                    toast.error(e.message ?? "Erro");
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/60 px-3 py-1 text-xs text-muted-foreground transition hover:text-foreground"
+              >
+                <Check className="h-3 w-3" /> Pedir a conta
               </button>
             )}
           </div>
@@ -492,6 +521,12 @@ function PublicMenuPage() {
                               </button>
                             </div>
                           </div>
+                          <input
+                            value={c.note}
+                            onChange={(e) => setNote(c.lineId, e.target.value)}
+                            placeholder="Observação (ex.: sem cebola, gelo e limão)"
+                            className="mt-2 w-full rounded-lg border border-border bg-background/60 px-2.5 py-1.5 text-xs outline-none transition placeholder:text-muted-foreground/60 focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                          />
                         </motion.li>
                       ))}
                     </AnimatePresence>

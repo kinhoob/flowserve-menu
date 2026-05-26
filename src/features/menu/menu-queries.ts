@@ -43,12 +43,13 @@ export function useMenuItems(restaurantId: string | undefined, categoryId: strin
 export function useCreateCategory(restaurantId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { name: string; description?: string }) => {
+    mutationFn: async (input: { name: string; description?: string; kind?: "food" | "drink" }) => {
       if (!restaurantId) throw new Error("No restaurant");
       const payload: TablesInsert<"categories"> = {
         restaurant_id: restaurantId,
         name: input.name,
         description: input.description || null,
+        ...(input.kind ? ({ kind: input.kind } as any) : {}),
       };
       const { data, error } = await supabase.from("categories").insert(payload).select().single();
       if (error) throw error;
