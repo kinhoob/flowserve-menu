@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, Bell, DollarSign, Receipt, Users, Flame, X } from "lucide-react";
+import { ArrowUpRight, Bell, Receipt, Users, Flame } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/auth-provider";
@@ -9,6 +9,7 @@ import { useWaiterCalls, useResolveWaiterCall } from "@/features/waiter/waiter-q
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AdminTour } from "@/features/onboarding/admin-tour";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
