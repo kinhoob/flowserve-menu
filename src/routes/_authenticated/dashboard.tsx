@@ -52,7 +52,7 @@ function DashboardPage() {
     const todayOrders = validOrders.filter(
       (o) => new Date(o.created_at).getTime() >= today,
     );
-    const revenue = todayOrders.reduce((s, o) => s + Number(o.subtotal), 0);
+    
     const activeTables = new Set(
       validOrders
         .filter((o) => o.status !== "served")
