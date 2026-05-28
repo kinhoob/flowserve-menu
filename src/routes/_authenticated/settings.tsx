@@ -22,7 +22,7 @@ function SettingsPage() {
   }, [restaurant]);
 
   const update = useMutation({
-    mutationFn: async (patch: Record<string, any>) => {
+    mutationFn: async (patch: { kitchen_open?: boolean }) => {
       const { error } = await supabase.from("restaurants").update(patch).eq("id", restaurant!.id);
       if (error) throw error;
     },
