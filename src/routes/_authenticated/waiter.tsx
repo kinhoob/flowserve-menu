@@ -34,15 +34,16 @@ function WaiterPage() {
   const { data: tables } = useTables(restaurant?.id);
   const { data: orders } = useOrders(restaurant?.id);
   const [openTable, setOpenTable] = useState<string | null>(null);
+  const [billTable, setBillTable] = useState<string | null>(null);
   const [ready, setReady] = useState<{ label: string; id: string } | null>(null);
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
 
-  // Occupancy
+  // Occupancy: any active order tied to the table_label
   const occupied = useMemo(() => {
     const s = new Set<string>();
     for (const o of orders ?? []) {
-      if (o.status !== "served" && o.status !== "cancelled" && o.table_label) s.add(o.table_label);
+      if (ACTIVE.includes(o.status) && o.table_label) s.add(o.table_label);
     }
     return s;
   }, [orders]);
