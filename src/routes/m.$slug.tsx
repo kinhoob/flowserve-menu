@@ -58,19 +58,23 @@ function PublicMenuPage() {
     queryFn: async () => {
       const { data: r, error: rErr } = await supabase
         .from("restaurants")
-        .select("id,name,description,currency,brand_color,slug")
+        .select("id,name,description,currency,brand_color,slug,kitchen_open")
         .eq("slug", slug)
         .maybeSingle();
       if (rErr) throw rErr;
       if (!r) throw notFound();
       const [cats, items, modifiersMap] = await Promise.all([
         supabase.from("categories").select("*").eq("restaurant_id", r.id).eq("is_active", true).order("position"),
-        supabase.from("menu_items").select("*").eq("restaurant_id", r.id).eq("is_available", true).order("position"),
+        supabase.from("menu_items").select("*, categories(kind)").eq("restaurant_id", r.id).eq("is_available", true).order("position"),
         fetchModifiersForRestaurant(r.id),
       ]);
       if (cats.error) throw cats.error;
       if (items.error) throw items.error;
-      return { restaurant: r, categories: cats.data ?? [], items: (items.data ?? []) as PublicItem[], modifiers: modifiersMap };
+      const kitchenOpen = (r as any).kitchen_open !== false;
+      const filteredItems = kitchenOpen
+        ? (items.data ?? [])
+        : (items.data ?? []).filter((i: any) => i.categories?.kind === "drink");
+      return { restaurant: r, categories: cats.data ?? [], items: filteredItems as PublicItem[], modifiers: modifiersMap, kitchenOpen };
     },
   });
 
