@@ -268,6 +268,11 @@ function PublicMenuPage() {
           <h1 className="mt-2 font-display text-4xl tracking-tight">
             <span className="text-gradient-gold italic">{restaurant.name}</span>
           </h1>
+          {!data.kitchenOpen && (
+            <div className="mt-4 rounded-xl border border-[oklch(0.62_0.21_25_/_0.4)] bg-[oklch(0.62_0.21_25_/_0.08)] px-4 py-3 text-sm text-[oklch(0.85_0.12_25)]">
+              Cozinha encerrada. Apenas bebidas disponíveis.
+            </div>
+          )}
           {restaurant.description && (
             <p className="mt-2 text-sm text-muted-foreground">{restaurant.description}</p>
           )}
