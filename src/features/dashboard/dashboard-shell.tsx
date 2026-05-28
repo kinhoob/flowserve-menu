@@ -9,6 +9,7 @@ import {
   LogOut,
   Bell,
   Search,
+  HandPlatter,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
@@ -18,7 +19,7 @@ import { cn } from "@/lib/utils";
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/menu" | "/onboarding" | "/qrcodes" | "/kitchen" | "/analytics";
+  to: "/dashboard" | "/menu" | "/onboarding" | "/qrcodes" | "/kitchen" | "/analytics" | "/waiter";
   icon: typeof LayoutDashboard;
   soon?: boolean;
 };
@@ -26,6 +27,7 @@ type NavItem = {
 const NAV: NavItem[] = [
   { label: "Visão geral", to: "/dashboard", icon: LayoutDashboard },
   { label: "Pedidos", to: "/kitchen", icon: ClipboardList },
+  { label: "Garçom", to: "/waiter", icon: HandPlatter },
   { label: "Cardápio", to: "/menu", icon: UtensilsCrossed },
   { label: "QR Codes", to: "/qrcodes", icon: QrCode },
   { label: "Análises", to: "/analytics", icon: BarChart3 },
