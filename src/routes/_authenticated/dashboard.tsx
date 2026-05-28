@@ -118,12 +118,6 @@ function DashboardPage() {
 
   const STATS = [
     {
-      label: "Receita hoje",
-      value: formatPrice(stats.revenue, currency),
-      delta: `${stats.ordersCount} ${stats.ordersCount === 1 ? "pedido" : "pedidos"}`,
-      icon: DollarSign,
-    },
-    {
       label: "Pedidos hoje",
       value: String(stats.ordersCount),
       delta: stats.ordersCount > 0 ? "Em tempo real" : "Aguardando primeiro pedido",
