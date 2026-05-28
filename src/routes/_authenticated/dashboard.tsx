@@ -80,34 +80,6 @@ function DashboardPage() {
 
   const recent = (orders ?? []).slice(0, 6);
 
-  // 7-day revenue series
-  const series = useMemo(() => {
-    const days: { label: string; total: number }[] = [];
-    const now = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const next = new Date(d);
-      next.setDate(next.getDate() + 1);
-      const total = (orders ?? [])
-        .filter(
-          (o) =>
-            o.status !== "cancelled" &&
-            new Date(o.created_at) >= d &&
-            new Date(o.created_at) < next,
-        )
-        .reduce((s, o) => s + Number(o.subtotal), 0);
-      days.push({
-        label: d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""),
-        total,
-      });
-    }
-    return days;
-  }, [orders]);
-
-  const maxSeries = Math.max(1, ...series.map((s) => s.total));
-
   const name = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "por aí";
   const ctaTo = restaurant ? "/menu" : "/onboarding";
   const ctaLabel = restaurant ? "Gerenciar cardápio" : "Configurar restaurante";
