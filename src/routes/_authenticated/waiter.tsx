@@ -1,16 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, CheckCircle2, Loader2, Minus, Plus, Search, Send, X } from "lucide-react";
+import { Bell, Loader2, Minus, Plus, Receipt, Search, Send, X } from "lucide-react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
-import { useOrders } from "@/features/orders/order-queries";
+import { useOrders, type Order } from "@/features/orders/order-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { playChime } from "@/lib/sound";
 import { cn } from "@/lib/utils";
+
+const ACTIVE: Order["status"][] = ["pending", "accepted", "preparing", "ready"];
 
 export const Route = createFileRoute("/_authenticated/waiter")({
   head: () => ({ meta: [{ title: "Garçom — Flux" }] }),
