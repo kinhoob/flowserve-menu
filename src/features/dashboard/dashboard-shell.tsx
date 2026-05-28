@@ -49,12 +49,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <FluxLogo />
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {NAV.map(({ label, to, icon: Icon, soon }) => {
+          {NAV.map(({ label, to, icon: Icon, soon, id }) => {
             const active = pathname === to && !soon;
             return (
               <Link
                 key={label}
                 to={to}
+                id={id}
                 className={cn(
                   "group relative flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-all duration-300",
                   active
