@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MSlugRouteImport } from './routes/m.$slug'
+import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
 import { Route as AuthenticatedQrcodesRouteImport } from './routes/_authenticated/qrcodes'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedMenuRouteImport } from './routes/_authenticated/menu'
@@ -38,6 +39,11 @@ const MSlugRoute = MSlugRouteImport.update({
   id: '/m/$slug',
   path: '/m/$slug',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedWaiterRoute = AuthenticatedWaiterRouteImport.update({
+  id: '/waiter',
+  path: '/waiter',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedQrcodesRoute = AuthenticatedQrcodesRouteImport.update({
   id: '/qrcodes',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/menu': typeof AuthenticatedMenuRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/qrcodes': typeof AuthenticatedQrcodesRoute
+  '/waiter': typeof AuthenticatedWaiterRoute
   '/m/$slug': typeof MSlugRoute
 }
 export interface FileRoutesByTo {
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/menu': typeof AuthenticatedMenuRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/qrcodes': typeof AuthenticatedQrcodesRoute
+  '/waiter': typeof AuthenticatedWaiterRoute
   '/m/$slug': typeof MSlugRoute
 }
 export interface FileRoutesById {
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/_authenticated/menu': typeof AuthenticatedMenuRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/qrcodes': typeof AuthenticatedQrcodesRoute
+  '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
   '/m/$slug': typeof MSlugRoute
 }
 export interface FileRouteTypes {
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/menu'
     | '/onboarding'
     | '/qrcodes'
+    | '/waiter'
     | '/m/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/menu'
     | '/onboarding'
     | '/qrcodes'
+    | '/waiter'
     | '/m/$slug'
   id:
     | '__root__'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/_authenticated/menu'
     | '/_authenticated/onboarding'
     | '/_authenticated/qrcodes'
+    | '/_authenticated/waiter'
     | '/m/$slug'
   fileRoutesById: FileRoutesById
 }
@@ -178,6 +190,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/m/$slug'
       preLoaderRoute: typeof MSlugRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/waiter': {
+      id: '/_authenticated/waiter'
+      path: '/waiter'
+      fullPath: '/waiter'
+      preLoaderRoute: typeof AuthenticatedWaiterRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/qrcodes': {
       id: '/_authenticated/qrcodes'
@@ -231,6 +250,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMenuRoute: typeof AuthenticatedMenuRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedQrcodesRoute: typeof AuthenticatedQrcodesRoute
+  AuthenticatedWaiterRoute: typeof AuthenticatedWaiterRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -240,6 +260,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMenuRoute: AuthenticatedMenuRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedQrcodesRoute: AuthenticatedQrcodesRoute,
+  AuthenticatedWaiterRoute: AuthenticatedWaiterRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -255,3 +276,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
