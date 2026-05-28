@@ -139,6 +139,21 @@ function WaiterPage() {
             onClose={() => setOpenTable(null)}
           />
         )}
+        {billTable && restaurant && (
+          <BillModal
+            tableLabel={billTable}
+            orders={(orders ?? []).filter((o) => o.table_label === billTable && ACTIVE.includes(o.status))}
+            currency={restaurant.currency}
+            onClose={() => setBillTable(null)}
+            onAddItems={() => {
+              const t = sorted.find((x) => x.label === billTable);
+              if (t) {
+                setBillTable(null);
+                setOpenTable(t.id);
+              }
+            }}
+          />
+        )}
       </AnimatePresence>
 
       <AnimatePresence>
