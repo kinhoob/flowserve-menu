@@ -98,7 +98,7 @@ function WaiterPage() {
             <motion.button
               key={t.id}
               whileTap={{ scale: 0.96 }}
-              onClick={() => setOpenTable(t.id)}
+              onClick={() => (isBusy ? setBillTable(t.label) : setOpenTable(t.id))}
               className={cn(
                 "relative aspect-square rounded-2xl border p-4 text-left transition",
                 isBusy
@@ -111,9 +111,13 @@ function WaiterPage() {
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px]">
                 <span className={cn("inline-flex items-center gap-1.5", isBusy ? "text-[oklch(0.7_0.18_25)]" : "text-emerald-400")}>
                   <span className={cn("h-1.5 w-1.5 rounded-full", isBusy ? "bg-[oklch(0.7_0.18_25)] animate-pulse" : "bg-emerald-400")} />
-                  {isBusy ? "Ocupada" : "Livre"}
+                  {isBusy ? "Ver conta" : "Livre"}
                 </span>
-                <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                {isBusy ? (
+                  <Receipt className="h-3.5 w-3.5 text-[oklch(0.78_0.18_25)]" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
               </div>
             </motion.button>
           );
