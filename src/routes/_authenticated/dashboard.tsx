@@ -75,7 +75,7 @@ function DashboardPage() {
       }
     });
 
-    return { revenue, ordersCount: todayOrders.length, activeTables, topItem, topQty };
+    return { ordersCount: todayOrders.length, activeTables, topItem, topQty };
   }, [orders]);
 
   const recent = (orders ?? []).slice(0, 6);
