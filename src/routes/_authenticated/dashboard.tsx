@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, Bell, DollarSign, Receipt, Users, Flame, X } from "lucide-react";
+import { ArrowUpRight, Bell, Receipt, Users, Flame } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/auth-provider";
@@ -9,6 +9,7 @@ import { useWaiterCalls, useResolveWaiterCall } from "@/features/waiter/waiter-q
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AdminTour } from "@/features/onboarding/admin-tour";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -51,7 +52,7 @@ function DashboardPage() {
     const todayOrders = validOrders.filter(
       (o) => new Date(o.created_at).getTime() >= today,
     );
-    const revenue = todayOrders.reduce((s, o) => s + Number(o.subtotal), 0);
+    
     const activeTables = new Set(
       validOrders
         .filter((o) => o.status !== "served")
@@ -74,38 +75,10 @@ function DashboardPage() {
       }
     });
 
-    return { revenue, ordersCount: todayOrders.length, activeTables, topItem, topQty };
+    return { ordersCount: todayOrders.length, activeTables, topItem, topQty };
   }, [orders]);
 
   const recent = (orders ?? []).slice(0, 6);
-
-  // 7-day revenue series
-  const series = useMemo(() => {
-    const days: { label: string; total: number }[] = [];
-    const now = new Date();
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(now);
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const next = new Date(d);
-      next.setDate(next.getDate() + 1);
-      const total = (orders ?? [])
-        .filter(
-          (o) =>
-            o.status !== "cancelled" &&
-            new Date(o.created_at) >= d &&
-            new Date(o.created_at) < next,
-        )
-        .reduce((s, o) => s + Number(o.subtotal), 0);
-      days.push({
-        label: d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""),
-        total,
-      });
-    }
-    return days;
-  }, [orders]);
-
-  const maxSeries = Math.max(1, ...series.map((s) => s.total));
 
   const name = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "por aí";
   const ctaTo = restaurant ? "/menu" : "/onboarding";
@@ -116,12 +89,6 @@ function DashboardPage() {
     hour < 5 ? "Boa madrugada" : hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   const STATS = [
-    {
-      label: "Receita hoje",
-      value: formatPrice(stats.revenue, currency),
-      delta: `${stats.ordersCount} ${stats.ordersCount === 1 ? "pedido" : "pedidos"}`,
-      icon: DollarSign,
-    },
     {
       label: "Pedidos hoje",
       value: String(stats.ordersCount),
@@ -191,8 +158,7 @@ function DashboardPage() {
         </div>
       )}
 
-      <div className="grid gap-4 stagger sm:grid-cols-2 lg:grid-cols-4">
-
+      <div className="grid gap-4 stagger sm:grid-cols-3">
         {STATS.map(({ label, value, delta, icon: Icon }) => (
           <div
             key={label}
@@ -206,59 +172,6 @@ function DashboardPage() {
             <div className="mt-1 text-xs text-muted-foreground">{delta}</div>
           </div>
         ))}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-surface p-6 animate-fade-up lg:col-span-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="font-display text-xl tracking-tight">Receita (7 dias)</h2>
-              <p className="text-xs text-muted-foreground">
-                Atualizado em tempo real conforme os pedidos chegam.
-              </p>
-            </div>
-            <span className="rounded-full bg-gold-soft px-3 py-1 text-xs text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
-              Ao vivo
-            </span>
-          </div>
-          <div className="mt-6 flex h-56 items-end gap-2">
-            {series.map((d, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                <div
-                  className="w-full rounded-md bg-gradient-to-t from-[oklch(0.78_0.13_84_/_0.1)] to-[oklch(0.78_0.13_84_/_0.45)] transition-all duration-700"
-                  style={{ height: `${Math.max(4, (d.total / maxSeries) * 100)}%` }}
-                  title={formatPrice(d.total, currency)}
-                />
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {d.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-surface p-6 animate-fade-up">
-          <h2 className="font-display text-xl tracking-tight">Comece por aqui</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Conclua estes passos para ficar no ar.</p>
-          <ul className="mt-5 space-y-3 text-sm stagger">
-            {[
-              "Crie o perfil do restaurante",
-              "Adicione categorias e itens",
-              "Gere QR codes para as mesas",
-              "Abra o painel da cozinha",
-            ].map((step, i) => (
-              <li
-                key={step}
-                className="flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2.5 transition hover:border-[oklch(0.78_0.13_84_/_0.3)]"
-              >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full border border-border text-[11px] text-muted-foreground">
-                  {i + 1}
-                </span>
-                <span className="text-muted-foreground">{step}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
       </div>
 
       <div className="rounded-2xl border border-border bg-surface p-6 animate-fade-up">
@@ -367,6 +280,8 @@ function DashboardPage() {
           )}
         </DialogContent>
       </Dialog>
+      <AdminTour />
     </div>
   );
 }
+

@@ -19,19 +19,20 @@ import { cn } from "@/lib/utils";
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/menu" | "/onboarding" | "/qrcodes" | "/kitchen" | "/analytics" | "/waiter";
+  to: "/dashboard" | "/menu" | "/onboarding" | "/qrcodes" | "/kitchen" | "/analytics" | "/waiter" | "/settings";
   icon: typeof LayoutDashboard;
   soon?: boolean;
+  id?: string;
 };
 
 const NAV: NavItem[] = [
-  { label: "Visão geral", to: "/dashboard", icon: LayoutDashboard },
-  { label: "Pedidos", to: "/kitchen", icon: ClipboardList },
-  { label: "Garçom", to: "/waiter", icon: HandPlatter },
-  { label: "Cardápio", to: "/menu", icon: UtensilsCrossed },
-  { label: "QR Codes", to: "/qrcodes", icon: QrCode },
-  { label: "Análises", to: "/analytics", icon: BarChart3 },
-  { label: "Configurações", to: "/dashboard", icon: Settings, soon: true },
+  { label: "Visão geral", to: "/dashboard", icon: LayoutDashboard, id: "nav-dashboard" },
+  { label: "Pedidos", to: "/kitchen", icon: ClipboardList, id: "nav-kitchen" },
+  { label: "Garçom", to: "/waiter", icon: HandPlatter, id: "nav-waiter" },
+  { label: "Cardápio", to: "/menu", icon: UtensilsCrossed, id: "nav-menu" },
+  { label: "QR Codes", to: "/qrcodes", icon: QrCode, id: "nav-qrcodes" },
+  { label: "Análises", to: "/analytics", icon: BarChart3, id: "nav-analytics" },
+  { label: "Configurações", to: "/settings", icon: Settings, id: "nav-settings" },
 ];
 
 export function DashboardShell({ children }: { children: ReactNode }) {
@@ -48,12 +49,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <FluxLogo />
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {NAV.map(({ label, to, icon: Icon, soon }) => {
+          {NAV.map(({ label, to, icon: Icon, soon, id }) => {
             const active = pathname === to && !soon;
             return (
               <Link
                 key={label}
                 to={to}
+                id={id}
                 className={cn(
                   "group relative flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-all duration-300",
                   active

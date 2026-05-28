@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MSlugRouteImport } from './routes/m.$slug'
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedQrcodesRouteImport } from './routes/_authenticated/qrcodes'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedMenuRouteImport } from './routes/_authenticated/menu'
@@ -43,6 +44,11 @@ const MSlugRoute = MSlugRouteImport.update({
 const AuthenticatedWaiterRoute = AuthenticatedWaiterRouteImport.update({
   id: '/waiter',
   path: '/waiter',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedQrcodesRoute = AuthenticatedQrcodesRouteImport.update({
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/menu': typeof AuthenticatedMenuRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/qrcodes': typeof AuthenticatedQrcodesRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
   '/m/$slug': typeof MSlugRoute
 }
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/menu': typeof AuthenticatedMenuRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/qrcodes': typeof AuthenticatedQrcodesRoute
+  '/settings': typeof AuthenticatedSettingsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
   '/m/$slug': typeof MSlugRoute
 }
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/_authenticated/menu': typeof AuthenticatedMenuRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/qrcodes': typeof AuthenticatedQrcodesRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
   '/m/$slug': typeof MSlugRoute
 }
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/menu'
     | '/onboarding'
     | '/qrcodes'
+    | '/settings'
     | '/waiter'
     | '/m/$slug'
   fileRoutesByTo: FileRoutesByTo
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/menu'
     | '/onboarding'
     | '/qrcodes'
+    | '/settings'
     | '/waiter'
     | '/m/$slug'
   id:
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/_authenticated/menu'
     | '/_authenticated/onboarding'
     | '/_authenticated/qrcodes'
+    | '/_authenticated/settings'
     | '/_authenticated/waiter'
     | '/m/$slug'
   fileRoutesById: FileRoutesById
@@ -196,6 +208,13 @@ declare module '@tanstack/react-router' {
       path: '/waiter'
       fullPath: '/waiter'
       preLoaderRoute: typeof AuthenticatedWaiterRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/qrcodes': {
@@ -250,6 +269,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMenuRoute: typeof AuthenticatedMenuRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedQrcodesRoute: typeof AuthenticatedQrcodesRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedWaiterRoute: typeof AuthenticatedWaiterRoute
 }
 
@@ -260,6 +280,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMenuRoute: AuthenticatedMenuRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedQrcodesRoute: AuthenticatedQrcodesRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedWaiterRoute: AuthenticatedWaiterRoute,
 }
 

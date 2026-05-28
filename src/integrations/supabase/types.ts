@@ -345,6 +345,7 @@ export type Database = {
           currency: string
           description: string | null
           id: string
+          kitchen_open: boolean
           logo_url: string | null
           name: string
           owner_id: string
@@ -358,6 +359,7 @@ export type Database = {
           currency?: string
           description?: string | null
           id?: string
+          kitchen_open?: boolean
           logo_url?: string | null
           name: string
           owner_id: string
@@ -371,6 +373,7 @@ export type Database = {
           currency?: string
           description?: string | null
           id?: string
+          kitchen_open?: boolean
           logo_url?: string | null
           name?: string
           owner_id?: string
