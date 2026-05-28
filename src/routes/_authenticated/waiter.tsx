@@ -53,6 +53,9 @@ function WaiterPage() {
         if (!seenReady.current.has(o.id)) {
           seenReady.current.add(o.id);
           playChime();
+          if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+            try { navigator.vibrate([200, 100, 200]); } catch {}
+          }
           setReady({ label: o.table_label ?? "Balcão", id: o.id });
           break;
         }
