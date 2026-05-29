@@ -83,10 +83,30 @@ function PublicMenuPage() {
   const [openCart, setOpenCart] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [placedOrder, setPlacedOrder] = useState<{ id: string; status: string } | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [pickerItem, setPickerItem] = useState<PublicItem | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
   const [bump, setBump] = useState(0);
+
+  // Realtime subscription to the placed order's status
+  useEffect(() => {
+    if (!placedOrder?.id) return;
+    const channel = supabase
+      .channel(`order-${placedOrder.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${placedOrder.id}` },
+        (payload) => {
+          const next = (payload.new as any)?.status as string | undefined;
+          if (next) setPlacedOrder((p) => (p ? { ...p, status: next } : p));
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [placedOrder?.id]);
 
   useEffect(() => {
     if (data?.categories.length && !activeCat) setActiveCat(data.categories[0].id);
