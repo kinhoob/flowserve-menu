@@ -252,9 +252,9 @@ function KitchenColumn({
                   </span>
                 </div>
 
-                <ul className="mt-3 space-y-1.5 border-t border-border pt-3 text-sm">
+                <ul className="mt-3 space-y-2 border-t border-border pt-3 text-sm">
                   {o.order_items.map((it) => (
-                    <li key={it.id} className="flex flex-col gap-0.5">
+                    <li key={it.id} className="flex flex-col gap-1">
                       <div className="flex justify-between gap-2">
                         <span className="text-foreground">
                           <span className="font-medium text-primary">{it.quantity}×</span>{" "}
@@ -265,9 +265,10 @@ function KitchenColumn({
                         </span>
                       </div>
                       {it.notes && (
-                        <span className="pl-5 text-[11px] italic text-primary/80">
-                          obs: {it.notes}
-                        </span>
+                        <div className="rounded-md border border-[oklch(0.78_0.16_84_/_0.45)] bg-[oklch(0.92_0.12_92_/_0.18)] px-2.5 py-1.5 text-[12px] font-semibold text-[oklch(0.88_0.16_88)]">
+                          <span className="mr-1 text-[10px] uppercase tracking-wider text-[oklch(0.78_0.14_84)]">Obs:</span>
+                          {it.notes}
+                        </div>
                       )}
                     </li>
                   ))}

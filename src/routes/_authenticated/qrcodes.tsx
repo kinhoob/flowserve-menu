@@ -35,9 +35,10 @@ function QRCodesPage() {
   const createMany = useCreateManyTables(restaurant?.id);
   const del = useDeleteTable(restaurant?.id);
 
+  const OCCUPIED_STATUSES = ["pending", "accepted", "preparing", "ready"] as const;
   const occupiedLabels = new Set(
     orders
-      .filter((o) => o.status !== "served" && o.status !== "cancelled" && o.table_label)
+      .filter((o) => (OCCUPIED_STATUSES as readonly string[]).includes(o.status) && o.table_label)
       .map((o) => o.table_label as string),
   );
 

@@ -67,13 +67,13 @@ export function useArchiveServedOrders(restaurantId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
       const { error, count } = await supabase
         .from("orders")
         .update({ archived: true } as any, { count: "exact" })
         .eq("restaurant_id", restaurantId!)
         .in("status", ["served", "cancelled"])
-        .lt("updated_at", cutoff)
+        .lt("created_at", cutoff)
         .eq("archived", false as any);
       if (error) throw error;
       return count ?? 0;

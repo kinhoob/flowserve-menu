@@ -83,10 +83,30 @@ function PublicMenuPage() {
   const [openCart, setOpenCart] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [placedOrder, setPlacedOrder] = useState<{ id: string; status: string } | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [pickerItem, setPickerItem] = useState<PublicItem | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
   const [bump, setBump] = useState(0);
+
+  // Realtime subscription to the placed order's status
+  useEffect(() => {
+    if (!placedOrder?.id) return;
+    const channel = supabase
+      .channel(`order-${placedOrder.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${placedOrder.id}` },
+        (payload) => {
+          const next = (payload.new as any)?.status as string | undefined;
+          if (next) setPlacedOrder((p) => (p ? { ...p, status: next } : p));
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [placedOrder?.id]);
 
   useEffect(() => {
     if (data?.categories.length && !activeCat) setActiveCat(data.categories[0].id);
@@ -201,12 +221,8 @@ function PublicMenuPage() {
       );
       if (iErr) throw iErr;
       setSent(true);
+      setPlacedOrder({ id: order.id, status: "pending" });
       setCart([]);
-      setCustomerName("");
-      setTimeout(() => {
-        setSent(false);
-        setOpenCart(false);
-      }, 2200);
     } catch (e: any) {
       toast.error(e.message ?? "Não foi possível enviar o pedido");
     } finally {
@@ -471,20 +487,15 @@ function PublicMenuPage() {
               </div>
 
               {sent ? (
-                <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-                  <motion.div
-                    initial={{ scale: 0.6, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                    className="flex h-16 w-16 items-center justify-center rounded-full bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.4)]"
-                  >
-                    <Check className="h-7 w-7" />
-                  </motion.div>
-                  <p className="mt-5 font-display text-2xl">Pedido enviado</p>
-                  <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-                    O estabelecimento já recebeu seu pedido. Em breve estará a caminho.
-                  </p>
-                </div>
+                <OrderStatusPanel
+                  status={placedOrder?.status ?? "pending"}
+                  onClose={() => {
+                    setSent(false);
+                    setPlacedOrder(null);
+                    setCustomerName("");
+                    setOpenCart(false);
+                  }}
+                />
               ) : (
                 <>
                   <ul className="max-h-[48vh] space-y-2 overflow-y-auto px-5 py-4">
@@ -744,6 +755,108 @@ function EmptyMenu() {
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/40 py-20 text-center">
       <UtensilsCrossed className="h-6 w-6 text-muted-foreground" />
       <p className="mt-3 text-sm text-muted-foreground">Cardápio em breve.</p>
+    </div>
+  );
+}
+
+const STATUS_STEPS: { key: string; label: string; sub: string }[] = [
+  { key: "pending", label: "Pedido Recebido", sub: "Aguardando a cozinha confirmar" },
+  { key: "accepted", label: "Pedido Confirmado", sub: "Cozinha aceitou o pedido" },
+  { key: "preparing", label: "Em Preparo", sub: "Seu pedido está sendo feito!" },
+  { key: "ready", label: "Pronto!", sub: "A caminho da sua mesa" },
+  { key: "served", label: "Entregue", sub: "Bom apetite!" },
+];
+
+function OrderStatusPanel({ status, onClose }: { status: string; onClose: () => void }) {
+  const isCancelled = status === "cancelled";
+  const currentIdx = STATUS_STEPS.findIndex((s) => s.key === status);
+  const current = STATUS_STEPS[currentIdx] ?? STATUS_STEPS[0];
+  const isDone = status === "served";
+
+  return (
+    <div className="px-6 py-10">
+      {isCancelled ? (
+        <div className="flex flex-col items-center text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
+            <X className="h-7 w-7" />
+          </div>
+          <p className="mt-5 font-display text-2xl">Pedido cancelado</p>
+          <p className="mt-1 text-sm text-muted-foreground">Procure um atendente se precisar de ajuda.</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col items-center text-center">
+            <motion.div
+              key={status}
+              initial={{ scale: 0.7, opacity: 0 }}
+              animate={{
+                scale: isDone ? 1 : [1, 1.08, 1],
+                opacity: 1,
+              }}
+              transition={
+                isDone
+                  ? { duration: 0.5 }
+                  : { scale: { duration: 1.6, repeat: Infinity, ease: "easeInOut" }, opacity: { duration: 0.4 } }
+              }
+              className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.5)]"
+            >
+              {!isDone && (
+                <span className="absolute inset-0 animate-ping rounded-full bg-[oklch(0.78_0.13_84_/_0.35)]" />
+              )}
+              <Check className="relative h-8 w-8" />
+            </motion.div>
+            <p className="mt-5 font-display text-2xl tracking-tight">{current.label}</p>
+            <p className="mt-1 max-w-xs text-sm text-muted-foreground">{current.sub}</p>
+          </div>
+
+          <ol className="mt-8 space-y-3">
+            {STATUS_STEPS.filter((s) => s.key !== "served" || isDone).map((s, i) => {
+              const active = i === currentIdx;
+              const done = i < currentIdx || isDone;
+              return (
+                <li
+                  key={s.key}
+                  className={
+                    "flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition " +
+                    (active
+                      ? "border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft text-foreground"
+                      : done
+                        ? "border-border bg-background/40 text-foreground"
+                        : "border-border bg-background/20 text-muted-foreground")
+                  }
+                >
+                  <span
+                    className={
+                      "flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold " +
+                      (active
+                        ? "bg-primary text-primary-foreground"
+                        : done
+                          ? "bg-primary/30 text-primary"
+                          : "bg-surface text-muted-foreground")
+                    }
+                  >
+                    {done ? <Check className="h-3 w-3" /> : i + 1}
+                  </span>
+                  <span className="flex-1">{s.label}</span>
+                  {active && (
+                    <span className="relative flex h-2 w-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-70" />
+                      <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </>
+      )}
+
+      <button
+        onClick={onClose}
+        className="mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-muted-foreground transition hover:text-foreground"
+      >
+        Fechar
+      </button>
     </div>
   );
 }
