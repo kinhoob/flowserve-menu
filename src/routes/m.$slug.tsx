@@ -221,12 +221,8 @@ function PublicMenuPage() {
       );
       if (iErr) throw iErr;
       setSent(true);
+      setPlacedOrder({ id: order.id, status: "pending" });
       setCart([]);
-      setCustomerName("");
-      setTimeout(() => {
-        setSent(false);
-        setOpenCart(false);
-      }, 2200);
     } catch (e: any) {
       toast.error(e.message ?? "Não foi possível enviar o pedido");
     } finally {
