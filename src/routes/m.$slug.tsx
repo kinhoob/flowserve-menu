@@ -487,20 +487,15 @@ function PublicMenuPage() {
               </div>
 
               {sent ? (
-                <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-                  <motion.div
-                    initial={{ scale: 0.6, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-                    className="flex h-16 w-16 items-center justify-center rounded-full bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.4)]"
-                  >
-                    <Check className="h-7 w-7" />
-                  </motion.div>
-                  <p className="mt-5 font-display text-2xl">Pedido enviado</p>
-                  <p className="mt-1 max-w-xs text-sm text-muted-foreground">
-                    O estabelecimento já recebeu seu pedido. Em breve estará a caminho.
-                  </p>
-                </div>
+                <OrderStatusPanel
+                  status={placedOrder?.status ?? "pending"}
+                  onClose={() => {
+                    setSent(false);
+                    setPlacedOrder(null);
+                    setCustomerName("");
+                    setOpenCart(false);
+                  }}
+                />
               ) : (
                 <>
                   <ul className="max-h-[48vh] space-y-2 overflow-y-auto px-5 py-4">
