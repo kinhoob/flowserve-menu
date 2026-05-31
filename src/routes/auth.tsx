@@ -2,11 +2,12 @@ import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-ro
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { ArrowLeft, Loader2, Mail } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { FluxLogo } from "@/components/brand/logo";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const searchSchema = z.object({
   mode: z.enum(["login", "signup"]).optional().default("login"),
@@ -24,14 +25,41 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
+function friendlyError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("invalid login") || m.includes("invalid credentials"))
+    return "Email ou senha incorretos.";
+  if (m.includes("email not confirmed"))
+    return "Confirme seu email antes de entrar.";
+  if (m.includes("user already") || m.includes("already registered"))
+    return "Este email já está cadastrado. Faça login.";
+  if (m.includes("password") && m.includes("6"))
+    return "A senha precisa ter pelo menos 6 caracteres.";
+  if (m.includes("rate limit") || m.includes("too many"))
+    return "Muitas tentativas. Aguarde alguns instantes e tente novamente.";
+  if (m.includes("invalid") && m.includes("email"))
+    return "Email inválido. Verifique e tente novamente.";
+  if (m.includes("token") && (m.includes("invalid") || m.includes("expired")))
+    return "Código inválido ou expirado. Solicite um novo.";
+  if (m.includes("otp") && m.includes("expired"))
+    return "Código expirado. Solicite um novo.";
+  if (m.includes("network") || m.includes("failed to fetch"))
+    return "Falha de conexão. Verifique sua internet.";
+  return "Não foi possível concluir. Tente novamente em alguns instantes.";
+}
+
 function AuthPage() {
   const { mode: initialMode, redirect: redirectTo } = Route.useSearch();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
+  const [step, setStep] = useState<"form" | "otp">("form");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
 
   useEffect(() => {
@@ -40,7 +68,11 @@ function AuthPage() {
     });
   }, [navigate, redirectTo]);
 
-  useEffect(() => setMode(initialMode), [initialMode]);
+  useEffect(() => {
+    setMode(initialMode);
+    setStep("form");
+    setOtp("");
+  }, [initialMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,7 +89,8 @@ function AuthPage() {
           },
         });
         if (error) throw error;
-        toast.success("Conta criada. Verifique seu email para confirmar.");
+        toast.success("Enviamos um código de 6 dígitos para o seu email.");
+        setStep("otp");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -65,9 +98,43 @@ function AuthPage() {
         navigate({ to: redirectTo ?? "/dashboard" });
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Algo deu errado");
+      toast.error(friendlyError(err instanceof Error ? err.message : ""));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (code: string) => {
+    if (verifying) return;
+    setVerifying(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: "email",
+      });
+      if (error) throw error;
+      toast.success("Email confirmado. Vamos configurar seu restaurante.");
+      navigate({ to: redirectTo ?? "/onboarding" });
+    } catch (err) {
+      toast.error(friendlyError(err instanceof Error ? err.message : ""));
+      setOtp("");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resending) return;
+    setResending(true);
+    try {
+      const { error } = await supabase.auth.resend({ type: "signup", email });
+      if (error) throw error;
+      toast.success("Novo código enviado para o seu email.");
+    } catch (err) {
+      toast.error(friendlyError(err instanceof Error ? err.message : ""));
+    } finally {
+      setResending(false);
     }
   };
 
@@ -79,14 +146,14 @@ function AuthPage() {
         redirect_uri: window.location.origin + "/dashboard",
       });
       if (result.error) {
-        toast.error(result.error.message || "Falha ao entrar com Google");
+        toast.error(friendlyError(result.error.message || ""));
         setOauthLoading(false);
         return;
       }
       if (result.redirected) return;
       navigate({ to: redirectTo ?? "/dashboard" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Falha ao entrar com Google");
+      toast.error(friendlyError(err instanceof Error ? err.message : ""));
       setOauthLoading(false);
     }
   };
@@ -117,84 +184,169 @@ function AuthPage() {
         </div>
 
         <div className="rounded-3xl border border-border bg-surface/80 p-8 shadow-[0_60px_120px_-40px_oklch(0_0_0_/_0.8)] backdrop-blur">
-          <div>
-            <h1 className="font-display text-3xl tracking-tight">
-              {mode === "signup" ? "Crie sua conta" : "Bem-vindo de volta"}
-            </h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {mode === "signup"
-                ? "Comece a servir cardápios digitais em minutos."
-                : "Acesse seu dashboard Flux."}
-            </p>
-          </div>
+          <AnimatePresence mode="wait">
+            {step === "otp" ? (
+              <motion.div
+                key="otp"
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -16 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <div className="flex justify-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
+                    <Mail className="h-5 w-5" />
+                  </div>
+                </div>
+                <h1 className="mt-5 text-center font-display text-3xl tracking-tight">
+                  Confirme seu email
+                </h1>
+                <p className="mt-2 text-center text-sm text-muted-foreground">
+                  Digite o código de 6 dígitos que enviamos para
+                  <br />
+                  <span className="text-foreground">{email}</span>
+                </p>
 
-          <button
-            onClick={handleGoogle}
-            disabled={oauthLoading}
-            className="mt-6 inline-flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground transition hover:bg-surface-2 disabled:opacity-60"
-          >
-            {oauthLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
-            Continuar com Google
-          </button>
+                <div className="mt-8 flex justify-center">
+                  <InputOTP
+                    maxLength={6}
+                    value={otp}
+                    onChange={(val) => {
+                      setOtp(val);
+                      if (val.length === 6) handleVerifyOtp(val);
+                    }}
+                    disabled={verifying}
+                  >
+                    <InputOTPGroup>
+                      {[0, 1, 2, 3, 4, 5].map((i) => (
+                        <InputOTPSlot
+                          key={i}
+                          index={i}
+                          className="h-12 w-12 text-lg font-semibold"
+                        />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
 
-          <div className="my-6 flex items-center gap-3">
-            <span className="h-px flex-1 bg-border" />
-            <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              ou com email
-            </span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
+                {verifying && (
+                  <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Verificando código…
+                  </div>
+                )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "signup" && (
-              <Field
-                label="Seu nome"
-                type="text"
-                autoComplete="name"
-                value={displayName}
-                onChange={setDisplayName}
-                placeholder="Alex Moraes"
-              />
+                <div className="mt-8 space-y-3 text-center">
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={resending}
+                    className="text-sm text-foreground underline-offset-4 hover:underline disabled:opacity-60"
+                  >
+                    {resending ? "Enviando…" : "Reenviar código"}
+                  </button>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep("form");
+                        setOtp("");
+                      }}
+                      className="text-xs text-muted-foreground transition hover:text-foreground"
+                    >
+                      Usar outro email
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="form"
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 16 }}
+                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <div>
+                  <h1 className="font-display text-3xl tracking-tight">
+                    {mode === "signup" ? "Crie sua conta" : "Bem-vindo de volta"}
+                  </h1>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {mode === "signup"
+                      ? "Comece a servir cardápios digitais em minutos."
+                      : "Acesse seu painel Flux."}
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleGoogle}
+                  disabled={oauthLoading}
+                  className="mt-6 inline-flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground transition-all duration-300 hover:-translate-y-0.5 hover:border-[oklch(0.78_0.13_84_/_0.4)] hover:bg-surface-2 disabled:opacity-60"
+                >
+                  {oauthLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleMark />}
+                  Continuar com Google
+                </button>
+
+                <div className="my-6 flex items-center gap-3">
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                    ou com email
+                  </span>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {mode === "signup" && (
+                    <Field
+                      label="Seu nome"
+                      type="text"
+                      autoComplete="name"
+                      value={displayName}
+                      onChange={setDisplayName}
+                      placeholder="Alex Moraes"
+                    />
+                  )}
+                  <Field
+                    label="Email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={setEmail}
+                    placeholder="voce@estabelecimento.com"
+                  />
+                  <Field
+                    label="Senha"
+                    type="password"
+                    autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={setPassword}
+                    placeholder="••••••••"
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-[0_18px_40px_-15px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_60px_-18px_oklch(0.78_0.13_84_/_0.75)] disabled:opacity-60"
+                  >
+                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {mode === "signup" ? "Criar conta" : "Entrar"}
+                  </button>
+                </form>
+
+                <p className="mt-6 text-center text-sm text-muted-foreground">
+                  {mode === "signup" ? "Já tem uma conta?" : "Novo no Flux?"}{" "}
+                  <button
+                    onClick={() => setMode(mode === "signup" ? "login" : "signup")}
+                    className="text-foreground underline-offset-4 hover:underline"
+                  >
+                    {mode === "signup" ? "Entrar" : "Criar uma"}
+                  </button>
+                </p>
+              </motion.div>
             )}
-            <Field
-              label="Email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={setEmail}
-              placeholder="voce@estabelecimento.com"
-            />
-            <Field
-              label="Senha"
-              type="password"
-              autoComplete={mode === "signup" ? "new-password" : "current-password"}
-              required
-              minLength={6}
-              value={password}
-              onChange={setPassword}
-              placeholder="••••••••"
-            />
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90 hover:-translate-y-0.5 disabled:opacity-60"
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {mode === "signup" ? "Criar conta" : "Entrar"}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            {mode === "signup" ? "Já tem uma conta?" : "Novo no Flux?"}{" "}
-            <button
-              onClick={() => setMode(mode === "signup" ? "login" : "signup")}
-              className="text-foreground underline-offset-4 hover:underline"
-            >
-              {mode === "signup" ? "Entrar" : "Criar uma"}
-            </button>
-          </p>
+          </AnimatePresence>
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
