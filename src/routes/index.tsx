@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, QrCode, ChefHat, BarChart3, Sparkles } from "lucide-react";
+import { ArrowUpRight, QrCode, ChefHat, BarChart3, Sparkles, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { FluxLogo } from "@/components/brand/logo";
 import { FadeIn } from "@/components/motion/page-transition";
+import { ScrollToTop } from "@/components/ui/scroll-to-top";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -32,7 +33,53 @@ const features = [
   {
     icon: BarChart3,
     title: "Operação no ponto",
-    body: "Receita, itens populares, atividade nas mesas — todo sinal que você precisa em um dashboard premium.",
+    body: "Itens populares, horários de pico, atividade nas mesas — todo sinal que você precisa em um painel premium.",
+  },
+];
+
+const plans = [
+  {
+    name: "Essential",
+    price: "R$ 99",
+    period: "/mês",
+    description: "Para bares e cafés começando no digital.",
+    features: [
+      "Até 3 mesas com QR Code",
+      "Cardápio digital ilimitado",
+      "Painel da cozinha",
+      "Suporte por email",
+    ],
+    cta: "Começar grátis",
+    featured: false,
+  },
+  {
+    name: "Pro",
+    price: "R$ 199",
+    period: "/mês",
+    description: "Para restaurantes em operação plena.",
+    features: [
+      "Mesas e QR codes ilimitados",
+      "Lançamento rápido para garçom",
+      "Análises de pico e ticket médio",
+      "Realtime para toda equipe",
+      "Suporte prioritário",
+    ],
+    cta: "Iniciar teste grátis",
+    featured: true,
+  },
+  {
+    name: "Enterprise",
+    price: "Personalizado",
+    period: "",
+    description: "Para redes e operações multi-unidade.",
+    features: [
+      "Multi-unidades centralizado",
+      "Integrações sob medida",
+      "SLA dedicado e onboarding",
+      "Gerente de conta exclusivo",
+    ],
+    cta: "Falar com vendas",
+    featured: false,
   },
 ];
 
@@ -71,10 +118,10 @@ function LandingPage() {
           <Link
             to="/auth"
             search={{ mode: "signup" }}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 hover:-translate-y-0.5"
+            className="group inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-[0_10px_30px_-12px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-12px_oklch(0.78_0.13_84_/_0.7)] hover:opacity-95"
           >
             Começar agora
-            <ArrowUpRight className="h-4 w-4" />
+            <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
           </Link>
         </div>
       </motion.header>
@@ -96,7 +143,7 @@ function LandingPage() {
               className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 text-xs text-muted-foreground backdrop-blur"
             >
               <Sparkles className="h-3.5 w-3.5 text-primary" />
-              Beta privado em andamento
+              A plataforma escolhida pela hospitalidade moderna
             </motion.span>
             <motion.h1
               variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
@@ -113,7 +160,7 @@ function LandingPage() {
               className="mx-auto mt-6 max-w-xl text-balance text-base text-muted-foreground md:text-lg"
             >
               O Flux transforma cada mesa em um checkout. Cardápios via QR, comandas em tempo real
-              e um dashboard à altura do salão.
+              e um painel à altura do salão.
             </motion.p>
             <motion.div
               variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
@@ -123,14 +170,14 @@ function LandingPage() {
               <Link
                 to="/auth"
                 search={{ mode: "signup" }}
-                className="group inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90 hover:-translate-y-0.5"
+                className="group inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-[0_18px_40px_-15px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_60px_-18px_oklch(0.78_0.13_84_/_0.75)]"
               >
                 Iniciar teste grátis
-                <ArrowUpRight className="h-4 w-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
               </Link>
               <a
                 href="#features"
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-6 py-3 text-sm text-foreground/90 backdrop-blur transition hover:bg-surface"
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-6 py-3 text-sm text-foreground/90 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-[oklch(0.78_0.13_84_/_0.4)] hover:bg-surface"
               >
                 Conhecer o produto
               </a>
@@ -145,7 +192,7 @@ function LandingPage() {
                     <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.55_0.18_25)]" />
                     <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.78_0.13_84)]" />
                     <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.66_0.13_152)]" />
-                    <span className="ml-3 text-xs text-muted-foreground">flux.app / dashboard</span>
+                    <span className="ml-3 text-xs text-muted-foreground">Painel Flux — operação em tempo real</span>
                   </div>
                   <div className="grid grid-cols-12 gap-4 p-6">
                     <div className="col-span-3 space-y-3">
@@ -201,7 +248,7 @@ function LandingPage() {
           <div className="mt-14 grid gap-4 md:grid-cols-3">
             {features.map(({ icon: Icon, title, body }, i) => (
               <FadeIn key={title} delay={0.1 + i * 0.08}>
-                <div className="group relative h-full overflow-hidden rounded-2xl border border-border bg-surface/80 p-6 hover-lift hover:border-[oklch(0.78_0.13_84_/_0.4)]">
+                <div className="group relative h-full overflow-hidden rounded-2xl border border-border bg-surface/80 p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[oklch(0.78_0.13_84_/_0.4)] hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.6)]">
                   <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
                     <Icon className="h-5 w-5" />
                   </div>
@@ -222,8 +269,8 @@ function LandingPage() {
                   A hospitalidade merece um software melhor.
                 </h2>
                 <p className="mt-5 text-muted-foreground">
-                  A maioria das ferramentas de pedido parece ter sido feita em sala de reunião. O Flux
-                  é construído como um produto digno da sua mesa — silencioso, rápido e bem-acabado.
+                  A maioria das ferramentas de pedido parece feita em sala de reunião. O Flux é
+                  construído como um produto digno da sua mesa — silencioso, rápido e bem-acabado.
                 </p>
                 <ul className="mt-8 space-y-3 text-sm text-muted-foreground">
                   {[
@@ -240,7 +287,7 @@ function LandingPage() {
               </div>
             </FadeIn>
             <FadeIn delay={0.15}>
-              <div className="rounded-3xl border border-border bg-surface p-8 hover-lift">
+              <div className="rounded-3xl border border-border bg-surface p-8 transition-all duration-300 hover:-translate-y-1 hover:border-[oklch(0.78_0.13_84_/_0.4)]">
                 <blockquote className="font-display text-2xl leading-snug tracking-tight">
                   "Substituímos três ferramentas pelo Flux. O serviço ficou 22% mais rápido e o cardápio
                   finalmente combina com o salão."
@@ -259,6 +306,84 @@ function LandingPage() {
 
         <section id="pricing" className="py-24">
           <FadeIn>
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="text-xs uppercase tracking-[0.18em] text-primary">Planos</p>
+              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
+                Escolha o tamanho do seu salão.
+              </h2>
+              <p className="mt-4 text-muted-foreground">
+                Sem fidelidade, sem taxa de setup. Cancele quando quiser.
+              </p>
+            </div>
+          </FadeIn>
+
+          <div className="mt-14 grid gap-6 md:grid-cols-3 md:items-stretch">
+            {plans.map((plan, i) => (
+              <FadeIn key={plan.name} delay={0.08 * i}>
+                <div
+                  className={`group relative flex h-full flex-col rounded-3xl border p-8 transition-all duration-300 hover:-translate-y-1 ${
+                    plan.featured
+                      ? "border-[oklch(0.78_0.13_84_/_0.5)] bg-gradient-to-b from-[oklch(0.78_0.13_84_/_0.12)] to-surface shadow-[0_40px_80px_-30px_oklch(0.78_0.13_84_/_0.45)] md:scale-[1.03]"
+                      : "border-border bg-surface/80 hover:border-[oklch(0.78_0.13_84_/_0.3)] hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.6)]"
+                  }`}
+                >
+                  {plan.featured && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.78_0.13_84_/_0.7)]">
+                      Mais popular
+                    </div>
+                  )}
+
+                  <div>
+                    <h3 className="font-display text-2xl tracking-tight">{plan.name}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
+                  </div>
+
+                  <div className="mt-6 flex items-baseline gap-1">
+                    <span className="font-display text-4xl tracking-tight">{plan.price}</span>
+                    {plan.period && (
+                      <span className="text-sm text-muted-foreground">{plan.period}</span>
+                    )}
+                  </div>
+
+                  <ul className="mt-8 space-y-3 text-sm">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-start gap-3">
+                        <span
+                          className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full ${
+                            plan.featured
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]"
+                          }`}
+                        >
+                          <Check className="h-3 w-3" />
+                        </span>
+                        <span className="text-foreground/85">{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="mt-auto pt-10">
+                    <Link
+                      to="/auth"
+                      search={{ mode: "signup" }}
+                      className={`group/btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
+                        plan.featured
+                          ? "bg-primary text-primary-foreground shadow-[0_15px_35px_-12px_oklch(0.78_0.13_84_/_0.6)] hover:shadow-[0_22px_45px_-15px_oklch(0.78_0.13_84_/_0.7)]"
+                          : "border border-border bg-background text-foreground hover:border-[oklch(0.78_0.13_84_/_0.5)] hover:bg-surface"
+                      }`}
+                    >
+                      {plan.cta}
+                      <ArrowUpRight className="h-4 w-4 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
+                    </Link>
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
+        </section>
+
+        <section className="py-24">
+          <FadeIn>
             <div className="relative overflow-hidden rounded-3xl border border-border bg-surface p-12 text-center">
               <div
                 aria-hidden
@@ -276,10 +401,10 @@ function LandingPage() {
                   <Link
                     to="/auth"
                     search={{ mode: "signup" }}
-                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90 hover:-translate-y-0.5"
+                    className="group inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-[0_18px_40px_-15px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_60px_-18px_oklch(0.78_0.13_84_/_0.75)]"
                   >
                     Criar minha conta
-                    <ArrowUpRight className="h-4 w-4" />
+                    <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                   </Link>
                 </div>
               </div>
@@ -294,6 +419,8 @@ function LandingPage() {
           <p>© {new Date().getFullYear()} Flux Labs. Feito para a hospitalidade.</p>
         </div>
       </footer>
+
+      <ScrollToTop />
     </div>
   );
 }
