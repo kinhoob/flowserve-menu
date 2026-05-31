@@ -1,6 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, QrCode, ChefHat, BarChart3, Sparkles, Check } from "lucide-react";
-import { motion } from "framer-motion";
+import {
+  ArrowUpRight,
+  QrCode,
+  ChefHat,
+  BarChart3,
+  Sparkles,
+  Check,
+  Zap,
+  Clock,
+  Smartphone,
+  Radio,
+  ShieldCheck,
+} from "lucide-react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
 import { FluxLogo } from "@/components/brand/logo";
 import { FadeIn } from "@/components/motion/page-transition";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
@@ -8,33 +21,24 @@ import { ScrollToTop } from "@/components/ui/scroll-to-top";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Flux — Cardápios digitais para bares e restaurantes" },
+      { title: "Flux — A evolução do atendimento" },
       {
         name: "description",
         content:
-          "Pedidos via QR, painel da cozinha e operação em tempo real. Flux é a plataforma de cardápio digital para a hospitalidade moderna.",
+          "O sistema operacional da hospitalidade moderna. Reduza o tempo de espera, transforme seu salão em uma engrenagem perfeita.",
       },
     ],
   }),
   component: LandingPage,
 });
 
-const features = [
-  {
-    icon: QrCode,
-    title: "Pedidos por QR",
-    body: "Gere QR codes personalizados por mesa. O cliente escaneia, navega e pede em segundos — sem app.",
-  },
-  {
-    icon: ChefHat,
-    title: "Painel da cozinha",
-    body: "Quadro Kanban ao vivo para o bar e a cozinha. Mudanças de status sincronizam instantaneamente.",
-  },
-  {
-    icon: BarChart3,
-    title: "Operação no ponto",
-    body: "Itens populares, horários de pico, atividade nas mesas — todo sinal que você precisa em um painel premium.",
-  },
+const partners = [
+  "ATELIER",
+  "MARÉ",
+  "VINHO & SAL",
+  "OBRA PRIMA",
+  "CASA DOURADA",
+  "BAR NOIR",
 ];
 
 const plans = [
@@ -84,22 +88,40 @@ const plans = [
 ];
 
 function LandingPage() {
+  const heroRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+  const dashboardY = useTransform(scrollYProgress, [0, 1], [0, -120]);
+  const dashboardScale = useTransform(scrollYProgress, [0, 1], [1, 0.94]);
+  const dashboardOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.5]);
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+      {/* Ambient glows */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-grid-faint [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-40 left-1/2 h-[520px] w-[820px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.18),transparent)] blur-2xl"
+        className="pointer-events-none absolute -top-40 left-1/2 h-[560px] w-[920px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.22),transparent)] blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-[40%] -left-40 h-[420px] w-[420px] rounded-full bg-[radial-gradient(closest-side,oklch(0.55_0.18_25_/_0.12),transparent)] blur-3xl"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-[70%] -right-40 h-[480px] w-[480px] rounded-full bg-[radial-gradient(closest-side,oklch(0.6_0.15_220_/_0.1),transparent)] blur-3xl"
       />
 
       <motion.header
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6"
+        className="relative z-20 mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6"
       >
         <FluxLogo />
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
@@ -127,7 +149,8 @@ function LandingPage() {
       </motion.header>
 
       <main className="relative z-10 mx-auto w-full max-w-7xl px-6">
-        <section className="pb-28 pt-20 md:pb-40 md:pt-32">
+        {/* HERO */}
+        <section ref={heroRef} className="pb-28 pt-20 md:pb-40 md:pt-28">
           <motion.div
             initial="hidden"
             animate="show"
@@ -148,19 +171,21 @@ function LandingPage() {
             <motion.h1
               variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-6 font-display text-5xl leading-[1.05] tracking-tight md:text-7xl"
+              className="mt-6 font-display text-5xl leading-[1.02] tracking-tight md:text-7xl"
             >
-              O sistema operacional <br className="hidden md:block" />
-              da{" "}
-              <span className="text-gradient-gold italic">hospitalidade moderna</span>
+              A evolução do atendimento. <br className="hidden md:block" />
+              Onde a{" "}
+              <span className="text-gradient-gold italic">agilidade encontra</span>{" "}
+              a hospitalidade.
             </motion.h1>
             <motion.p
               variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
               className="mx-auto mt-6 max-w-xl text-balance text-base text-muted-foreground md:text-lg"
             >
-              O Flux transforma cada mesa em um checkout. Cardápios via QR, comandas em tempo real
-              e um painel à altura do salão.
+              Reduza o tempo de espera em até 40% e transforme seu salão em uma
+              engrenagem perfeita. Pedidos por QR, comandas em tempo real e analytics
+              à altura da sua marca.
             </motion.p>
             <motion.div
               variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
@@ -184,19 +209,29 @@ function LandingPage() {
             </motion.div>
           </motion.div>
 
-          <FadeIn delay={0.2}>
-            <div className="relative mx-auto mt-20 max-w-5xl">
-              <div className="rounded-3xl border border-border bg-surface/70 p-2 shadow-[0_60px_120px_-40px_oklch(0_0_0_/_0.8)] backdrop-blur">
-                <div className="overflow-hidden rounded-2xl border border-border bg-background">
-                  <div className="flex items-center gap-1.5 border-b border-border px-4 py-3">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.55_0.18_25)]" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.78_0.13_84)]" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.66_0.13_152)]" />
-                    <span className="ml-3 text-xs text-muted-foreground">Painel Flux — operação em tempo real</span>
-                  </div>
-                  <div className="grid grid-cols-12 gap-4 p-6">
-                    <div className="col-span-3 space-y-3">
-                      {["Visão geral", "Pedidos", "Cardápio", "Mesas", "Análises"].map((label, i) => (
+          {/* Dashboard mockup with parallax */}
+          <motion.div
+            style={{ y: dashboardY, scale: dashboardScale, opacity: dashboardOpacity }}
+            className="relative mx-auto mt-20 max-w-5xl will-change-transform"
+          >
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-x-16 -inset-y-10 bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.18),transparent_70%)] blur-2xl"
+            />
+            <div className="relative rounded-3xl border border-border bg-surface/70 p-2 shadow-[0_60px_120px_-40px_oklch(0_0_0_/_0.85)] backdrop-blur">
+              <div className="overflow-hidden rounded-2xl border border-border bg-background">
+                <div className="flex items-center gap-1.5 border-b border-border px-4 py-3">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.55_0.18_25)]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.78_0.13_84)]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.66_0.13_152)]" />
+                  <span className="ml-3 text-xs text-muted-foreground">
+                    Centro de Comando Operacional — tempo real
+                  </span>
+                </div>
+                <div className="grid grid-cols-12 gap-4 p-6">
+                  <div className="col-span-3 space-y-3">
+                    {["Visão geral", "Pedidos", "Cardápio", "Mesas", "Análises"].map(
+                      (label, i) => (
                         <div
                           key={label}
                           className={`rounded-lg px-3 py-2 text-xs ${
@@ -207,76 +242,154 @@ function LandingPage() {
                         >
                           {label}
                         </div>
+                      ),
+                    )}
+                  </div>
+                  <div className="col-span-9 space-y-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      {[
+                        { label: "Tempo médio de atendimento", value: "4m 12s" },
+                        { label: "Pedidos hoje", value: "147" },
+                        { label: "Mesas ativas", value: "12 / 18" },
+                      ].map((stat) => (
+                        <div
+                          key={stat.label}
+                          className="rounded-xl border border-border bg-surface p-4"
+                        >
+                          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                            {stat.label}
+                          </div>
+                          <div className="mt-2 font-display text-2xl">{stat.value}</div>
+                        </div>
                       ))}
                     </div>
-                    <div className="col-span-9 space-y-4">
-                      <div className="grid grid-cols-3 gap-4">
-                        {[
-                          { label: "Receita hoje", value: "R$ 3.284" },
-                          { label: "Pedidos", value: "147" },
-                          { label: "Mesas ativas", value: "12 / 18" },
-                        ].map((stat) => (
-                          <div key={stat.label} className="rounded-xl border border-border bg-surface p-4">
-                            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                              {stat.label}
-                            </div>
-                            <div className="mt-2 font-display text-2xl">{stat.value}</div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="h-40 rounded-xl border border-border bg-gradient-to-b from-surface to-background" />
-                    </div>
+                    <div className="h-40 rounded-xl border border-border bg-gradient-to-b from-surface to-background" />
                   </div>
                 </div>
               </div>
             </div>
+          </motion.div>
+        </section>
+
+        {/* SOCIAL PROOF */}
+        <section className="border-y border-border/60 py-12">
+          <FadeIn>
+            <p className="text-center text-xs uppercase tracking-[0.22em] text-muted-foreground">
+              Operando salões em mais de 80 cidades
+            </p>
+            <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-6">
+              {partners.map((name) => (
+                <div
+                  key={name}
+                  className="flex items-center justify-center font-display text-sm tracking-[0.25em] text-muted-foreground/60 transition hover:text-foreground"
+                >
+                  {name}
+                </div>
+              ))}
+            </div>
           </FadeIn>
         </section>
 
+        {/* BENTO FEATURES */}
         <section id="features" className="py-24">
           <FadeIn>
             <div className="mx-auto max-w-2xl text-center">
-              <p className="text-xs uppercase tracking-[0.18em] text-primary">Feito para o serviço</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-primary">
+                Feito para o serviço
+              </p>
               <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-                Três superfícies. Uma só operação.
+                Cada bloco. Uma vantagem competitiva.
               </h2>
               <p className="mt-4 text-muted-foreground">
-                O Flux unifica o cliente, a cozinha e o gestor por trás de um sistema único e elegante.
+                Tudo o que o seu salão precisa para operar como uma máquina
+                silenciosa — e elegante.
               </p>
             </div>
           </FadeIn>
-          <div className="mt-14 grid gap-4 md:grid-cols-3">
-            {features.map(({ icon: Icon, title, body }, i) => (
-              <FadeIn key={title} delay={0.1 + i * 0.08}>
-                <div className="group relative h-full overflow-hidden rounded-2xl border border-border bg-surface/80 p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[oklch(0.78_0.13_84_/_0.4)] hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.6)]">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <h3 className="mt-5 font-display text-2xl tracking-tight">{title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-                </div>
-              </FadeIn>
-            ))}
+
+          <div className="mt-14 grid auto-rows-[12rem] grid-cols-1 gap-4 md:grid-cols-3 md:auto-rows-[14rem]">
+            {/* Big card */}
+            <FadeIn className="md:col-span-2 md:row-span-2">
+              <BentoCard
+                icon={QrCode}
+                title="Pedidos por QR Code"
+                body="O cliente escaneia, navega e pede em segundos. Sem app, sem fricção, sem fila no caixa."
+                size="lg"
+                accent
+              />
+            </FadeIn>
+
+            <FadeIn delay={0.05}>
+              <BentoCard
+                icon={Clock}
+                title="Reduza a espera em 40%"
+                body="Pedidos vão direto à cozinha. O garçom volta a ser anfitrião."
+              />
+            </FadeIn>
+
+            <FadeIn delay={0.1}>
+              <BentoCard
+                icon={ChefHat}
+                title="KDS em tempo real"
+                body="Kanban ao vivo para bar e cozinha. Zero pedido perdido."
+              />
+            </FadeIn>
+
+            <FadeIn delay={0.15}>
+              <BentoCard
+                icon={Radio}
+                title="Sincronia instantânea"
+                body="Atualizações chegam à equipe em milissegundos. Sem refresh, sem polling."
+              />
+            </FadeIn>
+
+            <FadeIn delay={0.2}>
+              <BentoCard
+                icon={BarChart3}
+                title="Analytics de pico"
+                body="Veja o ticket médio, horários quentes e itens campeões em tempo real."
+              />
+            </FadeIn>
+
+            <FadeIn delay={0.25}>
+              <BentoCard
+                icon={Smartphone}
+                title="Modo garçom"
+                body="Lançamento rápido com uma mão. Pensado para tablets e celulares."
+              />
+            </FadeIn>
+
+            <FadeIn delay={0.3}>
+              <BentoCard
+                icon={ShieldCheck}
+                title="Multi-tenant seguro"
+                body="Uma conta por estabelecimento. Dados isolados, infraestrutura premium."
+              />
+            </FadeIn>
           </div>
         </section>
 
+        {/* WHY */}
         <section id="why" className="py-24">
           <div className="grid items-center gap-12 md:grid-cols-2">
             <FadeIn>
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-primary">Por que Flux</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-primary">
+                  Por que Flux
+                </p>
                 <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-                  A hospitalidade merece um software melhor.
+                  A hospitalidade merece um software à sua altura.
                 </h2>
                 <p className="mt-5 text-muted-foreground">
-                  A maioria das ferramentas de pedido parece feita em sala de reunião. O Flux é
-                  construído como um produto digno da sua mesa — silencioso, rápido e bem-acabado.
+                  Construímos o Flux como se fosse parte do seu salão — silencioso,
+                  rápido, bem-acabado. Não é uma ferramenta corporativa adaptada. É
+                  um produto pensado para a mesa.
                 </p>
                 <ul className="mt-8 space-y-3 text-sm text-muted-foreground">
                   {[
-                    "Arquitetura multi-tenant, uma conta por estabelecimento",
-                    "Sincronização em tempo real com a cozinha — sem polling, sem pedido perdido",
-                    "Pensado para tablets, celulares e laptops do escritório",
+                    "Arquitetura dedicada por estabelecimento",
+                    "Sincronização realtime sem pedido perdido",
+                    "Otimizado para tablets, celulares e desktop",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">
                       <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
@@ -287,16 +400,22 @@ function LandingPage() {
               </div>
             </FadeIn>
             <FadeIn delay={0.15}>
-              <div className="rounded-3xl border border-border bg-surface p-8 transition-all duration-300 hover:-translate-y-1 hover:border-[oklch(0.78_0.13_84_/_0.4)]">
-                <blockquote className="font-display text-2xl leading-snug tracking-tight">
-                  "Substituímos três ferramentas pelo Flux. O serviço ficou 22% mais rápido e o cardápio
-                  finalmente combina com o salão."
+              <div className="relative rounded-3xl border border-border bg-surface p-8 transition-all duration-300 hover:-translate-y-1 hover:border-[oklch(0.78_0.13_84_/_0.4)]">
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 rounded-3xl bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.08),transparent_70%)]"
+                />
+                <blockquote className="relative font-display text-2xl leading-snug tracking-tight">
+                  "Substituímos três ferramentas pelo Flux. O serviço ficou 22% mais
+                  rápido e o cardápio finalmente combina com o salão."
                 </blockquote>
-                <div className="mt-6 flex items-center gap-3">
+                <div className="relative mt-6 flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[oklch(0.86_0.12_84)] to-[oklch(0.4_0.05_60)]" />
                   <div>
                     <div className="text-sm font-medium">Mara Vance</div>
-                    <div className="text-xs text-muted-foreground">GM, Atelier Bar — Lisboa</div>
+                    <div className="text-xs text-muted-foreground">
+                      GM, Atelier Bar — Lisboa
+                    </div>
                   </div>
                 </div>
               </div>
@@ -304,6 +423,7 @@ function LandingPage() {
           </div>
         </section>
 
+        {/* PRICING */}
         <section id="pricing" className="py-24">
           <FadeIn>
             <div className="mx-auto max-w-2xl text-center">
@@ -320,61 +440,75 @@ function LandingPage() {
           <div className="mt-14 grid gap-6 md:grid-cols-3 md:items-stretch">
             {plans.map((plan, i) => (
               <FadeIn key={plan.name} delay={0.08 * i}>
-                <div
-                  className={`group relative flex h-full flex-col rounded-3xl border p-8 transition-all duration-300 hover:-translate-y-1 ${
-                    plan.featured
-                      ? "border-[oklch(0.78_0.13_84_/_0.5)] bg-gradient-to-b from-[oklch(0.78_0.13_84_/_0.12)] to-surface shadow-[0_40px_80px_-30px_oklch(0.78_0.13_84_/_0.45)] md:scale-[1.03]"
-                      : "border-border bg-surface/80 hover:border-[oklch(0.78_0.13_84_/_0.3)] hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.6)]"
-                  }`}
-                >
+                <div className="relative h-full">
                   {plan.featured && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.78_0.13_84_/_0.7)]">
-                      Mais popular
-                    </div>
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute -inset-1 rounded-[2rem] bg-[conic-gradient(from_180deg_at_50%_50%,oklch(0.78_0.13_84_/_0.55),oklch(0.55_0.1_60_/_0.2),oklch(0.78_0.13_84_/_0.55))] opacity-80 blur-md"
+                    />
                   )}
-
-                  <div>
-                    <h3 className="font-display text-2xl tracking-tight">{plan.name}</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
-                  </div>
-
-                  <div className="mt-6 flex items-baseline gap-1">
-                    <span className="font-display text-4xl tracking-tight">{plan.price}</span>
-                    {plan.period && (
-                      <span className="text-sm text-muted-foreground">{plan.period}</span>
+                  <div
+                    className={`group relative flex h-full flex-col rounded-3xl border p-8 transition-all duration-300 hover:-translate-y-1 ${
+                      plan.featured
+                        ? "border-[oklch(0.78_0.13_84_/_0.5)] bg-gradient-to-b from-[oklch(0.78_0.13_84_/_0.12)] to-surface shadow-[0_40px_80px_-30px_oklch(0.78_0.13_84_/_0.5)]"
+                        : "border-border bg-surface/80 hover:border-[oklch(0.78_0.13_84_/_0.3)] hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.6)]"
+                    }`}
+                  >
+                    {plan.featured && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.78_0.13_84_/_0.7)]">
+                        Mais vendido
+                      </div>
                     )}
-                  </div>
 
-                  <ul className="mt-8 space-y-3 text-sm">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex items-start gap-3">
-                        <span
-                          className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full ${
-                            plan.featured
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]"
-                          }`}
-                        >
-                          <Check className="h-3 w-3" />
+                    <div>
+                      <h3 className="font-display text-2xl tracking-tight">{plan.name}</h3>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {plan.description}
+                      </p>
+                    </div>
+
+                    <div className="mt-6 flex items-baseline gap-1">
+                      <span className="font-display text-4xl tracking-tight">
+                        {plan.price}
+                      </span>
+                      {plan.period && (
+                        <span className="text-sm text-muted-foreground">
+                          {plan.period}
                         </span>
-                        <span className="text-foreground/85">{f}</span>
-                      </li>
-                    ))}
-                  </ul>
+                      )}
+                    </div>
 
-                  <div className="mt-auto pt-10">
-                    <Link
-                      to="/auth"
-                      search={{ mode: "signup" }}
-                      className={`group/btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
-                        plan.featured
-                          ? "bg-primary text-primary-foreground shadow-[0_15px_35px_-12px_oklch(0.78_0.13_84_/_0.6)] hover:shadow-[0_22px_45px_-15px_oklch(0.78_0.13_84_/_0.7)]"
-                          : "border border-border bg-background text-foreground hover:border-[oklch(0.78_0.13_84_/_0.5)] hover:bg-surface"
-                      }`}
-                    >
-                      {plan.cta}
-                      <ArrowUpRight className="h-4 w-4 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
-                    </Link>
+                    <ul className="mt-8 space-y-3 text-sm">
+                      {plan.features.map((f) => (
+                        <li key={f} className="flex items-start gap-3">
+                          <span
+                            className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full ${
+                              plan.featured
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]"
+                            }`}
+                          >
+                            <Check className="h-3 w-3" />
+                          </span>
+                          <span className="text-foreground/85">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="mt-auto pt-10">
+                      <Link
+                        to="/auth"
+                        search={{ mode: "signup" }}
+                        className={`group/btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
+                          plan.featured
+                            ? "bg-primary text-primary-foreground shadow-[0_15px_35px_-12px_oklch(0.78_0.13_84_/_0.6)] hover:shadow-[0_22px_45px_-15px_oklch(0.78_0.13_84_/_0.75)]"
+                            : "border border-border bg-background text-foreground hover:border-[oklch(0.78_0.13_84_/_0.5)] hover:bg-surface"
+                        }`}
+                      >
+                        {plan.cta}
+                        <ArrowUpRight className="h-4 w-4 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </FadeIn>
@@ -382,20 +516,30 @@ function LandingPage() {
           </div>
         </section>
 
+        {/* CTA FINAL */}
         <section className="py-24">
           <FadeIn>
             <div className="relative overflow-hidden rounded-3xl border border-border bg-surface p-12 text-center">
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,oklch(0.78_0.13_84_/_0.18),transparent_60%)]"
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,oklch(0.78_0.13_84_/_0.22),transparent_60%)]"
+              />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -bottom-32 left-1/2 h-64 w-[120%] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,oklch(0.55_0.1_60_/_0.18),transparent)] blur-3xl"
               />
               <div className="relative">
-                <h2 className="font-display text-4xl tracking-tight md:text-5xl">
-                  Abra o Flux para o seu salão.
+                <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
+                  <Zap className="h-3.5 w-3.5 text-primary" />
+                  Pronto em menos de 10 minutos
+                </div>
+                <h2 className="mt-6 font-display text-4xl tracking-tight md:text-5xl">
+                  A evolução do atendimento. <br className="hidden md:block" />
+                  Onde a agilidade encontra a hospitalidade.
                 </h2>
                 <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-                  Comece com um teste grátis. Traga seu cardápio, seus QR codes e sua equipe —
-                  o resto a gente cuida.
+                  Comece com um teste grátis. Traga seu cardápio, sua equipe e suas
+                  mesas — do resto, a gente cuida.
                 </p>
                 <div className="mt-8">
                   <Link
@@ -421,6 +565,54 @@ function LandingPage() {
       </footer>
 
       <ScrollToTop />
+    </div>
+  );
+}
+
+function BentoCard({
+  icon: Icon,
+  title,
+  body,
+  size = "md",
+  accent = false,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  body: string;
+  size?: "md" | "lg";
+  accent?: boolean;
+}) {
+  return (
+    <div
+      className={`group relative h-full overflow-hidden rounded-3xl border p-6 transition-all duration-300 hover:-translate-y-1 ${
+        accent
+          ? "border-[oklch(0.78_0.13_84_/_0.35)] bg-gradient-to-br from-[oklch(0.78_0.13_84_/_0.12)] via-surface to-surface"
+          : "border-border bg-surface/80 hover:border-[oklch(0.78_0.13_84_/_0.35)]"
+      } hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.7)]`}
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.18),transparent)] opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"
+      />
+      <div className="relative flex h-full flex-col">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
+          <Icon className="h-5 w-5" />
+        </div>
+        <h3
+          className={`mt-5 font-display tracking-tight ${
+            size === "lg" ? "text-3xl md:text-4xl" : "text-xl"
+          }`}
+        >
+          {title}
+        </h3>
+        <p
+          className={`mt-2 leading-relaxed text-muted-foreground ${
+            size === "lg" ? "text-base max-w-md" : "text-sm"
+          }`}
+        >
+          {body}
+        </p>
+      </div>
     </div>
   );
 }
