@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowRight, Sparkles } from "lucide-react";
+import { useAuth } from "@/features/auth/auth-provider";
+import { supabase } from "@/integrations/supabase/client";
 
 const STORAGE_KEY = "flux-admin-tour-v1";
 
@@ -39,18 +41,47 @@ const STEPS: Step[] = [
 ];
 
 export function AdminTour() {
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [active, setActive] = useState(false);
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const seen = localStorage.getItem(STORAGE_KEY);
-    if (!seen) {
-      const t = setTimeout(() => setActive(true), 700);
-      return () => clearTimeout(t);
+    if (!user) {
+      setChecked(true);
+      return;
     }
-  }, []);
+
+    // Fast local cache path
+    const localSeen = localStorage.getItem(STORAGE_KEY);
+    if (localSeen) {
+      setChecked(true);
+      return;
+    }
+
+    // Source of truth: Supabase profile
+    supabase
+      .from("profiles")
+      .select("has_seen_onboarding" as any)
+      .eq("id", user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (error) {
+          // Fail-safe: do not show tour on query errors
+          setChecked(true);
+          return;
+        }
+        if ((data as any)?.has_seen_onboarding) {
+          localStorage.setItem(STORAGE_KEY, "1");
+        } else {
+          const t = setTimeout(() => setActive(true), 700);
+          // eslint-disable-next-line react-hooks/exhaustive-deps
+          return () => clearTimeout(t);
+        }
+        setChecked(true);
+      });
+  }, [user]);
 
   useEffect(() => {
     if (!active) return;
@@ -68,8 +99,18 @@ export function AdminTour() {
     };
   }, [active, step]);
 
-  function close() {
+  async function persistSeen() {
+    if (user) {
+      await supabase
+        .from("profiles")
+        .update({ has_seen_onboarding: true } as any)
+        .eq("id", user.id);
+    }
     localStorage.setItem(STORAGE_KEY, "1");
+  }
+
+  function close() {
+    persistSeen();
     setActive(false);
   }
 
@@ -78,7 +119,7 @@ export function AdminTour() {
     else setStep((s) => s + 1);
   }
 
-  if (!active) return null;
+  if (!active || !checked) return null;
   const current = STEPS[step];
 
   // Position tooltip near target (right of sidebar item) or center fallback
