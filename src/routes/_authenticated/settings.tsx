@@ -74,6 +74,7 @@ const PLANS: {
 
 function SettingsPage() {
   const { data: restaurant, isLoading } = useRestaurant();
+  const { data: trialInfo } = useTrialStatus();
   const qc = useQueryClient();
   const [kitchenOpen, setKitchenOpen] = useState(true);
 
@@ -108,8 +109,13 @@ function SettingsPage() {
     );
   }
 
-  // Current plan — defaults to "essential" until a real billing integration is wired up.
+  const profilePlan = trialInfo?.plan_type ?? "trial";
+  const trialDays = daysLeft(trialInfo);
+  const isTrial = profilePlan === "trial";
+
+  // Derive current paid plan from restaurant or profile (fallback)
   const currentPlan: PlanId = ((restaurant as any).plan as PlanId) ?? "essential";
+  const effectivePlanName = isTrial ? "Trial" : (PLANS.find((p) => p.id === currentPlan)?.name ?? "Essential");
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8">
