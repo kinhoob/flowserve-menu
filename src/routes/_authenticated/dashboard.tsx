@@ -10,6 +10,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AdminTour } from "@/features/onboarding/admin-tour";
+import {
+  useTrialStatus,
+  isTrialExpired,
+  TrialExpiredBlock,
+  TrialBanner,
+} from "@/features/billing/trial-guard";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
