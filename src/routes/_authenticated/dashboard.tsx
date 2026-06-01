@@ -120,6 +120,11 @@ function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
+      {trialExpired ? (
+        <TrialExpiredBlock />
+      ) : (
+        <>
+          {trial && <TrialBanner info={trial} />}
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-primary">Visão geral</p>
