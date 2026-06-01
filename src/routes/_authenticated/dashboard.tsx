@@ -295,7 +295,10 @@ function DashboardPage() {
         </DialogContent>
       </Dialog>
       <AdminTour />
+        </>
+      )}
     </div>
+
   );
 }
 
