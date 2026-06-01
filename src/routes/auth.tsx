@@ -115,7 +115,7 @@ function AuthPage() {
       });
       if (error) throw error;
       toast.success("Email confirmado. Vamos configurar seu restaurante.");
-      navigate({ to: redirectTo ?? "/onboarding" });
+      navigate({ to: redirectTo ?? "/dashboard" });
     } catch (err) {
       toast.error(friendlyError(err instanceof Error ? err.message : ""));
       setOtp("");
