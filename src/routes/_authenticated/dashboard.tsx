@@ -39,6 +39,8 @@ function DashboardPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const pendingCalls = waiterCalls.filter((c) => !c.resolved);
   const currency = restaurant?.currency ?? "BRL";
+  const { data: trial } = useTrialStatus();
+  const trialExpired = isTrialExpired(trial);
 
   const { data: tablesCount } = useQuery({
     queryKey: ["tables-count", restaurant?.id],
