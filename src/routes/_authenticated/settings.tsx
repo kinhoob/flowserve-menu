@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, ChefHat, Store, Check, Sparkles, Crown, Rocket } from "lucide-react";
+import { Loader2, ChefHat, Store, Check, Sparkles, Crown, Rocket, AlertTriangle } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
+import { useTrialStatus, daysLeft } from "@/features/billing/trial-guard";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -73,6 +74,7 @@ const PLANS: {
 
 function SettingsPage() {
   const { data: restaurant, isLoading } = useRestaurant();
+  const { data: trialInfo } = useTrialStatus();
   const qc = useQueryClient();
   const [kitchenOpen, setKitchenOpen] = useState(true);
 
@@ -107,8 +109,13 @@ function SettingsPage() {
     );
   }
 
-  // Current plan — defaults to "essential" until a real billing integration is wired up.
+  const profilePlan = trialInfo?.plan_type ?? "trial";
+  const trialDays = daysLeft(trialInfo);
+  const isTrial = profilePlan === "trial";
+
+  // Derive current paid plan from restaurant or profile (fallback)
   const currentPlan: PlanId = ((restaurant as any).plan as PlanId) ?? "essential";
+  const effectivePlanName = isTrial ? "Trial" : (PLANS.find((p) => p.id === currentPlan)?.name ?? "Essential");
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8">
@@ -193,10 +200,12 @@ function SettingsPage() {
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Plano atual</p>
                 <h2 className="mt-1 font-display text-2xl tracking-tight">
-                  {PLANS.find((p) => p.id === currentPlan)?.name ?? "Essential"}
+                  {effectivePlanName}
                 </h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Faturamento mensal · próximo ciclo gerenciado pelo provedor de pagamento.
+                  {isTrial
+                    ? `Período de teste — ${trialDays} ${trialDays === 1 ? "dia restante" : "dias restantes"}.`
+                    : "Faturamento mensal · próximo ciclo gerenciado pelo provedor de pagamento."}
                 </p>
               </div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
@@ -205,10 +214,19 @@ function SettingsPage() {
             </div>
           </section>
 
+          {isTrial && (
+            <div className="flex items-start gap-3 rounded-2xl border border-[oklch(0.78_0.13_84_/_0.3)] bg-gold-soft px-5 py-4">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <p className="text-sm text-foreground">
+                Você está no plano <strong className="font-semibold">Trial</strong>. Faça o upgrade para liberar todas as funções.
+              </p>
+            </div>
+          )}
+
           <div className="grid gap-4 md:grid-cols-3">
             {PLANS.map((plan) => {
               const Icon = plan.icon;
-              const isCurrent = plan.id === currentPlan;
+              const isCurrent = !isTrial && plan.id === currentPlan;
               return (
                 <div
                   key={plan.id}
