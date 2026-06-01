@@ -10,6 +10,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AdminTour } from "@/features/onboarding/admin-tour";
+import {
+  useTrialStatus,
+  isTrialExpired,
+  TrialExpiredBlock,
+  TrialBanner,
+} from "@/features/billing/trial-guard";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -33,6 +39,8 @@ function DashboardPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const pendingCalls = waiterCalls.filter((c) => !c.resolved);
   const currency = restaurant?.currency ?? "BRL";
+  const { data: trial } = useTrialStatus();
+  const trialExpired = isTrialExpired(trial);
 
   const { data: tablesCount } = useQuery({
     queryKey: ["tables-count", restaurant?.id],
@@ -112,6 +120,11 @@ function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
+      {trialExpired ? (
+        <TrialExpiredBlock />
+      ) : (
+        <>
+          {trial && <TrialBanner info={trial} />}
       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-primary">Visão geral</p>
@@ -282,7 +295,10 @@ function DashboardPage() {
         </DialogContent>
       </Dialog>
       <AdminTour />
+        </>
+      )}
     </div>
+
   );
 }
 
