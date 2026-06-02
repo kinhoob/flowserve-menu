@@ -160,6 +160,14 @@ function AnalyticsPage() {
     URL.revokeObjectURL(url);
   };
 
+  if (trial && !canAccess(trial, "analytics")) {
+    return (
+      <div className="mx-auto w-full max-w-4xl py-10">
+        <FeatureLocked feature="analytics" />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
       {/* Header */}
