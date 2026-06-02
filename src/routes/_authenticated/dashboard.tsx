@@ -259,6 +259,14 @@ function DashboardPage() {
                   {STATUS_LABELS[selectedOrder.status]}
                 </span>
               </div>
+              {(selectedOrder as any).created_by_name && (
+                <div className="text-xs text-muted-foreground">
+                  Lançado por:{" "}
+                  <span className="font-medium text-foreground">
+                    {(selectedOrder as any).created_by_name}
+                  </span>
+                </div>
+              )}
               <ul className="divide-y divide-border rounded-xl border border-border">
                 {selectedOrder.order_items.map((it) => {
                   const mods = (it.modifiers_snapshot as unknown as { name: string }[]) ?? [];

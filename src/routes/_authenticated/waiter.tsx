@@ -5,12 +5,14 @@ import { Bell, Loader2, Minus, Plus, Receipt, Search, Send, X } from "lucide-rea
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/features/auth/auth-provider";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
 import { useOrders, type Order } from "@/features/orders/order-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { playChime } from "@/lib/sound";
 import { cn } from "@/lib/utils";
+import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
 
 const ACTIVE: Order["status"][] = ["pending", "accepted", "preparing", "ready"];
 
@@ -30,14 +32,23 @@ type WItem = {
 type Line = { itemId: string; name: string; price: number; qty: number; notes: string };
 
 function WaiterPage() {
+  const { user } = useAuth();
   const { data: restaurant } = useRestaurant();
   const { data: tables } = useTables(restaurant?.id);
   const { data: orders } = useOrders(restaurant?.id);
+  const { data: trial } = useTrialStatus();
   const [openTable, setOpenTable] = useState<string | null>(null);
   const [billTable, setBillTable] = useState<string | null>(null);
   const [ready, setReady] = useState<{ label: string; id: string } | null>(null);
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
+
+  const waiterName =
+    (user?.user_metadata?.display_name as string | undefined) ||
+    user?.email?.split("@")[0] ||
+    "Equipe";
+
+
 
   // Occupancy: any active order tied to the table_label
   const occupied = useMemo(() => {
@@ -78,6 +89,14 @@ function WaiterPage() {
   const sorted = useMemo(() => {
     return [...(tables ?? [])].sort((a, b) => a.label.localeCompare(b.label, "pt", { numeric: true }));
   }, [tables]);
+
+  if (trial && !canAccess(trial, "waiter")) {
+    return (
+      <div className="mx-auto w-full max-w-4xl py-10">
+        <FeatureLocked feature="waiter" />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
@@ -136,6 +155,7 @@ function WaiterPage() {
             tableLabel={sorted.find((t) => t.id === openTable)?.label ?? ""}
             restaurantId={restaurant.id}
             currency={restaurant.currency}
+            createdByName={waiterName}
             onClose={() => setOpenTable(null)}
           />
         )}
@@ -188,12 +208,14 @@ function QuickOrderModal({
   tableLabel,
   restaurantId,
   currency,
+  createdByName,
   onClose,
 }: {
   tableId: string;
   tableLabel: string;
   restaurantId: string;
   currency: string;
+  createdByName: string;
   onClose: () => void;
 }) {
   const [q, setQ] = useState("");
@@ -259,7 +281,8 @@ function QuickOrderModal({
           subtotal,
           currency,
           status: "pending",
-        })
+          created_by_name: createdByName,
+        } as any)
         .select()
         .single();
       if (oErr) throw oErr;
@@ -437,11 +460,23 @@ function BillModal({
   const qc = useQueryClient();
   const allItems = orders.flatMap((o) => o.order_items);
   const subtotal = allItems.reduce((s, it) => s + Number(it.price_snapshot) * it.quantity, 0);
+  const [feeInput, setFeeInput] = useState("");
+  const fee = Math.max(0, Number(feeInput.replace(",", ".")) || 0);
+  const total = subtotal + fee;
 
   const close = useMutation({
     mutationFn: async () => {
       const ids = orders.map((o) => o.id);
       if (ids.length === 0) return;
+      // Persist the extra fee on the most recent order of this table for record-keeping.
+      const primaryId = ids[0];
+      if (fee > 0 && primaryId) {
+        const { error: feeErr } = await supabase
+          .from("orders")
+          .update({ service_fee: fee } as any)
+          .eq("id", primaryId);
+        if (feeErr) throw feeErr;
+      }
       const { error } = await supabase.from("orders").update({ status: "served" }).in("id", ids);
       if (error) throw error;
     },
@@ -504,9 +539,34 @@ function BillModal({
         </div>
 
         <div className="border-t border-border bg-surface/50 px-5 py-4">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">Total</span>
-            <span className="font-display text-2xl tracking-tight">{formatPrice(subtotal, currency)}</span>
+          <div className="mb-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>{formatPrice(subtotal, currency)}</span>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                Adicionar Taxas / Couvert
+              </label>
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 focus-within:border-[oklch(0.78_0.13_84_/_0.5)]">
+                <span className="text-xs text-muted-foreground">+</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="0.01"
+                  value={feeInput}
+                  onChange={(e) => setFeeInput(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full bg-transparent text-sm outline-none"
+                />
+                <span className="text-[11px] text-muted-foreground">{currency}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-border pt-2">
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">Total</span>
+              <span className="font-display text-2xl tracking-tight">{formatPrice(total, currency)}</span>
+            </div>
           </div>
           <div className="flex gap-2">
             <button

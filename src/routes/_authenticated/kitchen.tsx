@@ -246,6 +246,11 @@ function KitchenColumn({
                     {o.customer_name && (
                       <div className="text-xs text-muted-foreground">{o.customer_name}</div>
                     )}
+                    {(o as any).created_by_name && (
+                      <div className="mt-0.5 text-[10px] uppercase tracking-wider text-primary/80">
+                        Lançado por: {(o as any).created_by_name}
+                      </div>
+                    )}
                   </div>
                   <span className="inline-flex items-center gap-1 rounded-md bg-surface px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     <Clock className="h-3 w-3" /> {elapsed(o.created_at)}

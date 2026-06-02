@@ -16,6 +16,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/features/auth/auth-provider";
 import { FluxLogo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
+import { useTrialStatus, canAccess, type FeatureKey } from "@/features/billing/trial-guard";
 
 type NavItem = {
   label: string;
@@ -23,24 +24,28 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   soon?: boolean;
   id?: string;
+  feature?: FeatureKey;
 };
 
 const NAV: NavItem[] = [
   { label: "Visão geral", to: "/dashboard", icon: LayoutDashboard, id: "nav-dashboard" },
-  { label: "Pedidos", to: "/kitchen", icon: ClipboardList, id: "nav-kitchen" },
-  { label: "Garçom", to: "/waiter", icon: HandPlatter, id: "nav-waiter" },
-  { label: "Cardápio", to: "/menu", icon: UtensilsCrossed, id: "nav-menu" },
+  { label: "Pedidos", to: "/kitchen", icon: ClipboardList, id: "nav-kitchen", feature: "kitchen" },
+  { label: "Garçom", to: "/waiter", icon: HandPlatter, id: "nav-waiter", feature: "waiter" },
+  { label: "Cardápio", to: "/menu", icon: UtensilsCrossed, id: "nav-menu", feature: "menu" },
   { label: "QR Codes", to: "/qrcodes", icon: QrCode, id: "nav-qrcodes" },
-  { label: "Análises", to: "/analytics", icon: BarChart3, id: "nav-analytics" },
+  { label: "Análises", to: "/analytics", icon: BarChart3, id: "nav-analytics", feature: "analytics" },
   { label: "Configurações", to: "/settings", icon: Settings, id: "nav-settings" },
 ];
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: trial } = useTrialStatus();
   const initials = (user?.user_metadata?.display_name || user?.email || "U")
     .slice(0, 2)
     .toUpperCase();
+
+  const visibleNav = NAV.filter((n) => !n.feature || !trial || canAccess(trial, n.feature));
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -49,7 +54,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <FluxLogo />
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {NAV.map(({ label, to, icon: Icon, soon, id }) => {
+          {visibleNav.map(({ label, to, icon: Icon, soon, id }) => {
             const active = pathname === to && !soon;
             return (
               <Link

@@ -15,6 +15,7 @@ import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useOrders, STATUS_LABELS, type Order, type OrderStatus } from "@/features/orders/order-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { cn } from "@/lib/utils";
+import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
 
 export const Route = createFileRoute("/_authenticated/analytics")({
   head: () => ({ meta: [{ title: "Análises — Flux" }] }),
@@ -40,6 +41,7 @@ function AnalyticsPage() {
   const navigate = useNavigate();
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
   const { data: orders = [], isLoading: oLoading } = useOrders(restaurant?.id);
+  const { data: trial } = useTrialStatus();
   const [range, setRange] = useState<Range>("7d");
   const [selected, setSelected] = useState<Order | null>(null);
 
@@ -157,6 +159,14 @@ function AnalyticsPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  if (trial && !canAccess(trial, "analytics")) {
+    return (
+      <div className="mx-auto w-full max-w-4xl py-10">
+        <FeatureLocked feature="analytics" />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
