@@ -136,11 +136,11 @@ export function TrialBanner({ info }: { info: TrialInfo }) {
       <div className="flex items-center gap-3">
         <Sparkles className="h-4 w-4 text-primary" />
         <span className="text-foreground">
-          Você está no período de teste —{" "}
+          Você tem{" "}
           <strong className="font-semibold">
-            {days} {days === 1 ? "dia restante" : "dias restantes"}
-          </strong>
-          .
+            {days} {days === 1 ? "dia" : "dias"}
+          </strong>{" "}
+          de teste gratuito restantes. Assine o Plano Pro para não perder o acesso.
         </span>
       </div>
       <Link
