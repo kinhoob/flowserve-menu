@@ -258,11 +258,13 @@ export type Database = {
         Row: {
           archived: boolean
           created_at: string
+          created_by_name: string | null
           currency: string
           customer_name: string | null
           id: string
           notes: string | null
           restaurant_id: string
+          service_fee: number
           status: Database["public"]["Enums"]["order_status"]
           subtotal: number
           table_id: string | null
@@ -272,11 +274,13 @@ export type Database = {
         Insert: {
           archived?: boolean
           created_at?: string
+          created_by_name?: string | null
           currency?: string
           customer_name?: string | null
           id?: string
           notes?: string | null
           restaurant_id: string
+          service_fee?: number
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
           table_id?: string | null
@@ -286,11 +290,13 @@ export type Database = {
         Update: {
           archived?: boolean
           created_at?: string
+          created_by_name?: string | null
           currency?: string
           customer_name?: string | null
           id?: string
           notes?: string | null
           restaurant_id?: string
+          service_fee?: number
           status?: Database["public"]["Enums"]["order_status"]
           subtotal?: number
           table_id?: string | null
