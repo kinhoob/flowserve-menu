@@ -45,14 +45,6 @@ function AnalyticsPage() {
   const [range, setRange] = useState<Range>("7d");
   const [selected, setSelected] = useState<Order | null>(null);
 
-  if (trial && !canAccess(trial, "analytics")) {
-    return (
-      <div className="mx-auto w-full max-w-4xl py-10">
-        <FeatureLocked feature="analytics" />
-      </div>
-    );
-  }
-
   useEffect(() => {
     if (!rLoading && !restaurant) navigate({ to: "/onboarding" });
   }, [rLoading, restaurant, navigate]);
