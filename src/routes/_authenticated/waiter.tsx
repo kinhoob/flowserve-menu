@@ -537,9 +537,34 @@ function BillModal({
         </div>
 
         <div className="border-t border-border bg-surface/50 px-5 py-4">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">Total</span>
-            <span className="font-display text-2xl tracking-tight">{formatPrice(subtotal, currency)}</span>
+          <div className="mb-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>{formatPrice(subtotal, currency)}</span>
+            </div>
+            <div>
+              <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
+                Adicionar Taxas / Couvert
+              </label>
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 focus-within:border-[oklch(0.78_0.13_84_/_0.5)]">
+                <span className="text-xs text-muted-foreground">+</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  step="0.01"
+                  value={feeInput}
+                  onChange={(e) => setFeeInput(e.target.value)}
+                  placeholder="0,00"
+                  className="w-full bg-transparent text-sm outline-none"
+                />
+                <span className="text-[11px] text-muted-foreground">{currency}</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between border-t border-border pt-2">
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">Total</span>
+              <span className="font-display text-2xl tracking-tight">{formatPrice(total, currency)}</span>
+            </div>
           </div>
           <div className="flex gap-2">
             <button
