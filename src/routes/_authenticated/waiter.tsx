@@ -458,11 +458,23 @@ function BillModal({
   const qc = useQueryClient();
   const allItems = orders.flatMap((o) => o.order_items);
   const subtotal = allItems.reduce((s, it) => s + Number(it.price_snapshot) * it.quantity, 0);
+  const [feeInput, setFeeInput] = useState("");
+  const fee = Math.max(0, Number(feeInput.replace(",", ".")) || 0);
+  const total = subtotal + fee;
 
   const close = useMutation({
     mutationFn: async () => {
       const ids = orders.map((o) => o.id);
       if (ids.length === 0) return;
+      // Persist the extra fee on the most recent order of this table for record-keeping.
+      const primaryId = ids[0];
+      if (fee > 0 && primaryId) {
+        const { error: feeErr } = await supabase
+          .from("orders")
+          .update({ service_fee: fee } as any)
+          .eq("id", primaryId);
+        if (feeErr) throw feeErr;
+      }
       const { error } = await supabase.from("orders").update({ status: "served" }).in("id", ids);
       if (error) throw error;
     },
