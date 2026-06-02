@@ -5,12 +5,14 @@ import { Bell, Loader2, Minus, Plus, Receipt, Search, Send, X } from "lucide-rea
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/features/auth/auth-provider";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
 import { useOrders, type Order } from "@/features/orders/order-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { playChime } from "@/lib/sound";
 import { cn } from "@/lib/utils";
+import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
 
 const ACTIVE: Order["status"][] = ["pending", "accepted", "preparing", "ready"];
 
