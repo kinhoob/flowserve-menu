@@ -279,7 +279,8 @@ function QuickOrderModal({
           subtotal,
           currency,
           status: "pending",
-        })
+          created_by_name: createdByName,
+        } as any)
         .select()
         .single();
       if (oErr) throw oErr;
