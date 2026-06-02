@@ -15,6 +15,7 @@ import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useOrders, STATUS_LABELS, type Order, type OrderStatus } from "@/features/orders/order-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { cn } from "@/lib/utils";
+import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
 
 export const Route = createFileRoute("/_authenticated/analytics")({
   head: () => ({ meta: [{ title: "Análises — Flux" }] }),
