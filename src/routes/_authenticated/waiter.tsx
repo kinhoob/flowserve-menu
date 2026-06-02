@@ -153,6 +153,7 @@ function WaiterPage() {
             tableLabel={sorted.find((t) => t.id === openTable)?.label ?? ""}
             restaurantId={restaurant.id}
             currency={restaurant.currency}
+            createdByName={waiterName}
             onClose={() => setOpenTable(null)}
           />
         )}
