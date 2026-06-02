@@ -90,6 +90,14 @@ function WaiterPage() {
     return [...(tables ?? [])].sort((a, b) => a.label.localeCompare(b.label, "pt", { numeric: true }));
   }, [tables]);
 
+  if (trial && !canAccess(trial, "waiter")) {
+    return (
+      <div className="mx-auto w-full max-w-4xl py-10">
+        <FeatureLocked feature="waiter" />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
       <div>
