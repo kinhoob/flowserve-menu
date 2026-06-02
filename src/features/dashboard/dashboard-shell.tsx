@@ -40,9 +40,12 @@ const NAV: NavItem[] = [
 export function DashboardShell({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const { data: trial } = useTrialStatus();
   const initials = (user?.user_metadata?.display_name || user?.email || "U")
     .slice(0, 2)
     .toUpperCase();
+
+  const visibleNav = NAV.filter((n) => !n.feature || !trial || canAccess(trial, n.feature));
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -51,7 +54,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <FluxLogo />
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {NAV.map(({ label, to, icon: Icon, soon, id }) => {
+          {visibleNav.map(({ label, to, icon: Icon, soon, id }) => {
             const active = pathname === to && !soon;
             return (
               <Link
