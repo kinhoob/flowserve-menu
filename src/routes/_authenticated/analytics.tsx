@@ -41,8 +41,17 @@ function AnalyticsPage() {
   const navigate = useNavigate();
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
   const { data: orders = [], isLoading: oLoading } = useOrders(restaurant?.id);
+  const { data: trial } = useTrialStatus();
   const [range, setRange] = useState<Range>("7d");
   const [selected, setSelected] = useState<Order | null>(null);
+
+  if (trial && !canAccess(trial, "analytics")) {
+    return (
+      <div className="mx-auto w-full max-w-4xl py-10">
+        <FeatureLocked feature="analytics" />
+      </div>
+    );
+  }
 
   useEffect(() => {
     if (!rLoading && !restaurant) navigate({ to: "/onboarding" });
