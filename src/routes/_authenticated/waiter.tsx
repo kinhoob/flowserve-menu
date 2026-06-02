@@ -48,13 +48,7 @@ function WaiterPage() {
     user?.email?.split("@")[0] ||
     "Equipe";
 
-  if (trial && !canAccess(trial, "waiter")) {
-    return (
-      <div className="mx-auto w-full max-w-4xl py-10">
-        <FeatureLocked feature="waiter" />
-      </div>
-    );
-  }
+
 
   // Occupancy: any active order tied to the table_label
   const occupied = useMemo(() => {
