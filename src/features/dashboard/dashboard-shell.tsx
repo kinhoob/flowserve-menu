@@ -16,6 +16,7 @@ import { motion } from "framer-motion";
 import { useAuth } from "@/features/auth/auth-provider";
 import { FluxLogo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
+import { useTrialStatus, canAccess, type FeatureKey } from "@/features/billing/trial-guard";
 
 type NavItem = {
   label: string;
@@ -23,15 +24,16 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   soon?: boolean;
   id?: string;
+  feature?: FeatureKey;
 };
 
 const NAV: NavItem[] = [
   { label: "Visão geral", to: "/dashboard", icon: LayoutDashboard, id: "nav-dashboard" },
-  { label: "Pedidos", to: "/kitchen", icon: ClipboardList, id: "nav-kitchen" },
-  { label: "Garçom", to: "/waiter", icon: HandPlatter, id: "nav-waiter" },
-  { label: "Cardápio", to: "/menu", icon: UtensilsCrossed, id: "nav-menu" },
+  { label: "Pedidos", to: "/kitchen", icon: ClipboardList, id: "nav-kitchen", feature: "kitchen" },
+  { label: "Garçom", to: "/waiter", icon: HandPlatter, id: "nav-waiter", feature: "waiter" },
+  { label: "Cardápio", to: "/menu", icon: UtensilsCrossed, id: "nav-menu", feature: "menu" },
   { label: "QR Codes", to: "/qrcodes", icon: QrCode, id: "nav-qrcodes" },
-  { label: "Análises", to: "/analytics", icon: BarChart3, id: "nav-analytics" },
+  { label: "Análises", to: "/analytics", icon: BarChart3, id: "nav-analytics", feature: "analytics" },
   { label: "Configurações", to: "/settings", icon: Settings, id: "nav-settings" },
 ];
 
