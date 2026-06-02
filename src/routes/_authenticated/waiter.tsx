@@ -206,12 +206,14 @@ function QuickOrderModal({
   tableLabel,
   restaurantId,
   currency,
+  createdByName,
   onClose,
 }: {
   tableId: string;
   tableLabel: string;
   restaurantId: string;
   currency: string;
+  createdByName: string;
   onClose: () => void;
 }) {
   const [q, setQ] = useState("");
