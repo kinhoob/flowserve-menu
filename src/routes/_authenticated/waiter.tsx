@@ -32,14 +32,29 @@ type WItem = {
 type Line = { itemId: string; name: string; price: number; qty: number; notes: string };
 
 function WaiterPage() {
+  const { user } = useAuth();
   const { data: restaurant } = useRestaurant();
   const { data: tables } = useTables(restaurant?.id);
   const { data: orders } = useOrders(restaurant?.id);
+  const { data: trial } = useTrialStatus();
   const [openTable, setOpenTable] = useState<string | null>(null);
   const [billTable, setBillTable] = useState<string | null>(null);
   const [ready, setReady] = useState<{ label: string; id: string } | null>(null);
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
+
+  const waiterName =
+    (user?.user_metadata?.display_name as string | undefined) ||
+    user?.email?.split("@")[0] ||
+    "Equipe";
+
+  if (trial && !canAccess(trial, "waiter")) {
+    return (
+      <div className="mx-auto w-full max-w-4xl py-10">
+        <FeatureLocked feature="waiter" />
+      </div>
+    );
+  }
 
   // Occupancy: any active order tied to the table_label
   const occupied = useMemo(() => {
