@@ -4,6 +4,9 @@ import { Clock, ChefHat, CheckCircle2, XCircle, ArrowRight, Loader2, Volume2, Vo
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
+import { useAuth } from "@/features/auth/auth-provider";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useOrders,
   useUpdateOrderStatus,
@@ -40,10 +43,37 @@ function elapsed(ts: string) {
 }
 
 function KitchenPage() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
   const { data: restaurant } = useRestaurant();
   const { data: orders, isLoading } = useOrders(restaurant?.id);
   const update = useUpdateOrderStatus(restaurant?.id);
   const archive = useArchiveServedOrders(restaurant?.id);
+  const staffName =
+    (user?.user_metadata?.display_name as string | undefined) ||
+    user?.email?.split("@")[0] ||
+    "Equipe";
+
+  async function advance(id: string, next: OrderStatus) {
+    if (next === "served") {
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          status: "served",
+          delivered_by_name: staffName,
+          delivered_at: new Date().toISOString(),
+        } as any)
+        .eq("id", id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      qc.invalidateQueries({ queryKey: ["orders", restaurant?.id] });
+    } else {
+      update.mutate({ id, status: next });
+    }
+  }
+
   const [showServed, setShowServed] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [scope, setScope] = useState<"all" | "food" | "drink">("all");
@@ -176,7 +206,7 @@ function KitchenPage() {
               key={col.status}
               status={col.status}
               orders={col.orders}
-              onAdvance={(id, next) => update.mutate({ id, status: next })}
+              onAdvance={(id, next) => advance(id, next)}
               onCancel={(id) => update.mutate({ id, status: "cancelled" })}
               currency={restaurant?.currency ?? "BRL"}
             />
@@ -249,6 +279,14 @@ function KitchenColumn({
                     {(o as any).created_by_name && (
                       <div className="mt-0.5 text-[10px] uppercase tracking-wider text-primary/80">
                         Lançado por: {(o as any).created_by_name}
+                      </div>
+                    )}
+                    {(o as any).delivered_by_name && (
+                      <div className="mt-0.5 text-[10px] uppercase tracking-wider text-emerald-400/90">
+                        Entregue por: {(o as any).delivered_by_name}
+                        {(o as any).delivered_at && (
+                          <> · {new Date((o as any).delivered_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</>
+                        )}
                       </div>
                     )}
                   </div>

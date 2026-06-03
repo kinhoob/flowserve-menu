@@ -460,20 +460,21 @@ function BillModal({
   const qc = useQueryClient();
   const allItems = orders.flatMap((o) => o.order_items);
   const subtotal = allItems.reduce((s, it) => s + Number(it.price_snapshot) * it.quantity, 0);
-  const [feeInput, setFeeInput] = useState("");
-  const fee = Math.max(0, Number(feeInput.replace(",", ".")) || 0);
-  const total = subtotal + fee;
+  const [serviceFeeOn, setServiceFeeOn] = useState(false);
+  const [coverInput, setCoverInput] = useState("");
+  const serviceFee = serviceFeeOn ? subtotal * 0.1 : 0;
+  const cover = Math.max(0, Number(coverInput.replace(",", ".")) || 0);
+  const total = subtotal + serviceFee + cover;
 
   const close = useMutation({
     mutationFn: async () => {
       const ids = orders.map((o) => o.id);
       if (ids.length === 0) return;
-      // Persist the extra fee on the most recent order of this table for record-keeping.
       const primaryId = ids[0];
-      if (fee > 0 && primaryId) {
+      if ((serviceFee > 0 || cover > 0) && primaryId) {
         const { error: feeErr } = await supabase
           .from("orders")
-          .update({ service_fee: fee } as any)
+          .update({ service_fee: serviceFee, cover_charge: cover } as any)
           .eq("id", primaryId);
         if (feeErr) throw feeErr;
       }
@@ -544,9 +545,23 @@ function BillModal({
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatPrice(subtotal, currency)}</span>
             </div>
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2 text-sm cursor-pointer">
+              <span className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={serviceFeeOn}
+                  onChange={(e) => setServiceFeeOn(e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                <span>Taxa de Serviço (10%)</span>
+              </span>
+              <span className="text-muted-foreground">
+                {serviceFeeOn ? `+ ${formatPrice(serviceFee, currency)}` : "—"}
+              </span>
+            </label>
             <div>
               <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
-                Adicionar Taxas / Couvert
+                Couvert Artístico
               </label>
               <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 focus-within:border-[oklch(0.78_0.13_84_/_0.5)]">
                 <span className="text-xs text-muted-foreground">+</span>
@@ -555,8 +570,8 @@ function BillModal({
                   inputMode="decimal"
                   min={0}
                   step="0.01"
-                  value={feeInput}
-                  onChange={(e) => setFeeInput(e.target.value)}
+                  value={coverInput}
+                  onChange={(e) => setCoverInput(e.target.value)}
                   placeholder="0,00"
                   className="w-full bg-transparent text-sm outline-none"
                 />

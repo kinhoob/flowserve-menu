@@ -119,6 +119,7 @@
   html {
     color-scheme: dark;
     background-color: var(--color-background);
+    scroll-behavior: smooth;
   }
   * {
     border-color: var(--color-border);
