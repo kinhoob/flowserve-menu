@@ -257,10 +257,13 @@ export type Database = {
       orders: {
         Row: {
           archived: boolean
+          cover_charge: number | null
           created_at: string
           created_by_name: string | null
           currency: string
           customer_name: string | null
+          delivered_at: string | null
+          delivered_by_name: string | null
           id: string
           notes: string | null
           restaurant_id: string
@@ -273,10 +276,13 @@ export type Database = {
         }
         Insert: {
           archived?: boolean
+          cover_charge?: number | null
           created_at?: string
           created_by_name?: string | null
           currency?: string
           customer_name?: string | null
+          delivered_at?: string | null
+          delivered_by_name?: string | null
           id?: string
           notes?: string | null
           restaurant_id: string
@@ -289,10 +295,13 @@ export type Database = {
         }
         Update: {
           archived?: boolean
+          cover_charge?: number | null
           created_at?: string
           created_by_name?: string | null
           currency?: string
           customer_name?: string | null
+          delivered_at?: string | null
+          delivered_by_name?: string | null
           id?: string
           notes?: string | null
           restaurant_id?: string
