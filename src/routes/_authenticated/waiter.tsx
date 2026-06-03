@@ -545,9 +545,23 @@ function BillModal({
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatPrice(subtotal, currency)}</span>
             </div>
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2 text-sm cursor-pointer">
+              <span className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={serviceFeeOn}
+                  onChange={(e) => setServiceFeeOn(e.target.checked)}
+                  className="h-4 w-4 accent-primary"
+                />
+                <span>Taxa de Serviço (10%)</span>
+              </span>
+              <span className="text-muted-foreground">
+                {serviceFeeOn ? `+ ${formatPrice(serviceFee, currency)}` : "—"}
+              </span>
+            </label>
             <div>
               <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
-                Adicionar Taxas / Couvert
+                Couvert Artístico
               </label>
               <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 focus-within:border-[oklch(0.78_0.13_84_/_0.5)]">
                 <span className="text-xs text-muted-foreground">+</span>
@@ -556,8 +570,8 @@ function BillModal({
                   inputMode="decimal"
                   min={0}
                   step="0.01"
-                  value={feeInput}
-                  onChange={(e) => setFeeInput(e.target.value)}
+                  value={coverInput}
+                  onChange={(e) => setCoverInput(e.target.value)}
                   placeholder="0,00"
                   className="w-full bg-transparent text-sm outline-none"
                 />
