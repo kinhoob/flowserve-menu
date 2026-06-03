@@ -281,6 +281,14 @@ function KitchenColumn({
                         Lançado por: {(o as any).created_by_name}
                       </div>
                     )}
+                    {(o as any).delivered_by_name && (
+                      <div className="mt-0.5 text-[10px] uppercase tracking-wider text-emerald-400/90">
+                        Entregue por: {(o as any).delivered_by_name}
+                        {(o as any).delivered_at && (
+                          <> · {new Date((o as any).delivered_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <span className="inline-flex items-center gap-1 rounded-md bg-surface px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     <Clock className="h-3 w-3" /> {elapsed(o.created_at)}
