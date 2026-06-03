@@ -206,7 +206,7 @@ function KitchenPage() {
               key={col.status}
               status={col.status}
               orders={col.orders}
-              onAdvance={(id, next) => update.mutate({ id, status: next })}
+              onAdvance={(id, next) => advance(id, next)}
               onCancel={(id) => update.mutate({ id, status: "cancelled" })}
               currency={restaurant?.currency ?? "BRL"}
             />
