@@ -460,20 +460,21 @@ function BillModal({
   const qc = useQueryClient();
   const allItems = orders.flatMap((o) => o.order_items);
   const subtotal = allItems.reduce((s, it) => s + Number(it.price_snapshot) * it.quantity, 0);
-  const [feeInput, setFeeInput] = useState("");
-  const fee = Math.max(0, Number(feeInput.replace(",", ".")) || 0);
-  const total = subtotal + fee;
+  const [serviceFeeOn, setServiceFeeOn] = useState(false);
+  const [coverInput, setCoverInput] = useState("");
+  const serviceFee = serviceFeeOn ? subtotal * 0.1 : 0;
+  const cover = Math.max(0, Number(coverInput.replace(",", ".")) || 0);
+  const total = subtotal + serviceFee + cover;
 
   const close = useMutation({
     mutationFn: async () => {
       const ids = orders.map((o) => o.id);
       if (ids.length === 0) return;
-      // Persist the extra fee on the most recent order of this table for record-keeping.
       const primaryId = ids[0];
-      if (fee > 0 && primaryId) {
+      if ((serviceFee > 0 || cover > 0) && primaryId) {
         const { error: feeErr } = await supabase
           .from("orders")
-          .update({ service_fee: fee } as any)
+          .update({ service_fee: serviceFee, cover_charge: cover } as any)
           .eq("id", primaryId);
         if (feeErr) throw feeErr;
       }
