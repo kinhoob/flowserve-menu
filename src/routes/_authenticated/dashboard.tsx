@@ -267,6 +267,17 @@ function DashboardPage() {
                   </span>
                 </div>
               )}
+              {(selectedOrder as any).delivered_by_name && (
+                <div className="text-xs text-emerald-400/90">
+                  Entregue por:{" "}
+                  <span className="font-medium">
+                    {(selectedOrder as any).delivered_by_name}
+                  </span>
+                  {(selectedOrder as any).delivered_at && (
+                    <> às {new Date((selectedOrder as any).delivered_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</>
+                  )}
+                </div>
+              )}
               <ul className="divide-y divide-border rounded-xl border border-border">
                 {selectedOrder.order_items.map((it) => {
                   const mods = (it.modifiers_snapshot as unknown as { name: string }[]) ?? [];
