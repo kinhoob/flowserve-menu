@@ -4,6 +4,9 @@ import { Clock, ChefHat, CheckCircle2, XCircle, ArrowRight, Loader2, Volume2, Vo
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
+import { useAuth } from "@/features/auth/auth-provider";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useOrders,
   useUpdateOrderStatus,
