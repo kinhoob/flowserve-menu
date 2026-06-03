@@ -43,10 +43,37 @@ function elapsed(ts: string) {
 }
 
 function KitchenPage() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
   const { data: restaurant } = useRestaurant();
   const { data: orders, isLoading } = useOrders(restaurant?.id);
   const update = useUpdateOrderStatus(restaurant?.id);
   const archive = useArchiveServedOrders(restaurant?.id);
+  const staffName =
+    (user?.user_metadata?.display_name as string | undefined) ||
+    user?.email?.split("@")[0] ||
+    "Equipe";
+
+  async function advance(id: string, next: OrderStatus) {
+    if (next === "served") {
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          status: "served",
+          delivered_by_name: staffName,
+          delivered_at: new Date().toISOString(),
+        } as any)
+        .eq("id", id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      qc.invalidateQueries({ queryKey: ["orders", restaurant?.id] });
+    } else {
+      update.mutate({ id, status: next });
+    }
+  }
+
   const [showServed, setShowServed] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [scope, setScope] = useState<"all" | "food" | "drink">("all");
