@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, Bell, Receipt, Users, Flame } from "lucide-react";
+import { ArrowUpRight, Bell, DollarSign, Receipt, Users, Flame } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/auth-provider";
