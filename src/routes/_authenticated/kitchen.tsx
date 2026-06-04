@@ -4,7 +4,6 @@ import { Clock, ChefHat, CheckCircle2, XCircle, ArrowRight, Loader2, Volume2, Vo
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
-import { useAuth } from "@/features/auth/auth-provider";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -19,6 +18,7 @@ import {
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { cn } from "@/lib/utils";
 import { playChime } from "@/lib/sound";
+import { StaffPicker } from "@/features/staff/staff-picker";
 
 export const Route = createFileRoute("/_authenticated/kitchen")({
   head: () => ({ meta: [{ title: "Cozinha — Flux" }] }),
