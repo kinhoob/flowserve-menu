@@ -33,6 +33,9 @@ function QRCodesPage() {
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
   const { data: tables = [], isLoading: tLoading } = useTables(restaurant?.id);
   const { data: orders = [] } = useOrders(restaurant?.id);
+  const { data: trial } = useTrialStatus();
+  const tableLimit = getTableLimit(trial?.plan_type);
+  const reachedLimit = tables.length >= tableLimit;
   const createOne = useCreateTable(restaurant?.id);
   const createMany = useCreateManyTables(restaurant?.id);
   const del = useDeleteTable(restaurant?.id);
