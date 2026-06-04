@@ -165,36 +165,19 @@ function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="establishment" className="mt-6">
-          <section className="rounded-2xl border border-border bg-surface p-6">
-            <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-                <Store className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="font-display text-xl tracking-tight">Estabelecimento</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Identificação pública do seu cardápio.</p>
-                <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Nome</dt>
-                    <dd className="mt-1 text-sm">{restaurant.name}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Slug</dt>
-                    <dd className="mt-1 truncate text-sm">/m/{restaurant.slug}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Moeda</dt>
-                    <dd className="mt-1 text-sm">{restaurant.currency}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Fuso</dt>
-                    <dd className="mt-1 text-sm">{restaurant.timezone}</dd>
-                  </div>
-                </dl>
-              </div>
-            </div>
-          </section>
+          <EstablishmentSection
+            restaurantId={restaurant.id}
+            initialName={restaurant.name}
+            slug={restaurant.slug}
+            currency={restaurant.currency}
+            timezone={restaurant.timezone}
+          />
         </TabsContent>
+
+        <TabsContent value="team" className="mt-6">
+          <TeamSection restaurantId={restaurant.id} />
+        </TabsContent>
+
 
         <TabsContent value="billing" className="mt-6 space-y-6">
           <section className="rounded-2xl border border-border bg-surface p-6">
