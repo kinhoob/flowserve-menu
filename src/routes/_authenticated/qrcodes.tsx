@@ -254,14 +254,20 @@ function QRCodesPage() {
                 onClick={async () => {
                   if (bulk.to < bulk.from) return toast.error("Intervalo inválido");
                   if (bulk.to - bulk.from > 99) return toast.error("Máximo de 100 por vez");
+                  const count = bulk.to - bulk.from + 1;
+                  if (tables.length + count > tableLimit) {
+                    return toast.error(
+                      `Limite do plano: ${tableLimit} QR Codes. Restam ${Math.max(0, tableLimit - tables.length)}.`,
+                    );
+                  }
                   try {
                     await createMany.mutateAsync(bulk);
-                    toast.success(`${bulk.to - bulk.from + 1} mesas criadas`);
+                    toast.success(`${count} mesas criadas`);
                   } catch (e: any) {
                     toast.error(e.message);
                   }
                 }}
-                disabled={createMany.isPending}
+                disabled={createMany.isPending || reachedLimit}
                 variant="secondary"
                 className="w-full gap-2"
               >
