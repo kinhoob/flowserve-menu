@@ -134,6 +134,7 @@ function SettingsPage() {
         <TabsList className="bg-surface">
           <TabsTrigger value="operation">Operação</TabsTrigger>
           <TabsTrigger value="establishment">Estabelecimento</TabsTrigger>
+          <TabsTrigger value="team">Equipe</TabsTrigger>
           <TabsTrigger value="billing">Assinatura</TabsTrigger>
         </TabsList>
 
