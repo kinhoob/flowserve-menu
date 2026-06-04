@@ -33,29 +33,38 @@ type WItem = {
 type Line = { itemId: string; name: string; price: number; qty: number; notes: string };
 
 function WaiterPage() {
-  const { user } = useAuth();
   const { data: restaurant } = useRestaurant();
   const { data: tables } = useTables(restaurant?.id);
   const { data: orders } = useOrders(restaurant?.id);
   const { data: trial } = useTrialStatus();
+  const { data: waiterCalls = [] } = useWaiterCalls(restaurant?.id);
+  const resolveCall = useResolveWaiterCall(restaurant?.id);
   const [openTable, setOpenTable] = useState<string | null>(null);
   const [billTable, setBillTable] = useState<string | null>(null);
   const [ready, setReady] = useState<{ label: string; id: string } | null>(null);
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
 
-  const waiterName =
-    (user?.user_metadata?.display_name as string | undefined) ||
-    user?.email?.split("@")[0] ||
-    "Equipe";
+  // Calls "pedir conta" by table_label
+  const billCallsByLabel = useMemo(() => {
+    const m = new Map<string, { id: string; created_at: string }>();
+    for (const c of waiterCalls) {
+      if (c.resolved) continue;
+      if ((c as any).kind !== "bill") continue;
+      const lbl = (c.table_label ?? "").replace(/^Mesa\s*/i, "").trim();
+      if (lbl) m.set(lbl, { id: c.id, created_at: c.created_at });
+    }
+    return m;
+  }, [waiterCalls]);
 
-
-
-  // Occupancy: any active order tied to the table_label
+  // Occupancy: any active order tied to the table_label (realtime via useOrders)
   const occupied = useMemo(() => {
     const s = new Set<string>();
     for (const o of orders ?? []) {
-      if (ACTIVE.includes(o.status) && o.table_label) s.add(o.table_label);
+      if (ACTIVE.includes(o.status) && o.table_label) {
+        s.add(o.table_label);
+        s.add(o.table_label.replace(/^Mesa\s*/i, "").trim());
+      }
     }
     return s;
   }, [orders]);
