@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
-import { Download, ExternalLink, Loader2, Plus, QrCode as QrIcon, Trash2 } from "lucide-react";
+import { Download, ExternalLink, Loader2, Plus, QrCode as QrIcon, Trash2, Lock } from "lucide-react";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useOrders } from "@/features/orders/order-queries";
 import {
@@ -15,6 +15,8 @@ import {
 } from "@/features/tables/table-queries";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTrialStatus } from "@/features/billing/trial-guard";
+import { getTableLimit } from "@/features/staff/staff-picker";
 
 export const Route = createFileRoute("/_authenticated/qrcodes")({
   head: () => ({ meta: [{ title: "QR Codes — Flux" }] }),
