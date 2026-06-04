@@ -38,6 +38,8 @@ function DashboardPage() {
   const resolveCall = useResolveWaiterCall(restaurant?.id);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const pendingCalls = waiterCalls.filter((c) => !c.resolved);
+  const billCalls = pendingCalls.filter((c) => (c as any).kind === "bill");
+  const regularCalls = pendingCalls.filter((c) => (c as any).kind !== "bill");
   const currency = restaurant?.currency ?? "BRL";
   const { data: trial } = useTrialStatus();
   const trialExpired = isTrialExpired(trial);
