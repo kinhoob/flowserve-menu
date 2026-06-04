@@ -200,8 +200,10 @@ function QRCodesPage() {
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="ex.: Mesa 14"
                 className="input-field"
+                disabled={reachedLimit}
                 onKeyDown={async (e) => {
                   if (e.key === "Enter" && label.trim()) {
+                    if (reachedLimit) return toast.error(`Limite de ${tableLimit} QR Codes atingido`);
                     try { await createOne.mutateAsync({ label: label.trim() }); setLabel(""); toast.success("Mesa criada"); }
                     catch (err: any) { toast.error(err.message); }
                   }
@@ -210,10 +212,11 @@ function QRCodesPage() {
               <Button
                 onClick={async () => {
                   if (!label.trim()) return;
+                  if (reachedLimit) return toast.error(`Limite de ${tableLimit} QR Codes atingido`);
                   try { await createOne.mutateAsync({ label: label.trim() }); setLabel(""); toast.success("Mesa criada"); }
                   catch (err: any) { toast.error(err.message); }
                 }}
-                disabled={createOne.isPending}
+                disabled={createOne.isPending || reachedLimit}
                 className="w-full gap-2"
               >
                 <Plus className="h-4 w-4" /> Adicionar mesa
