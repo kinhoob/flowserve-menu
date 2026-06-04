@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, Bell, Receipt, Users, Flame } from "lucide-react";
+import { ArrowUpRight, Bell, DollarSign, Receipt, Users, Flame } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/auth-provider";
@@ -38,6 +38,8 @@ function DashboardPage() {
   const resolveCall = useResolveWaiterCall(restaurant?.id);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const pendingCalls = waiterCalls.filter((c) => !c.resolved);
+  const billCalls = pendingCalls.filter((c) => (c as any).kind === "bill");
+  const regularCalls = pendingCalls.filter((c) => (c as any).kind !== "bill");
   const currency = restaurant?.currency ?? "BRL";
   const { data: trial } = useTrialStatus();
   const trialExpired = isTrialExpired(trial);
@@ -144,14 +146,43 @@ function DashboardPage() {
         </Link>
       </div>
 
-      {pendingCalls.length > 0 && (
+      {billCalls.length > 0 && (
+        <div className="rounded-2xl border-2 border-[oklch(0.78_0.18_84_/_0.7)] bg-gold-soft p-4 shadow-[0_0_40px_-10px_oklch(0.78_0.18_84_/_0.7)] animate-pulse animate-fade-up">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
+            <DollarSign className="h-4 w-4 animate-pulse" />
+            {billCalls.length} {billCalls.length === 1 ? "mesa pedindo a conta" : "mesas pedindo a conta"}
+          </div>
+          <ul className="space-y-1.5">
+            {billCalls.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 rounded-lg bg-background/70 px-3 py-2 text-sm">
+                <span>
+                  <DollarSign className="mr-1 inline h-3.5 w-3.5 text-primary" />
+                  <span className="font-medium">{c.table_label ?? "Balcão"}</span>
+                  {c.customer_name && <span className="text-muted-foreground"> · {c.customer_name}</span>}
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    {new Date(c.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </span>
+                <button
+                  onClick={() => resolveCall.mutate(c.id)}
+                  className="rounded-lg bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+                >
+                  Conta entregue
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {regularCalls.length > 0 && (
         <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft p-4 animate-fade-up">
           <div className="mb-2 flex items-center gap-2 text-sm font-medium text-primary">
             <Bell className="h-4 w-4 animate-pulse" />
-            {pendingCalls.length} {pendingCalls.length === 1 ? "chamada de garçom" : "chamadas de garçom"}
+            {regularCalls.length} {regularCalls.length === 1 ? "chamada de garçom" : "chamadas de garçom"}
           </div>
           <ul className="space-y-1.5">
-            {pendingCalls.map((c) => (
+            {regularCalls.map((c) => (
               <li key={c.id} className="flex items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2 text-sm">
                 <span>
                   <span className="font-medium">{c.table_label ?? "Balcão"}</span>
@@ -171,6 +202,7 @@ function DashboardPage() {
           </ul>
         </div>
       )}
+
 
       <div className="grid gap-4 stagger sm:grid-cols-3">
         {STATS.map(({ label, value, delta, icon: Icon }) => (

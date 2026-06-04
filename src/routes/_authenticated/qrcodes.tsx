@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
-import { Download, ExternalLink, Loader2, Plus, QrCode as QrIcon, Trash2 } from "lucide-react";
+import { Download, ExternalLink, Loader2, Plus, QrCode as QrIcon, Trash2, Lock } from "lucide-react";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useOrders } from "@/features/orders/order-queries";
 import {
@@ -15,6 +15,8 @@ import {
 } from "@/features/tables/table-queries";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useTrialStatus } from "@/features/billing/trial-guard";
+import { getTableLimit } from "@/features/staff/staff-picker";
 
 export const Route = createFileRoute("/_authenticated/qrcodes")({
   head: () => ({ meta: [{ title: "QR Codes — Flux" }] }),
@@ -31,6 +33,9 @@ function QRCodesPage() {
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
   const { data: tables = [], isLoading: tLoading } = useTables(restaurant?.id);
   const { data: orders = [] } = useOrders(restaurant?.id);
+  const { data: trial } = useTrialStatus();
+  const tableLimit = getTableLimit(trial?.plan_type);
+  const reachedLimit = tables.length >= tableLimit;
   const createOne = useCreateTable(restaurant?.id);
   const createMany = useCreateManyTables(restaurant?.id);
   const del = useDeleteTable(restaurant?.id);
@@ -133,12 +138,24 @@ function QRCodesPage() {
               </span>
             </div>
           )}
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-[11px] text-muted-foreground">
+            <Lock className="h-3 w-3 text-primary" />
+            Plano <strong className="mx-1 font-semibold text-foreground">{(trial?.plan_type ?? "trial").toString().toUpperCase()}</strong>
+            · {tables.length}/{Number.isFinite(tableLimit) ? tableLimit : "∞"} QR Codes
+          </div>
         </div>
         <Button onClick={downloadAllPdf} disabled={downloading || tables.length === 0} size="lg" className="gap-2">
           {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           Baixar PDF de todas
         </Button>
       </div>
+
+      {reachedLimit && (
+        <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft px-5 py-3 text-sm text-foreground">
+          Você atingiu o limite de <strong>{tableLimit}</strong> QR Codes do seu plano atual.{" "}
+          <a href="/settings" className="font-medium text-primary underline-offset-2 hover:underline">Faça upgrade</a> para liberar mais mesas.
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         {tLoading ? (
@@ -183,8 +200,10 @@ function QRCodesPage() {
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="ex.: Mesa 14"
                 className="input-field"
+                disabled={reachedLimit}
                 onKeyDown={async (e) => {
                   if (e.key === "Enter" && label.trim()) {
+                    if (reachedLimit) return toast.error(`Limite de ${tableLimit} QR Codes atingido`);
                     try { await createOne.mutateAsync({ label: label.trim() }); setLabel(""); toast.success("Mesa criada"); }
                     catch (err: any) { toast.error(err.message); }
                   }
@@ -193,10 +212,11 @@ function QRCodesPage() {
               <Button
                 onClick={async () => {
                   if (!label.trim()) return;
+                  if (reachedLimit) return toast.error(`Limite de ${tableLimit} QR Codes atingido`);
                   try { await createOne.mutateAsync({ label: label.trim() }); setLabel(""); toast.success("Mesa criada"); }
                   catch (err: any) { toast.error(err.message); }
                 }}
-                disabled={createOne.isPending}
+                disabled={createOne.isPending || reachedLimit}
                 className="w-full gap-2"
               >
                 <Plus className="h-4 w-4" /> Adicionar mesa
@@ -234,14 +254,20 @@ function QRCodesPage() {
                 onClick={async () => {
                   if (bulk.to < bulk.from) return toast.error("Intervalo inválido");
                   if (bulk.to - bulk.from > 99) return toast.error("Máximo de 100 por vez");
+                  const count = bulk.to - bulk.from + 1;
+                  if (tables.length + count > tableLimit) {
+                    return toast.error(
+                      `Limite do plano: ${tableLimit} QR Codes. Restam ${Math.max(0, tableLimit - tables.length)}.`,
+                    );
+                  }
                   try {
                     await createMany.mutateAsync(bulk);
-                    toast.success(`${bulk.to - bulk.from + 1} mesas criadas`);
+                    toast.success(`${count} mesas criadas`);
                   } catch (e: any) {
                     toast.error(e.message);
                   }
                 }}
-                disabled={createMany.isPending}
+                disabled={createMany.isPending || reachedLimit}
                 variant="secondary"
                 className="w-full gap-2"
               >

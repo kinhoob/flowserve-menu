@@ -1,18 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Loader2, Minus, Plus, Receipt, Search, Send, X } from "lucide-react";
+import { Bell, DollarSign, Loader2, Minus, Plus, Receipt, Search, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/features/auth/auth-provider";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
 import { useOrders, type Order } from "@/features/orders/order-queries";
+import { useWaiterCalls, useResolveWaiterCall } from "@/features/waiter/waiter-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { playChime } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
+import { StaffPicker } from "@/features/staff/staff-picker";
 
 const ACTIVE: Order["status"][] = ["pending", "accepted", "preparing", "ready"];
 
@@ -32,29 +33,38 @@ type WItem = {
 type Line = { itemId: string; name: string; price: number; qty: number; notes: string };
 
 function WaiterPage() {
-  const { user } = useAuth();
   const { data: restaurant } = useRestaurant();
   const { data: tables } = useTables(restaurant?.id);
   const { data: orders } = useOrders(restaurant?.id);
   const { data: trial } = useTrialStatus();
+  const { data: waiterCalls = [] } = useWaiterCalls(restaurant?.id);
+  const resolveCall = useResolveWaiterCall(restaurant?.id);
   const [openTable, setOpenTable] = useState<string | null>(null);
   const [billTable, setBillTable] = useState<string | null>(null);
   const [ready, setReady] = useState<{ label: string; id: string } | null>(null);
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
 
-  const waiterName =
-    (user?.user_metadata?.display_name as string | undefined) ||
-    user?.email?.split("@")[0] ||
-    "Equipe";
+  // Calls "pedir conta" by table_label
+  const billCallsByLabel = useMemo(() => {
+    const m = new Map<string, { id: string; created_at: string }>();
+    for (const c of waiterCalls) {
+      if (c.resolved) continue;
+      if ((c as any).kind !== "bill") continue;
+      const lbl = (c.table_label ?? "").replace(/^Mesa\s*/i, "").trim();
+      if (lbl) m.set(lbl, { id: c.id, created_at: c.created_at });
+    }
+    return m;
+  }, [waiterCalls]);
 
-
-
-  // Occupancy: any active order tied to the table_label
+  // Occupancy: any active order tied to the table_label (realtime via useOrders)
   const occupied = useMemo(() => {
     const s = new Set<string>();
     for (const o of orders ?? []) {
-      if (ACTIVE.includes(o.status) && o.table_label) s.add(o.table_label);
+      if (ACTIVE.includes(o.status) && o.table_label) {
+        s.add(o.table_label);
+        s.add(o.table_label.replace(/^Mesa\s*/i, "").trim());
+      }
     }
     return s;
   }, [orders]);
@@ -112,7 +122,9 @@ function WaiterPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {sorted.map((t) => {
-          const isBusy = occupied.has(t.label);
+          const stripped = t.label.replace(/^Mesa\s*/i, "").trim();
+          const isBusy = occupied.has(t.label) || occupied.has(stripped);
+          const billCall = billCallsByLabel.get(stripped);
           return (
             <motion.button
               key={t.id}
@@ -120,17 +132,42 @@ function WaiterPage() {
               onClick={() => (isBusy ? setBillTable(t.label) : setOpenTable(t.id))}
               className={cn(
                 "relative aspect-square rounded-2xl border p-4 text-left transition",
-                isBusy
-                  ? "border-[oklch(0.62_0.21_25_/_0.55)] bg-[oklch(0.62_0.21_25_/_0.08)]"
-                  : "border-border bg-surface hover:border-[oklch(0.78_0.13_84_/_0.4)]",
+                billCall
+                  ? "border-[oklch(0.78_0.18_84_/_0.7)] bg-[oklch(0.78_0.18_84_/_0.12)] animate-pulse shadow-[0_0_30px_-8px_oklch(0.78_0.18_84_/_0.6)]"
+                  : isBusy
+                    ? "border-[oklch(0.62_0.21_25_/_0.55)] bg-[oklch(0.62_0.21_25_/_0.08)]"
+                    : "border-border bg-surface hover:border-[oklch(0.78_0.13_84_/_0.4)]",
               )}
             >
+              {billCall && (
+                <span className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background animate-pulse">
+                  <DollarSign className="h-3.5 w-3.5" />
+                </span>
+              )}
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Mesa</div>
-              <div className="mt-1 font-display text-3xl tracking-tight">{t.label.replace(/^Mesa\s*/i, "")}</div>
+              <div className="mt-1 font-display text-3xl tracking-tight">{stripped}</div>
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px]">
-                <span className={cn("inline-flex items-center gap-1.5", isBusy ? "text-[oklch(0.7_0.18_25)]" : "text-emerald-400")}>
-                  <span className={cn("h-1.5 w-1.5 rounded-full", isBusy ? "bg-[oklch(0.7_0.18_25)] animate-pulse" : "bg-emerald-400")} />
-                  {isBusy ? "Ver conta" : "Livre"}
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5",
+                    billCall
+                      ? "text-primary font-medium"
+                      : isBusy
+                        ? "text-[oklch(0.7_0.18_25)]"
+                        : "text-emerald-400",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      billCall
+                        ? "bg-primary animate-pulse"
+                        : isBusy
+                          ? "bg-[oklch(0.7_0.18_25)] animate-pulse"
+                          : "bg-emerald-400",
+                    )}
+                  />
+                  {billCall ? "Pedindo a conta" : isBusy ? "Ver conta" : "Livre"}
                 </span>
                 {isBusy ? (
                   <Receipt className="h-3.5 w-3.5 text-[oklch(0.78_0.18_25)]" />
@@ -148,6 +185,36 @@ function WaiterPage() {
         )}
       </div>
 
+      {billCallsByLabel.size > 0 && (
+        <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft p-4 animate-fade-up">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
+            <DollarSign className="h-4 w-4 animate-pulse" />
+            {billCallsByLabel.size} {billCallsByLabel.size === 1 ? "mesa pedindo a conta" : "mesas pedindo a conta"}
+          </div>
+          <ul className="space-y-1.5">
+            {[...billCallsByLabel.entries()].map(([label, c]) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2 text-sm">
+                <span className="font-medium">Mesa {label}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setBillTable(`Mesa ${label}`)}
+                    className="rounded-lg border border-border bg-background px-3 py-1 text-xs transition hover:border-primary/40"
+                  >
+                    Abrir conta
+                  </button>
+                  <button
+                    onClick={() => resolveCall.mutate(c.id)}
+                    className="rounded-lg bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+                  >
+                    Atendido
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <AnimatePresence>
         {openTable && restaurant && (
           <QuickOrderModal
@@ -155,7 +222,6 @@ function WaiterPage() {
             tableLabel={sorted.find((t) => t.id === openTable)?.label ?? ""}
             restaurantId={restaurant.id}
             currency={restaurant.currency}
-            createdByName={waiterName}
             onClose={() => setOpenTable(null)}
           />
         )}
@@ -208,19 +274,18 @@ function QuickOrderModal({
   tableLabel,
   restaurantId,
   currency,
-  createdByName,
   onClose,
 }: {
   tableId: string;
   tableLabel: string;
   restaurantId: string;
   currency: string;
-  createdByName: string;
   onClose: () => void;
 }) {
   const [q, setQ] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [pickingStaff, setPickingStaff] = useState(false);
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["waiter-items", restaurantId],
@@ -268,7 +333,12 @@ function QuickOrderModal({
 
   const subtotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
 
-  async function submit() {
+  function requestSubmit() {
+    if (lines.length === 0) return;
+    setPickingStaff(true);
+  }
+
+  async function submit(createdByName: string) {
     if (lines.length === 0) return;
     setSubmitting(true);
     try {
@@ -425,7 +495,7 @@ function QuickOrderModal({
               <div className="font-display text-xl tracking-tight">{formatPrice(subtotal, currency)}</div>
             </div>
             <button
-              onClick={submit}
+              onClick={requestSubmit}
               disabled={lines.length === 0 || submitting}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
             >
@@ -440,6 +510,19 @@ function QuickOrderModal({
           </div>
         </div>
       </motion.div>
+      <AnimatePresence>
+        {pickingStaff && (
+          <StaffPicker
+            restaurantId={restaurantId}
+            title="Quem lançou esse pedido?"
+            onSelect={async (name) => {
+              setPickingStaff(false);
+              await submit(name);
+            }}
+            onClose={() => setPickingStaff(false)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

@@ -4,7 +4,6 @@ import { Clock, ChefHat, CheckCircle2, XCircle, ArrowRight, Loader2, Volume2, Vo
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
-import { useAuth } from "@/features/auth/auth-provider";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -19,6 +18,7 @@ import {
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { cn } from "@/lib/utils";
 import { playChime } from "@/lib/sound";
+import { StaffPicker } from "@/features/staff/staff-picker";
 
 export const Route = createFileRoute("/_authenticated/kitchen")({
   head: () => ({ meta: [{ title: "Cozinha — Flux" }] }),
@@ -43,32 +43,33 @@ function elapsed(ts: string) {
 }
 
 function KitchenPage() {
-  const { user } = useAuth();
   const qc = useQueryClient();
   const { data: restaurant } = useRestaurant();
   const { data: orders, isLoading } = useOrders(restaurant?.id);
   const update = useUpdateOrderStatus(restaurant?.id);
   const archive = useArchiveServedOrders(restaurant?.id);
-  const staffName =
-    (user?.user_metadata?.display_name as string | undefined) ||
-    user?.email?.split("@")[0] ||
-    "Equipe";
+  const [pendingDeliver, setPendingDeliver] = useState<string | null>(null);
 
-  async function advance(id: string, next: OrderStatus) {
+  async function markServed(id: string, deliveredByName: string) {
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        status: "served",
+        delivered_by_name: deliveredByName,
+        delivered_at: new Date().toISOString(),
+      } as any)
+      .eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    qc.invalidateQueries({ queryKey: ["orders", restaurant?.id] });
+    toast.success(`Entregue por ${deliveredByName}`);
+  }
+
+  function advance(id: string, next: OrderStatus) {
     if (next === "served") {
-      const { error } = await supabase
-        .from("orders")
-        .update({
-          status: "served",
-          delivered_by_name: staffName,
-          delivered_at: new Date().toISOString(),
-        } as any)
-        .eq("id", id);
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      qc.invalidateQueries({ queryKey: ["orders", restaurant?.id] });
+      setPendingDeliver(id);
     } else {
       update.mutate({ id, status: next });
     }
@@ -213,6 +214,20 @@ function KitchenPage() {
           ))}
         </div>
       )}
+      <AnimatePresence>
+        {pendingDeliver && restaurant && (
+          <StaffPicker
+            restaurantId={restaurant.id}
+            title="Quem está entregando?"
+            onSelect={async (name) => {
+              const id = pendingDeliver;
+              setPendingDeliver(null);
+              if (id) await markServed(id, name);
+            }}
+            onClose={() => setPendingDeliver(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
