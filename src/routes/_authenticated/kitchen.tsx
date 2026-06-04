@@ -214,6 +214,20 @@ function KitchenPage() {
           ))}
         </div>
       )}
+      <AnimatePresence>
+        {pendingDeliver && restaurant && (
+          <StaffPicker
+            restaurantId={restaurant.id}
+            title="Quem está entregando?"
+            onSelect={async (name) => {
+              const id = pendingDeliver;
+              setPendingDeliver(null);
+              if (id) await markServed(id, name);
+            }}
+            onClose={() => setPendingDeliver(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
