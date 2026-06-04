@@ -185,6 +185,35 @@ function WaiterPage() {
         )}
       </div>
 
+      {billCallsByLabel.size > 0 && (
+        <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft p-4 animate-fade-up">
+          <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
+            <DollarSign className="h-4 w-4 animate-pulse" />
+            {billCallsByLabel.size} {billCallsByLabel.size === 1 ? "mesa pedindo a conta" : "mesas pedindo a conta"}
+          </div>
+          <ul className="space-y-1.5">
+            {[...billCallsByLabel.entries()].map(([label, c]) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2 text-sm">
+                <span className="font-medium">Mesa {label}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setBillTable(`Mesa ${label}`)}
+                    className="rounded-lg border border-border bg-background px-3 py-1 text-xs transition hover:border-primary/40"
+                  >
+                    Abrir conta
+                  </button>
+                  <button
+                    onClick={() => resolveCall.mutate(c.id)}
+                    className="rounded-lg bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+                  >
+                    Atendido
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <AnimatePresence>
         {openTable && restaurant && (
@@ -193,7 +222,6 @@ function WaiterPage() {
             tableLabel={sorted.find((t) => t.id === openTable)?.label ?? ""}
             restaurantId={restaurant.id}
             currency={restaurant.currency}
-            createdByName={waiterName}
             onClose={() => setOpenTable(null)}
           />
         )}
