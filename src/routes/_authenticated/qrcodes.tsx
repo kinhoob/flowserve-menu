@@ -138,12 +138,24 @@ function QRCodesPage() {
               </span>
             </div>
           )}
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-[11px] text-muted-foreground">
+            <Lock className="h-3 w-3 text-primary" />
+            Plano <strong className="mx-1 font-semibold text-foreground">{(trial?.plan_type ?? "trial").toString().toUpperCase()}</strong>
+            · {tables.length}/{Number.isFinite(tableLimit) ? tableLimit : "∞"} QR Codes
+          </div>
         </div>
         <Button onClick={downloadAllPdf} disabled={downloading || tables.length === 0} size="lg" className="gap-2">
           {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           Baixar PDF de todas
         </Button>
       </div>
+
+      {reachedLimit && (
+        <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft px-5 py-3 text-sm text-foreground">
+          Você atingiu o limite de <strong>{tableLimit}</strong> QR Codes do seu plano atual.{" "}
+          <a href="/settings" className="font-medium text-primary underline-offset-2 hover:underline">Faça upgrade</a> para liberar mais mesas.
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         {tLoading ? (
