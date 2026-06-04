@@ -274,19 +274,18 @@ function QuickOrderModal({
   tableLabel,
   restaurantId,
   currency,
-  createdByName,
   onClose,
 }: {
   tableId: string;
   tableLabel: string;
   restaurantId: string;
   currency: string;
-  createdByName: string;
   onClose: () => void;
 }) {
   const [q, setQ] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [pickingStaff, setPickingStaff] = useState(false);
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["waiter-items", restaurantId],
