@@ -495,7 +495,7 @@ function QuickOrderModal({
               <div className="font-display text-xl tracking-tight">{formatPrice(subtotal, currency)}</div>
             </div>
             <button
-              onClick={submit}
+              onClick={requestSubmit}
               disabled={lines.length === 0 || submitting}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
             >
@@ -510,6 +510,19 @@ function QuickOrderModal({
           </div>
         </div>
       </motion.div>
+      <AnimatePresence>
+        {pickingStaff && (
+          <StaffPicker
+            restaurantId={restaurantId}
+            title="Quem lançou esse pedido?"
+            onSelect={async (name) => {
+              setPickingStaff(false);
+              await submit(name);
+            }}
+            onClose={() => setPickingStaff(false)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
