@@ -333,7 +333,12 @@ function QuickOrderModal({
 
   const subtotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
 
-  async function submit() {
+  function requestSubmit() {
+    if (lines.length === 0) return;
+    setPickingStaff(true);
+  }
+
+  async function submit(createdByName: string) {
     if (lines.length === 0) return;
     setSubmitting(true);
     try {
