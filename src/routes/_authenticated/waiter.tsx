@@ -1,18 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Loader2, Minus, Plus, Receipt, Search, Send, X } from "lucide-react";
+import { Bell, DollarSign, Loader2, Minus, Plus, Receipt, Search, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/features/auth/auth-provider";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
 import { useOrders, type Order } from "@/features/orders/order-queries";
+import { useWaiterCalls, useResolveWaiterCall } from "@/features/waiter/waiter-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { playChime } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
+import { StaffPicker } from "@/features/staff/staff-picker";
 
 const ACTIVE: Order["status"][] = ["pending", "accepted", "preparing", "ready"];
 
