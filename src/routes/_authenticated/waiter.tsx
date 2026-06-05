@@ -556,6 +556,7 @@ function BillModal({
       const ids = orders.map((o) => o.id);
       if (ids.length === 0) return;
       const primaryId = ids[0];
+      const restaurantId = orders[0]?.restaurant_id;
       if ((serviceFee > 0 || cover > 0) && primaryId) {
         const { error: feeErr } = await supabase
           .from("orders")
@@ -563,11 +564,25 @@ function BillModal({
           .eq("id", primaryId);
         if (feeErr) throw feeErr;
       }
-      const { error } = await supabase.from("orders").update({ status: "served" }).in("id", ids);
+      // Finalizar: marca todos os pedidos como entregues e arquiva (libera a mesa)
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: "served", archived: true } as any)
+        .in("id", ids);
       if (error) throw error;
+      // Resolve qualquer chamado pendente (conta ou garçom) para essa mesa
+      if (restaurantId) {
+        await supabase
+          .from("waiter_calls")
+          .update({ resolved: true, resolved_at: new Date().toISOString() })
+          .eq("restaurant_id", restaurantId)
+          .eq("table_label", tableLabel)
+          .eq("resolved", false);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["waiter_calls"] });
       toast.success(`${tableLabel} liberada`);
       onClose();
     },
