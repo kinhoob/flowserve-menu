@@ -63,7 +63,7 @@ function DashboardPage() {
       (o) => new Date(o.created_at).getTime() >= today,
     );
     
-    const ACTIVE_STATUSES = ["pending", "accepted", "preparing", "ready"];
+    const ACTIVE_STATUSES = ["pending", "accepted", "preparing", "ready", "served"];
     const activeTables = new Set(
       validOrders
         .filter((o) => ACTIVE_STATUSES.includes(o.status))
