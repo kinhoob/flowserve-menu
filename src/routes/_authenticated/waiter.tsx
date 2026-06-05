@@ -15,7 +15,9 @@ import { cn } from "@/lib/utils";
 import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
 import { StaffPicker } from "@/features/staff/staff-picker";
 
-const ACTIVE: Order["status"][] = ["pending", "accepted", "preparing", "ready"];
+// A table is "ocupada" enquanto houver qualquer pedido não-arquivado e não cancelado.
+// O status "served" ainda conta como ocupado — só sai com Finalizar e liberar (archived=true).
+const ACTIVE: Order["status"][] = ["pending", "accepted", "preparing", "ready", "served"];
 
 export const Route = createFileRoute("/_authenticated/waiter")({
   head: () => ({ meta: [{ title: "Garçom — Flux" }] }),
@@ -554,6 +556,7 @@ function BillModal({
       const ids = orders.map((o) => o.id);
       if (ids.length === 0) return;
       const primaryId = ids[0];
+      const restaurantId = orders[0]?.restaurant_id;
       if ((serviceFee > 0 || cover > 0) && primaryId) {
         const { error: feeErr } = await supabase
           .from("orders")
@@ -561,11 +564,27 @@ function BillModal({
           .eq("id", primaryId);
         if (feeErr) throw feeErr;
       }
-      const { error } = await supabase.from("orders").update({ status: "served" }).in("id", ids);
+      // Finalizar: marca todos os pedidos como entregues e arquiva (libera a mesa)
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: "served", archived: true } as any)
+        .in("id", ids);
       if (error) throw error;
+      // Resolve qualquer chamado pendente (conta ou garçom) para essa mesa
+      if (restaurantId) {
+        const stripped = tableLabel.replace(/^Mesa\s*/i, "").trim();
+        const variants = Array.from(new Set([tableLabel, stripped, `Mesa ${stripped}`]));
+        await supabase
+          .from("waiter_calls")
+          .update({ resolved: true, resolved_at: new Date().toISOString() })
+          .eq("restaurant_id", restaurantId)
+          .in("table_label", variants)
+          .eq("resolved", false);
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["waiter_calls"] });
       toast.success(`${tableLabel} liberada`);
       onClose();
     },
