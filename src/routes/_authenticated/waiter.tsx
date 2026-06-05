@@ -572,11 +572,13 @@ function BillModal({
       if (error) throw error;
       // Resolve qualquer chamado pendente (conta ou garçom) para essa mesa
       if (restaurantId) {
+        const stripped = tableLabel.replace(/^Mesa\s*/i, "").trim();
+        const variants = Array.from(new Set([tableLabel, stripped, `Mesa ${stripped}`]));
         await supabase
           .from("waiter_calls")
           .update({ resolved: true, resolved_at: new Date().toISOString() })
           .eq("restaurant_id", restaurantId)
-          .eq("table_label", tableLabel)
+          .in("table_label", variants)
           .eq("resolved", false);
       }
     },
