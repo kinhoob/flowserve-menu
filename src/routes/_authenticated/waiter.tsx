@@ -230,6 +230,7 @@ function WaiterPage() {
         {billTable && restaurant && (
           <BillModal
             tableLabel={billTable}
+            restaurantId={restaurant.id}
             orders={(orders ?? []).filter((o) => o.table_label === billTable && ACTIVE.includes(o.status))}
             currency={restaurant.currency}
             onClose={() => setBillTable(null)}
