@@ -15,7 +15,9 @@ import { cn } from "@/lib/utils";
 import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
 import { StaffPicker } from "@/features/staff/staff-picker";
 
-const ACTIVE: Order["status"][] = ["pending", "accepted", "preparing", "ready"];
+// A table is "ocupada" enquanto houver qualquer pedido não-arquivado e não cancelado.
+// O status "served" ainda conta como ocupado — só sai com Finalizar e liberar (archived=true).
+const ACTIVE: Order["status"][] = ["pending", "accepted", "preparing", "ready", "served"];
 
 export const Route = createFileRoute("/_authenticated/waiter")({
   head: () => ({ meta: [{ title: "Garçom — Flux" }] }),
