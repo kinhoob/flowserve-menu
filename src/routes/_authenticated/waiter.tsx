@@ -230,6 +230,7 @@ function WaiterPage() {
         {billTable && restaurant && (
           <BillModal
             tableLabel={billTable}
+            restaurantId={restaurant.id}
             orders={(orders ?? []).filter((o) => o.table_label === billTable && ACTIVE.includes(o.status))}
             currency={restaurant.currency}
             onClose={() => setBillTable(null)}
@@ -531,12 +532,14 @@ function QuickOrderModal({
 
 function BillModal({
   tableLabel,
+  restaurantId,
   orders,
   currency,
   onClose,
   onAddItems,
 }: {
   tableLabel: string;
+  restaurantId: string;
   orders: Order[];
   currency: string;
   onClose: () => void;
@@ -551,12 +554,21 @@ function BillModal({
   const cover = Math.max(0, Number(coverInput.replace(",", ".")) || 0);
   const total = subtotal + serviceFee + cover;
 
+  async function resolveCallsForTable() {
+    const stripped = tableLabel.replace(/^Mesa\s*/i, "").trim();
+    const variants = Array.from(new Set([tableLabel, stripped, `Mesa ${stripped}`]));
+    await supabase
+      .from("waiter_calls")
+      .update({ resolved: true, resolved_at: new Date().toISOString() })
+      .eq("restaurant_id", restaurantId)
+      .in("table_label", variants)
+      .eq("resolved", false);
+  }
+
   const close = useMutation({
     mutationFn: async () => {
       const ids = orders.map((o) => o.id);
-      if (ids.length === 0) return;
       const primaryId = ids[0];
-      const restaurantId = orders[0]?.restaurant_id;
       if ((serviceFee > 0 || cover > 0) && primaryId) {
         const { error: feeErr } = await supabase
           .from("orders")
@@ -564,23 +576,14 @@ function BillModal({
           .eq("id", primaryId);
         if (feeErr) throw feeErr;
       }
-      // Finalizar: marca todos os pedidos como entregues e arquiva (libera a mesa)
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: "served", archived: true } as any)
-        .in("id", ids);
-      if (error) throw error;
-      // Resolve qualquer chamado pendente (conta ou garçom) para essa mesa
-      if (restaurantId) {
-        const stripped = tableLabel.replace(/^Mesa\s*/i, "").trim();
-        const variants = Array.from(new Set([tableLabel, stripped, `Mesa ${stripped}`]));
-        await supabase
-          .from("waiter_calls")
-          .update({ resolved: true, resolved_at: new Date().toISOString() })
-          .eq("restaurant_id", restaurantId)
-          .in("table_label", variants)
-          .eq("resolved", false);
+      if (ids.length > 0) {
+        const { error } = await supabase
+          .from("orders")
+          .update({ status: "served", archived: true } as any)
+          .in("id", ids);
+        if (error) throw error;
       }
+      await resolveCallsForTable();
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
@@ -589,6 +592,31 @@ function BillModal({
       onClose();
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao fechar conta"),
+  });
+
+  // Força liberação: arquiva QUALQUER pedido residual desta mesa (por label) e resolve chamados.
+  // Usado quando a mesa aparece "ocupada" mas não há itens visíveis (estado fantasma).
+  const forceFree = useMutation({
+    mutationFn: async () => {
+      const stripped = tableLabel.replace(/^Mesa\s*/i, "").trim();
+      const variants = Array.from(new Set([tableLabel, stripped, `Mesa ${stripped}`]));
+      const { error } = await supabase
+        .from("orders")
+        .update({ archived: true, status: "served" } as any)
+        .eq("restaurant_id", restaurantId)
+        .in("table_label", variants)
+        .eq("archived", false as any)
+        .neq("status", "cancelled");
+      if (error) throw error;
+      await resolveCallsForTable();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["waiter_calls"] });
+      toast.success(`${tableLabel} marcada como livre`);
+      onClose();
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao liberar mesa"),
   });
 
   return (
@@ -685,19 +713,32 @@ function BillModal({
               <span className="font-display text-2xl tracking-tight">{formatPrice(total, currency)}</span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <button
+                onClick={onAddItems}
+                className="flex-1 rounded-xl border border-border bg-background py-3 text-sm font-medium transition hover:border-[oklch(0.78_0.13_84_/_0.4)]"
+              >
+                + Itens
+              </button>
+              <button
+                onClick={() => close.mutate()}
+                disabled={close.isPending || orders.length === 0}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+              >
+                {close.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalizar e liberar"}
+              </button>
+            </div>
             <button
-              onClick={onAddItems}
-              className="flex-1 rounded-xl border border-border bg-background py-3 text-sm font-medium transition hover:border-[oklch(0.78_0.13_84_/_0.4)]"
+              onClick={() => {
+                if (confirm(`Marcar ${tableLabel} como livre? Qualquer pedido residual será arquivado sem cobrança.`)) {
+                  forceFree.mutate();
+                }
+              }}
+              disabled={forceFree.isPending}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-transparent py-2.5 text-xs font-medium text-muted-foreground transition hover:border-emerald-400/50 hover:text-emerald-400 disabled:opacity-50"
             >
-              + Itens
-            </button>
-            <button
-              onClick={() => close.mutate()}
-              disabled={close.isPending || orders.length === 0}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
-            >
-              {close.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalizar e liberar"}
+              {forceFree.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Marcar mesa como livre (sem cobrança)"}
             </button>
           </div>
         </div>
