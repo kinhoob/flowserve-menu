@@ -12,8 +12,7 @@ import {
   Radio,
   ShieldCheck,
 } from "lucide-react";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { motion } from "framer-motion";
 import { FluxLogo } from "@/components/brand/logo";
 import { FadeIn } from "@/components/motion/page-transition";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
@@ -88,15 +87,6 @@ const plans = [
 ];
 
 function LandingPage() {
-  const heroRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"],
-  });
-  const dashboardY = useTransform(scrollYProgress, [0, 1], [0, -120]);
-  const dashboardScale = useTransform(scrollYProgress, [0, 1], [1, 0.94]);
-  const dashboardOpacity = useTransform(scrollYProgress, [0, 1], [1, 0.5]);
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       {/* Ambient glows */}
