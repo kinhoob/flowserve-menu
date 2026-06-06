@@ -90,10 +90,10 @@ export function StaffPicker({
   );
 }
 
-// Per produto: Essential = 10 QR Codes, Pro = 5 QR Codes (definido pelo time),
+// Per produto: Essential = 5 QR Codes, Pro = 5 QR Codes,
 // Trial libera o limite do Pro, Enterprise é ilimitado.
 export const PLAN_TABLE_LIMITS: Record<string, number> = {
-  essential: 10,
+  essential: 5,
   pro: 5,
   trial: 5,
   enterprise: Number.POSITIVE_INFINITY,
