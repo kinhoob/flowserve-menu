@@ -19,6 +19,7 @@ const PLAN_FEATURES: Record<string, FeatureKey[]> = {
   pro: ["analytics", "waiter", "menu", "kitchen", "dashboard"],
   enterprise: ["analytics", "waiter", "menu", "kitchen", "dashboard"],
   essential: ["menu", "kitchen", "dashboard"],
+  basic: ["menu", "dashboard"],
 };
 
 export function canAccess(info: TrialInfo | null | undefined, feature: FeatureKey): boolean {

@@ -63,10 +63,11 @@ function PublicMenuPage() {
         .maybeSingle();
       if (rErr) throw rErr;
       if (!r) throw notFound();
-      const [cats, items, modifiersMap] = await Promise.all([
+      const [cats, items, modifiersMap, planRes] = await Promise.all([
         supabase.from("categories").select("*").eq("restaurant_id", r.id).eq("is_active", true).order("position"),
         supabase.from("menu_items").select("*, categories(kind)").eq("restaurant_id", r.id).eq("is_available", true).order("position"),
         fetchModifiersForRestaurant(r.id),
+        supabase.rpc("get_restaurant_plan" as any, { p_slug: slug }),
       ]);
       if (cats.error) throw cats.error;
       if (items.error) throw items.error;
@@ -74,9 +75,12 @@ function PublicMenuPage() {
       const filteredItems = kitchenOpen
         ? (items.data ?? [])
         : (items.data ?? []).filter((i: any) => i.categories?.kind === "drink");
-      return { restaurant: r, categories: cats.data ?? [], items: filteredItems as PublicItem[], modifiers: modifiersMap, kitchenOpen };
+      const plan = ((planRes.data as unknown as string) ?? "essential").toLowerCase();
+      const viewOnly = plan === "basic";
+      return { restaurant: r, categories: cats.data ?? [], items: filteredItems as PublicItem[], modifiers: modifiersMap, kitchenOpen, viewOnly };
     },
   });
+
 
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -289,6 +293,11 @@ function PublicMenuPage() {
               Cozinha encerrada. Apenas bebidas disponíveis.
             </div>
           )}
+          {data.viewOnly && (
+            <div className="mt-4 rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-muted-foreground">
+              Visualização apenas. Chame o garçom para pedir.
+            </div>
+          )}
           {restaurant.description && (
             <p className="mt-2 text-sm text-muted-foreground">{restaurant.description}</p>
           )}
@@ -298,7 +307,7 @@ function PublicMenuPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Mesa {table}
               </div>
             )}
-            {table && (
+            {table && !data.viewOnly && (
               <button
                 onClick={handleCallWaiter}
                 disabled={callingWaiter}
@@ -308,7 +317,7 @@ function PublicMenuPage() {
                 Chamar garçom
               </button>
             )}
-            {table && (
+            {table && !data.viewOnly && (
               <button
                 onClick={async () => {
                   if (!data) return;
@@ -401,12 +410,14 @@ function PublicMenuPage() {
                             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{it.description}</p>
                           )}
                           <div className="mt-auto flex items-center justify-end pt-2">
-                            <button
-                              onClick={() => handleAdd(it)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-primary/90 px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary"
-                            >
-                              <Plus className="h-3.5 w-3.5" /> {hasMods ? "Personalizar" : "Adicionar"}
-                            </button>
+                            {!data.viewOnly && (
+                              <button
+                                onClick={() => handleAdd(it)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-primary/90 px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary"
+                              >
+                                <Plus className="h-3.5 w-3.5" /> {hasMods ? "Personalizar" : "Adicionar"}
+                              </button>
+                            )}
                           </div>
                         </div>
                       </motion.li>

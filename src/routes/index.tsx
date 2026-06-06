@@ -40,49 +40,83 @@ const partners = [
   "BAR NOIR",
 ];
 
-const plans = [
+type Plan = {
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  cta: string;
+  featured: boolean;
+  badge: string | null;
+  comingSoon: boolean;
+};
+
+const plans: Plan[] = [
+  {
+    name: "Basic",
+    price: "R$ 20",
+    period: "/mês",
+    description: "Cardápio Digital Essencial. Apenas visualização — sem pedidos ou chamados.",
+    features: [
+      "Cardápio digital ilimitado",
+      "QR Code para o salão",
+      "Atualizações em tempo real",
+      "Sem pedidos ou chamado de garçom",
+    ],
+    cta: "Começar agora",
+    featured: false,
+    badge: null,
+    comingSoon: false,
+  },
   {
     name: "Essential",
     price: "R$ 99",
     period: "/mês",
-    description: "Para bares e cafés começando no digital.",
+    description: "Operação Digital. Pedidos via QR Code e Painel da Cozinha.",
     features: [
-      "Até 5 QR Codes por estabelecimento",
-      "Cardápio digital ilimitado",
+      "Pedidos por QR Code",
       "KDS para cozinha e bar",
+      "Cardápio digital ilimitado",
       "Suporte por email",
     ],
     cta: "Começar grátis",
     featured: false,
+    badge: null,
+    comingSoon: false,
   },
   {
     name: "Pro",
     price: "R$ 199",
     period: "/mês",
-    description: "Para restaurantes em operação plena.",
+    description: "Gestão Total. Tudo do Essential mais a operação de salão.",
     features: [
-      "Mesas e QR codes ilimitados",
-      "Lançamento rápido para garçom",
+      "Até 5 QR Codes por estabelecimento",
+      "Rota do Garçom (lançamento rápido)",
       "Análises de pico e ticket médio",
-      "Realtime para toda equipe",
+      "Alertas sonoros em tempo real",
       "Suporte prioritário",
     ],
     cta: "Iniciar teste grátis",
     featured: true,
+    badge: "Mais Popular",
+    comingSoon: false,
   },
   {
     name: "Enterprise",
     price: "Personalizado",
     period: "",
-    description: "Para redes e operações multi-unidade.",
+    description: "Soluções Customizadas para redes e operações multi-unidade.",
     features: [
       "Multi-unidades centralizado",
       "Integrações sob medida",
       "SLA dedicado e onboarding",
       "Gerente de conta exclusivo",
     ],
-    cta: "Falar com vendas",
+    cta: "Entrar na Lista de Espera",
     featured: false,
+    badge: "Em breve",
+    comingSoon: true,
   },
 ];
 
@@ -113,7 +147,12 @@ function LandingPage() {
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="relative z-20 mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6"
       >
-        <FluxLogo />
+        <div className="flex items-center gap-2">
+          <FluxLogo />
+          <span className="inline-flex items-center rounded-full border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+            Beta
+          </span>
+        </div>
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
           <a href="#features" className="transition hover:text-foreground">Produto</a>
           <a href="#why" className="transition hover:text-foreground">Por que Flux</a>
@@ -367,7 +406,7 @@ function LandingPage() {
             </div>
           </FadeIn>
 
-          <div className="mt-14 grid gap-6 md:grid-cols-3 md:items-stretch">
+          <div className="mt-14 grid gap-6 md:grid-cols-2 md:items-stretch lg:grid-cols-4">
             {plans.map((plan, i) => (
               <FadeIn key={plan.name} delay={0.08 * i}>
                 <div className="relative h-full">
@@ -389,12 +428,20 @@ function LandingPage() {
                     className={`group relative flex h-full flex-col rounded-3xl border p-8 transition-all duration-300 hover:-translate-y-1 ${
                       plan.featured
                         ? "border-[oklch(0.78_0.13_84_/_0.5)] bg-gradient-to-b from-[oklch(0.78_0.13_84_/_0.12)] to-surface shadow-[0_40px_80px_-30px_oklch(0.78_0.13_84_/_0.5)]"
-                        : "border-border bg-surface/80 hover:border-[oklch(0.78_0.13_84_/_0.3)] hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.6)]"
+                        : plan.comingSoon
+                          ? "border-dashed border-border bg-surface/60"
+                          : "border-border bg-surface/80 hover:border-[oklch(0.78_0.13_84_/_0.3)] hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.6)]"
                     }`}
                   >
-                    {plan.featured && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.78_0.13_84_/_0.7)]">
-                        Mais vendido
+                    {plan.badge && (
+                      <div
+                        className={`absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] shadow-[0_10px_30px_-10px_oklch(0_0_0_/_0.6)] ${
+                          plan.featured
+                            ? "bg-primary text-primary-foreground"
+                            : "border border-border bg-background text-muted-foreground"
+                        }`}
+                      >
+                        {plan.badge}
                       </div>
                     )}
 
@@ -434,24 +481,36 @@ function LandingPage() {
                     </ul>
 
                     <div className="mt-auto pt-10">
-                      <Link
-                        to="/auth"
-                        search={{ mode: "signup" }}
-                        className={`group/btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
-                          plan.featured
-                            ? "bg-primary text-primary-foreground shadow-[0_15px_35px_-12px_oklch(0.78_0.13_84_/_0.6)] hover:shadow-[0_22px_45px_-15px_oklch(0.78_0.13_84_/_0.75)]"
-                            : "border border-border bg-background text-foreground hover:border-[oklch(0.78_0.13_84_/_0.5)] hover:bg-surface"
-                        }`}
-                      >
-                        {plan.cta}
-                        <ArrowUpRight className="h-4 w-4 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
-                      </Link>
+                      {plan.comingSoon ? (
+                        <button
+                          type="button"
+                          disabled
+                          aria-disabled="true"
+                          className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background/40 px-5 py-3 text-sm font-medium text-muted-foreground"
+                        >
+                          {plan.cta}
+                        </button>
+                      ) : (
+                        <Link
+                          to="/auth"
+                          search={{ mode: "signup" }}
+                          className={`group/btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
+                            plan.featured
+                              ? "bg-primary text-primary-foreground shadow-[0_15px_35px_-12px_oklch(0.78_0.13_84_/_0.6)] hover:shadow-[0_22px_45px_-15px_oklch(0.78_0.13_84_/_0.75)]"
+                              : "border border-border bg-background text-foreground hover:border-[oklch(0.78_0.13_84_/_0.5)] hover:bg-surface"
+                          }`}
+                        >
+                          {plan.cta}
+                          <ArrowUpRight className="h-4 w-4 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>
               </FadeIn>
             ))}
           </div>
+
         </section>
 
         {/* CTA FINAL */}
