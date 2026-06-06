@@ -63,10 +63,11 @@ function PublicMenuPage() {
         .maybeSingle();
       if (rErr) throw rErr;
       if (!r) throw notFound();
-      const [cats, items, modifiersMap] = await Promise.all([
+      const [cats, items, modifiersMap, planRes] = await Promise.all([
         supabase.from("categories").select("*").eq("restaurant_id", r.id).eq("is_active", true).order("position"),
         supabase.from("menu_items").select("*, categories(kind)").eq("restaurant_id", r.id).eq("is_available", true).order("position"),
         fetchModifiersForRestaurant(r.id),
+        supabase.rpc("get_restaurant_plan" as any, { p_slug: slug }),
       ]);
       if (cats.error) throw cats.error;
       if (items.error) throw items.error;
@@ -74,9 +75,12 @@ function PublicMenuPage() {
       const filteredItems = kitchenOpen
         ? (items.data ?? [])
         : (items.data ?? []).filter((i: any) => i.categories?.kind === "drink");
-      return { restaurant: r, categories: cats.data ?? [], items: filteredItems as PublicItem[], modifiers: modifiersMap, kitchenOpen };
+      const plan = ((planRes.data as unknown as string) ?? "essential").toLowerCase();
+      const viewOnly = plan === "basic";
+      return { restaurant: r, categories: cats.data ?? [], items: filteredItems as PublicItem[], modifiers: modifiersMap, kitchenOpen, viewOnly };
     },
   });
+
 
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
