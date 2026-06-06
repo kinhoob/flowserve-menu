@@ -48,9 +48,9 @@ const plans = [
     period: "/mês",
     description: "Para bares e cafés começando no digital.",
     features: [
-      "Até 3 mesas com QR Code",
+      "Até 5 QR Codes por estabelecimento",
       "Cardápio digital ilimitado",
-      "Painel da cozinha",
+      "KDS para cozinha e bar",
       "Suporte por email",
     ],
     cta: "Começar grátis",
@@ -209,66 +209,6 @@ function LandingPage() {
             </motion.div>
           </motion.div>
 
-          {/* Dashboard mockup with parallax */}
-          <motion.div
-            style={{ y: dashboardY, scale: dashboardScale, opacity: dashboardOpacity }}
-            className="relative mx-auto mt-20 max-w-5xl will-change-transform"
-          >
-            <div
-              aria-hidden
-              className="pointer-events-none absolute -inset-x-16 -inset-y-10 bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.18),transparent_70%)] blur-2xl"
-            />
-            <div className="relative rounded-3xl border border-border bg-surface/70 p-2 shadow-[0_60px_120px_-40px_oklch(0_0_0_/_0.85)] backdrop-blur">
-              <div className="overflow-hidden rounded-2xl border border-border bg-background">
-                <div className="flex items-center gap-1.5 border-b border-border px-4 py-3">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.55_0.18_25)]" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.78_0.13_84)]" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[oklch(0.66_0.13_152)]" />
-                  <span className="ml-3 text-xs text-muted-foreground">
-                    Centro de Comando Operacional — tempo real
-                  </span>
-                </div>
-                <div className="grid grid-cols-12 gap-4 p-6">
-                  <div className="col-span-3 space-y-3">
-                    {["Visão geral", "Pedidos", "Cardápio", "Mesas", "Análises"].map(
-                      (label, i) => (
-                        <div
-                          key={label}
-                          className={`rounded-lg px-3 py-2 text-xs ${
-                            i === 0
-                              ? "bg-gold-soft text-foreground ring-1 ring-[oklch(0.78_0.13_84_/_0.35)]"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {label}
-                        </div>
-                      ),
-                    )}
-                  </div>
-                  <div className="col-span-9 space-y-4">
-                    <div className="grid grid-cols-3 gap-4">
-                      {[
-                        { label: "Tempo médio de atendimento", value: "4m 12s" },
-                        { label: "Pedidos hoje", value: "147" },
-                        { label: "Mesas ativas", value: "12 / 18" },
-                      ].map((stat) => (
-                        <div
-                          key={stat.label}
-                          className="rounded-xl border border-border bg-surface p-4"
-                        >
-                          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                            {stat.label}
-                          </div>
-                          <div className="mt-2 font-display text-2xl">{stat.value}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="h-40 rounded-xl border border-border bg-gradient-to-b from-surface to-background" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
         </section>
 
         {/* SOCIAL PROOF */}
