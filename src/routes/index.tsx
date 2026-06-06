@@ -372,10 +372,18 @@ function LandingPage() {
               <FadeIn key={plan.name} delay={0.08 * i}>
                 <div className="relative h-full">
                   {plan.featured && (
-                    <div
-                      aria-hidden
-                      className="pointer-events-none absolute -inset-1 rounded-[2rem] bg-[conic-gradient(from_180deg_at_50%_50%,oklch(0.78_0.13_84_/_0.55),oklch(0.55_0.1_60_/_0.2),oklch(0.78_0.13_84_/_0.55))] opacity-80 blur-md"
-                    />
+                    <>
+                      <div
+                        aria-hidden
+                        className="pointer-events-none absolute -inset-1 rounded-[2rem] bg-[conic-gradient(from_180deg_at_50%_50%,oklch(0.78_0.13_84_/_0.55),oklch(0.55_0.1_60_/_0.2),oklch(0.78_0.13_84_/_0.55))] opacity-80 blur-md"
+                      />
+                      <motion.div
+                        aria-hidden
+                        animate={{ opacity: [0.35, 0.75, 0.35] }}
+                        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+                        className="pointer-events-none absolute -inset-2 rounded-[2.25rem] bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.45),transparent_70%)] blur-2xl"
+                      />
+                    </>
                   )}
                   <div
                     className={`group relative flex h-full flex-col rounded-3xl border p-8 transition-all duration-300 hover:-translate-y-1 ${
