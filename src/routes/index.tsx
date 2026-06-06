@@ -406,7 +406,7 @@ function LandingPage() {
             </div>
           </FadeIn>
 
-          <div className="mt-14 grid gap-6 md:grid-cols-3 md:items-stretch">
+          <div className="mt-14 grid gap-6 md:grid-cols-2 md:items-stretch lg:grid-cols-4">
             {plans.map((plan, i) => (
               <FadeIn key={plan.name} delay={0.08 * i}>
                 <div className="relative h-full">
@@ -428,12 +428,20 @@ function LandingPage() {
                     className={`group relative flex h-full flex-col rounded-3xl border p-8 transition-all duration-300 hover:-translate-y-1 ${
                       plan.featured
                         ? "border-[oklch(0.78_0.13_84_/_0.5)] bg-gradient-to-b from-[oklch(0.78_0.13_84_/_0.12)] to-surface shadow-[0_40px_80px_-30px_oklch(0.78_0.13_84_/_0.5)]"
-                        : "border-border bg-surface/80 hover:border-[oklch(0.78_0.13_84_/_0.3)] hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.6)]"
+                        : plan.comingSoon
+                          ? "border-dashed border-border bg-surface/60"
+                          : "border-border bg-surface/80 hover:border-[oklch(0.78_0.13_84_/_0.3)] hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.6)]"
                     }`}
                   >
-                    {plan.featured && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary-foreground shadow-[0_10px_30px_-10px_oklch(0.78_0.13_84_/_0.7)]">
-                        Mais vendido
+                    {plan.badge && (
+                      <div
+                        className={`absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] shadow-[0_10px_30px_-10px_oklch(0_0_0_/_0.6)] ${
+                          plan.featured
+                            ? "bg-primary text-primary-foreground"
+                            : "border border-border bg-background text-muted-foreground"
+                        }`}
+                      >
+                        {plan.badge}
                       </div>
                     )}
 
@@ -473,24 +481,36 @@ function LandingPage() {
                     </ul>
 
                     <div className="mt-auto pt-10">
-                      <Link
-                        to="/auth"
-                        search={{ mode: "signup" }}
-                        className={`group/btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
-                          plan.featured
-                            ? "bg-primary text-primary-foreground shadow-[0_15px_35px_-12px_oklch(0.78_0.13_84_/_0.6)] hover:shadow-[0_22px_45px_-15px_oklch(0.78_0.13_84_/_0.75)]"
-                            : "border border-border bg-background text-foreground hover:border-[oklch(0.78_0.13_84_/_0.5)] hover:bg-surface"
-                        }`}
-                      >
-                        {plan.cta}
-                        <ArrowUpRight className="h-4 w-4 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
-                      </Link>
+                      {plan.comingSoon ? (
+                        <button
+                          type="button"
+                          disabled
+                          aria-disabled="true"
+                          className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background/40 px-5 py-3 text-sm font-medium text-muted-foreground"
+                        >
+                          {plan.cta}
+                        </button>
+                      ) : (
+                        <Link
+                          to="/auth"
+                          search={{ mode: "signup" }}
+                          className={`group/btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
+                            plan.featured
+                              ? "bg-primary text-primary-foreground shadow-[0_15px_35px_-12px_oklch(0.78_0.13_84_/_0.6)] hover:shadow-[0_22px_45px_-15px_oklch(0.78_0.13_84_/_0.75)]"
+                              : "border border-border bg-background text-foreground hover:border-[oklch(0.78_0.13_84_/_0.5)] hover:bg-surface"
+                          }`}
+                        >
+                          {plan.cta}
+                          <ArrowUpRight className="h-4 w-4 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>
               </FadeIn>
             ))}
           </div>
+
         </section>
 
         {/* CTA FINAL */}
