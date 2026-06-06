@@ -521,7 +521,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_restaurant_plan: { Args: { p_slug: string }; Returns: string }
     }
     Enums: {
       order_status:

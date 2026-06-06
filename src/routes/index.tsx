@@ -40,49 +40,83 @@ const partners = [
   "BAR NOIR",
 ];
 
-const plans = [
+type Plan = {
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  cta: string;
+  featured: boolean;
+  badge: string | null;
+  comingSoon: boolean;
+};
+
+const plans: Plan[] = [
+  {
+    name: "Basic",
+    price: "R$ 20",
+    period: "/mês",
+    description: "Cardápio Digital Essencial. Apenas visualização — sem pedidos ou chamados.",
+    features: [
+      "Cardápio digital ilimitado",
+      "QR Code para o salão",
+      "Atualizações em tempo real",
+      "Sem pedidos ou chamado de garçom",
+    ],
+    cta: "Começar agora",
+    featured: false,
+    badge: null,
+    comingSoon: false,
+  },
   {
     name: "Essential",
     price: "R$ 99",
     period: "/mês",
-    description: "Para bares e cafés começando no digital.",
+    description: "Operação Digital. Pedidos via QR Code e Painel da Cozinha.",
     features: [
-      "Até 5 QR Codes por estabelecimento",
-      "Cardápio digital ilimitado",
+      "Pedidos por QR Code",
       "KDS para cozinha e bar",
+      "Cardápio digital ilimitado",
       "Suporte por email",
     ],
     cta: "Começar grátis",
     featured: false,
+    badge: null,
+    comingSoon: false,
   },
   {
     name: "Pro",
     price: "R$ 199",
     period: "/mês",
-    description: "Para restaurantes em operação plena.",
+    description: "Gestão Total. Tudo do Essential mais a operação de salão.",
     features: [
-      "Mesas e QR codes ilimitados",
-      "Lançamento rápido para garçom",
+      "Até 5 QR Codes por estabelecimento",
+      "Rota do Garçom (lançamento rápido)",
       "Análises de pico e ticket médio",
-      "Realtime para toda equipe",
+      "Alertas sonoros em tempo real",
       "Suporte prioritário",
     ],
     cta: "Iniciar teste grátis",
     featured: true,
+    badge: "Mais Popular",
+    comingSoon: false,
   },
   {
     name: "Enterprise",
     price: "Personalizado",
     period: "",
-    description: "Para redes e operações multi-unidade.",
+    description: "Soluções Customizadas para redes e operações multi-unidade.",
     features: [
       "Multi-unidades centralizado",
       "Integrações sob medida",
       "SLA dedicado e onboarding",
       "Gerente de conta exclusivo",
     ],
-    cta: "Falar com vendas",
+    cta: "Entrar na Lista de Espera",
     featured: false,
+    badge: "Em breve",
+    comingSoon: true,
   },
 ];
 
@@ -113,7 +147,12 @@ function LandingPage() {
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="relative z-20 mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6"
       >
-        <FluxLogo />
+        <div className="flex items-center gap-2">
+          <FluxLogo />
+          <span className="inline-flex items-center rounded-full border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+            Beta
+          </span>
+        </div>
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
           <a href="#features" className="transition hover:text-foreground">Produto</a>
           <a href="#why" className="transition hover:text-foreground">Por que Flux</a>
