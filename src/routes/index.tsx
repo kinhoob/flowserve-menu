@@ -140,7 +140,7 @@ function LandingPage() {
 
       <main className="relative z-10 mx-auto w-full max-w-7xl px-6">
         {/* HERO */}
-        <section ref={heroRef} className="pb-28 pt-20 md:pb-40 md:pt-28">
+        <section className="pb-28 pt-20 md:pb-40 md:pt-28">
           <motion.div
             initial="hidden"
             animate="show"
