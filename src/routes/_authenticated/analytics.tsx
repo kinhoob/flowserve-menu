@@ -184,16 +184,27 @@ function AnalyticsPage() {
   const currency = restaurant.currency || "BRL";
   const maxRevenue = Math.max(1, ...stats.perDay.map((d) => d.revenue));
 
+  // Universo completo usado nas tabelas e exportação.
+  const allOrders = useMemo(
+    () => [...orders, ...archivedOrders],
+    [orders, archivedOrders],
+  );
+
   const exportCsv = () => {
     const rows = [
-      ["Data", "Mesa", "Cliente", "Status", "Subtotal", "Itens"],
-      ...orders
+      ["Data", "Mesa", "Cliente", "Status", "Receita", "Subtotal", "Itens"],
+      ...allOrders
         .filter((o) => new Date(o.created_at) >= stats.since)
         .map((o) => [
           new Date(o.created_at).toLocaleString("pt-BR"),
           o.table_label ?? "",
           o.customer_name ?? "",
           STATUS_LABELS[o.status],
+          (o as any).archived === true
+            ? "Realizada"
+            : o.status === "served"
+              ? "Provisionada"
+              : "Em aberto",
           String(o.subtotal),
           o.order_items.map((i) => `${i.quantity}x ${i.name_snapshot}`).join(" | "),
         ]),
