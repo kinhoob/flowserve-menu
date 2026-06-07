@@ -272,9 +272,16 @@ function AnalyticsPage() {
       {/* KPIs */}
       <div className="grid gap-3 stagger sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
+          icon={<CheckCircle2 className="h-4 w-4" />}
+          label="Receita realizada"
+          value={formatPrice(stats.realizedRevenue, currency)}
+          hint="Contas fechadas no período"
+        />
+        <KpiCard
           icon={<TrendingUp className="h-4 w-4" />}
-          label="Receita"
-          value={formatPrice(stats.revenue, currency)}
+          label="Receita provisionada"
+          value={formatPrice(stats.provisionedRevenue, currency)}
+          hint="Entregues, ainda em aberto"
         />
         <KpiCard
           icon={<Receipt className="h-4 w-4" />}
