@@ -483,7 +483,17 @@ function AnalyticsPage() {
   );
 }
 
-function KpiCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function KpiCard({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -498,6 +508,7 @@ function KpiCard({ icon, label, value }: { icon: React.ReactNode; label: string;
         </span>
       </div>
       <div className="mt-3 font-display text-2xl tracking-tight">{value}</div>
+      {hint && <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div>}
     </motion.div>
   );
 }
