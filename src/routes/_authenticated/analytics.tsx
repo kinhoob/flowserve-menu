@@ -422,7 +422,7 @@ function AnalyticsPage() {
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ) : orders.length === 0 ? (
+        ) : allOrders.length === 0 ? (
           <div className="p-12 text-center text-sm text-muted-foreground">
             Nenhum pedido ainda. Quando seus clientes começarem a pedir, eles aparecerão aqui.
           </div>
@@ -436,43 +436,63 @@ function AnalyticsPage() {
                   <th className="px-6 py-3 text-left font-medium">Cliente</th>
                   <th className="px-6 py-3 text-left font-medium">Itens</th>
                   <th className="px-6 py-3 text-left font-medium">Status</th>
+                  <th className="px-6 py-3 text-left font-medium">Receita</th>
                   <th className="px-6 py-3 text-right font-medium">Total</th>
                 </tr>
               </thead>
               <tbody>
-                {orders
+                {allOrders
                   .filter((o) => new Date(o.created_at) >= stats.since)
                   .slice(0, 100)
-                  .map((o) => (
-                    <tr
-                      key={o.id}
-                      onClick={() => setSelected(o)}
-                      className="cursor-pointer border-b border-border/60 transition hover:bg-background"
-                    >
-                      <td className="px-6 py-3 text-muted-foreground">
-                        {new Date(o.created_at).toLocaleString("pt-BR", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="px-6 py-3">{o.table_label ?? "—"}</td>
-                      <td className="px-6 py-3 truncate">{o.customer_name ?? "—"}</td>
-                      <td className="px-6 py-3 text-muted-foreground">
-                        {o.order_items.reduce((s, i) => s + i.quantity, 0)}
-                      </td>
-                      <td className="px-6 py-3">
-                        <StatusPill status={o.status} />
-                      </td>
-                      <td className="px-6 py-3 text-right font-medium">
-                        {formatPrice(Number(o.subtotal), currency)}
-                      </td>
-                    </tr>
-                  ))}
+                  .map((o) => {
+                    const isRealized = (o as any).archived === true;
+                    const isProvisioned = !isRealized && o.status === "served";
+                    return (
+                      <tr
+                        key={o.id}
+                        onClick={() => setSelected(o)}
+                        className="cursor-pointer border-b border-border/60 transition hover:bg-background"
+                      >
+                        <td className="px-6 py-3 text-muted-foreground">
+                          {new Date(o.created_at).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="px-6 py-3">{o.table_label ?? "—"}</td>
+                        <td className="px-6 py-3 truncate">{o.customer_name ?? "—"}</td>
+                        <td className="px-6 py-3 text-muted-foreground">
+                          {o.order_items.reduce((s, i) => s + i.quantity, 0)}
+                        </td>
+                        <td className="px-6 py-3">
+                          <StatusPill status={o.status} />
+                        </td>
+                        <td className="px-6 py-3">
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider ring-1",
+                              isRealized
+                                ? "bg-emerald-500/10 text-emerald-400 ring-emerald-400/30"
+                                : isProvisioned
+                                  ? "bg-[oklch(0.78_0.13_84_/_0.15)] text-primary ring-[oklch(0.78_0.13_84_/_0.3)]"
+                                  : "bg-background text-muted-foreground ring-border",
+                            )}
+                          >
+                            {isRealized ? "Realizada" : isProvisioned ? "Provisionada" : "Em aberto"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 text-right font-medium">
+                          {formatPrice(Number(o.subtotal), currency)}
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
+
         )}
       </section>
 
