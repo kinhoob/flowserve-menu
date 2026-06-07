@@ -48,6 +48,27 @@ function AnalyticsPage() {
   const [range, setRange] = useState<Range>("7d");
   const [selected, setSelected] = useState<Order | null>(null);
 
+  // Pedidos arquivados (concluidos/realizados) — não vêm via useOrders.
+  const { data: archivedOrders = [] } = useQuery({
+    queryKey: ["orders-archived", restaurant?.id, range],
+    enabled: !!restaurant?.id,
+    queryFn: async (): Promise<Order[]> => {
+      const since = new Date();
+      since.setHours(0, 0, 0, 0);
+      since.setDate(since.getDate() - (RANGE_DAYS[range] - 1));
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*, order_items(*)")
+        .eq("restaurant_id", restaurant!.id)
+        .eq("archived", true as any)
+        .gte("created_at", since.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return (data ?? []) as Order[];
+    },
+  });
+
   useEffect(() => {
     if (!rLoading && !restaurant) navigate({ to: "/onboarding" });
   }, [rLoading, restaurant, navigate]);
