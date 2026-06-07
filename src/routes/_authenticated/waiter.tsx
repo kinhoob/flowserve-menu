@@ -227,22 +227,35 @@ function WaiterPage() {
             onClose={() => setOpenTable(null)}
           />
         )}
-        {billTable && restaurant && (
-          <BillModal
-            tableLabel={billTable}
-            restaurantId={restaurant.id}
-            orders={(orders ?? []).filter((o) => o.table_label === billTable && ACTIVE.includes(o.status))}
-            currency={restaurant.currency}
-            onClose={() => setBillTable(null)}
-            onAddItems={() => {
-              const t = sorted.find((x) => x.label === billTable);
-              if (t) {
-                setBillTable(null);
-                setOpenTable(t.id);
-              }
-            }}
-          />
-        )}
+        {billTable && restaurant && (() => {
+          const stripped = billTable.replace(/^Mesa\s*/i, "").trim();
+          const variants = new Set([billTable, stripped, `Mesa ${stripped}`]);
+          // Inclui TODOS os pedidos ativos da mesa (pending → served / entregue),
+          // independente da grafia do label, para que a soma da conta nunca perca
+          // pedidos já entregues mas ainda não finalizados.
+          const tableOrders = (orders ?? []).filter(
+            (o) =>
+              ACTIVE.includes(o.status) &&
+              o.table_label &&
+              variants.has(o.table_label),
+          );
+          return (
+            <BillModal
+              tableLabel={billTable}
+              restaurantId={restaurant.id}
+              orders={tableOrders}
+              currency={restaurant.currency}
+              onClose={() => setBillTable(null)}
+              onAddItems={() => {
+                const t = sorted.find((x) => x.label === billTable);
+                if (t) {
+                  setBillTable(null);
+                  setOpenTable(t.id);
+                }
+              }}
+            />
+          );
+        })()}
       </AnimatePresence>
 
       <AnimatePresence>

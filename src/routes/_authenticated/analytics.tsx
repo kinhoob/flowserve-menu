@@ -10,7 +10,10 @@ import {
   Clock,
   Trophy,
   Download,
+  CheckCircle2,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useOrders, STATUS_LABELS, type Order, type OrderStatus } from "@/features/orders/order-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
@@ -45,6 +48,27 @@ function AnalyticsPage() {
   const [range, setRange] = useState<Range>("7d");
   const [selected, setSelected] = useState<Order | null>(null);
 
+  // Pedidos arquivados (concluidos/realizados) — não vêm via useOrders.
+  const { data: archivedOrders = [] } = useQuery({
+    queryKey: ["orders-archived", restaurant?.id, range],
+    enabled: !!restaurant?.id,
+    queryFn: async (): Promise<Order[]> => {
+      const since = new Date();
+      since.setHours(0, 0, 0, 0);
+      since.setDate(since.getDate() - (RANGE_DAYS[range] - 1));
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*, order_items(*)")
+        .eq("restaurant_id", restaurant!.id)
+        .eq("archived", true as any)
+        .gte("created_at", since.toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      if (error) throw error;
+      return (data ?? []) as Order[];
+    },
+  });
+
   useEffect(() => {
     if (!rLoading && !restaurant) navigate({ to: "/onboarding" });
   }, [rLoading, restaurant, navigate]);
@@ -54,11 +78,21 @@ function AnalyticsPage() {
     const since = startOfDay(new Date());
     since.setDate(since.getDate() - (days - 1));
 
-    const paid = orders.filter(
+    // Universo completo (ativos + arquivados) para o período.
+    const all: Order[] = [...orders, ...archivedOrders];
+    const paid = all.filter(
       (o) => o.status !== "cancelled" && new Date(o.created_at) >= since,
     );
 
-    const revenue = paid.reduce((s, o) => s + Number(o.subtotal || 0), 0);
+    // Receita Realizada = pedido finalizado (concluded ≡ archived=true)
+    // Receita Provisionada = entregue (status=served) porém ainda não fechado.
+    const realizedRevenue = paid
+      .filter((o) => (o as any).archived === true)
+      .reduce((s, o) => s + Number(o.subtotal || 0), 0);
+    const provisionedRevenue = paid
+      .filter((o) => (o as any).archived !== true && o.status === "served")
+      .reduce((s, o) => s + Number(o.subtotal || 0), 0);
+    const revenue = realizedRevenue + provisionedRevenue;
     const count = paid.length;
     const avg = count ? revenue / count : 0;
 
@@ -66,19 +100,22 @@ function AnalyticsPage() {
       paid.map((o) => `${o.table_label ?? "-"}|${o.customer_name ?? "-"}`),
     ).size;
 
-    // Per-day buckets
+    // Per-day buckets (separa realizada vs provisionada)
     const perDay = Array.from({ length: days }, (_, i) => {
       const d = new Date(since);
       d.setDate(d.getDate() + i);
-      return { date: d, revenue: 0, count: 0 };
+      return { date: d, revenue: 0, realized: 0, provisioned: 0, count: 0 };
     });
     paid.forEach((o) => {
       const idx = Math.floor(
         (startOfDay(new Date(o.created_at)).getTime() - since.getTime()) / 86_400_000,
       );
       if (idx >= 0 && idx < perDay.length) {
-        perDay[idx].revenue += Number(o.subtotal || 0);
+        const v = Number(o.subtotal || 0);
+        perDay[idx].revenue += v;
         perDay[idx].count += 1;
+        if ((o as any).archived === true) perDay[idx].realized += v;
+        else if (o.status === "served") perDay[idx].provisioned += v;
       }
     });
 
@@ -114,14 +151,27 @@ function AnalyticsPage() {
       served: 0,
       cancelled: 0,
     };
-    orders
+    all
       .filter((o) => new Date(o.created_at) >= since)
       .forEach((o) => {
         statusCount[o.status] += 1;
       });
 
-    return { revenue, count, avg, customers, perDay, topItems, perHour, maxHour, statusCount, since };
-  }, [orders, range]);
+    return {
+      revenue,
+      realizedRevenue,
+      provisionedRevenue,
+      count,
+      avg,
+      customers,
+      perDay,
+      topItems,
+      perHour,
+      maxHour,
+      statusCount,
+      since,
+    };
+  }, [orders, archivedOrders, range]);
 
   if (rLoading || !restaurant) {
     return (
@@ -134,16 +184,27 @@ function AnalyticsPage() {
   const currency = restaurant.currency || "BRL";
   const maxRevenue = Math.max(1, ...stats.perDay.map((d) => d.revenue));
 
+  // Universo completo usado nas tabelas e exportação.
+  const allOrders = useMemo(
+    () => [...orders, ...archivedOrders],
+    [orders, archivedOrders],
+  );
+
   const exportCsv = () => {
     const rows = [
-      ["Data", "Mesa", "Cliente", "Status", "Subtotal", "Itens"],
-      ...orders
+      ["Data", "Mesa", "Cliente", "Status", "Receita", "Subtotal", "Itens"],
+      ...allOrders
         .filter((o) => new Date(o.created_at) >= stats.since)
         .map((o) => [
           new Date(o.created_at).toLocaleString("pt-BR"),
           o.table_label ?? "",
           o.customer_name ?? "",
           STATUS_LABELS[o.status],
+          (o as any).archived === true
+            ? "Realizada"
+            : o.status === "served"
+              ? "Provisionada"
+              : "Em aberto",
           String(o.subtotal),
           o.order_items.map((i) => `${i.quantity}x ${i.name_snapshot}`).join(" | "),
         ]),
@@ -211,9 +272,16 @@ function AnalyticsPage() {
       {/* KPIs */}
       <div className="grid gap-3 stagger sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
+          icon={<CheckCircle2 className="h-4 w-4" />}
+          label="Receita realizada"
+          value={formatPrice(stats.realizedRevenue, currency)}
+          hint="Contas fechadas no período"
+        />
+        <KpiCard
           icon={<TrendingUp className="h-4 w-4" />}
-          label="Receita"
-          value={formatPrice(stats.revenue, currency)}
+          label="Receita provisionada"
+          value={formatPrice(stats.provisionedRevenue, currency)}
+          hint="Entregues, ainda em aberto"
         />
         <KpiCard
           icon={<Receipt className="h-4 w-4" />}
@@ -354,7 +422,7 @@ function AnalyticsPage() {
           <div className="flex h-32 items-center justify-center">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ) : orders.length === 0 ? (
+        ) : allOrders.length === 0 ? (
           <div className="p-12 text-center text-sm text-muted-foreground">
             Nenhum pedido ainda. Quando seus clientes começarem a pedir, eles aparecerão aqui.
           </div>
@@ -368,43 +436,63 @@ function AnalyticsPage() {
                   <th className="px-6 py-3 text-left font-medium">Cliente</th>
                   <th className="px-6 py-3 text-left font-medium">Itens</th>
                   <th className="px-6 py-3 text-left font-medium">Status</th>
+                  <th className="px-6 py-3 text-left font-medium">Receita</th>
                   <th className="px-6 py-3 text-right font-medium">Total</th>
                 </tr>
               </thead>
               <tbody>
-                {orders
+                {allOrders
                   .filter((o) => new Date(o.created_at) >= stats.since)
                   .slice(0, 100)
-                  .map((o) => (
-                    <tr
-                      key={o.id}
-                      onClick={() => setSelected(o)}
-                      className="cursor-pointer border-b border-border/60 transition hover:bg-background"
-                    >
-                      <td className="px-6 py-3 text-muted-foreground">
-                        {new Date(o.created_at).toLocaleString("pt-BR", {
-                          day: "2-digit",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="px-6 py-3">{o.table_label ?? "—"}</td>
-                      <td className="px-6 py-3 truncate">{o.customer_name ?? "—"}</td>
-                      <td className="px-6 py-3 text-muted-foreground">
-                        {o.order_items.reduce((s, i) => s + i.quantity, 0)}
-                      </td>
-                      <td className="px-6 py-3">
-                        <StatusPill status={o.status} />
-                      </td>
-                      <td className="px-6 py-3 text-right font-medium">
-                        {formatPrice(Number(o.subtotal), currency)}
-                      </td>
-                    </tr>
-                  ))}
+                  .map((o) => {
+                    const isRealized = (o as any).archived === true;
+                    const isProvisioned = !isRealized && o.status === "served";
+                    return (
+                      <tr
+                        key={o.id}
+                        onClick={() => setSelected(o)}
+                        className="cursor-pointer border-b border-border/60 transition hover:bg-background"
+                      >
+                        <td className="px-6 py-3 text-muted-foreground">
+                          {new Date(o.created_at).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="px-6 py-3">{o.table_label ?? "—"}</td>
+                        <td className="px-6 py-3 truncate">{o.customer_name ?? "—"}</td>
+                        <td className="px-6 py-3 text-muted-foreground">
+                          {o.order_items.reduce((s, i) => s + i.quantity, 0)}
+                        </td>
+                        <td className="px-6 py-3">
+                          <StatusPill status={o.status} />
+                        </td>
+                        <td className="px-6 py-3">
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider ring-1",
+                              isRealized
+                                ? "bg-emerald-500/10 text-emerald-400 ring-emerald-400/30"
+                                : isProvisioned
+                                  ? "bg-[oklch(0.78_0.13_84_/_0.15)] text-primary ring-[oklch(0.78_0.13_84_/_0.3)]"
+                                  : "bg-background text-muted-foreground ring-border",
+                            )}
+                          >
+                            {isRealized ? "Realizada" : isProvisioned ? "Provisionada" : "Em aberto"}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3 text-right font-medium">
+                          {formatPrice(Number(o.subtotal), currency)}
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
+
         )}
       </section>
 
@@ -415,7 +503,17 @@ function AnalyticsPage() {
   );
 }
 
-function KpiCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function KpiCard({
+  icon,
+  label,
+  value,
+  hint,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  hint?: string;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -430,6 +528,7 @@ function KpiCard({ icon, label, value }: { icon: React.ReactNode; label: string;
         </span>
       </div>
       <div className="mt-3 font-display text-2xl tracking-tight">{value}</div>
+      {hint && <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div>}
     </motion.div>
   );
 }
