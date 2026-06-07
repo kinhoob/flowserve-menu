@@ -78,11 +78,21 @@ function AnalyticsPage() {
     const since = startOfDay(new Date());
     since.setDate(since.getDate() - (days - 1));
 
-    const paid = orders.filter(
+    // Universo completo (ativos + arquivados) para o período.
+    const all: Order[] = [...orders, ...archivedOrders];
+    const paid = all.filter(
       (o) => o.status !== "cancelled" && new Date(o.created_at) >= since,
     );
 
-    const revenue = paid.reduce((s, o) => s + Number(o.subtotal || 0), 0);
+    // Receita Realizada = pedido finalizado (concluded ≡ archived=true)
+    // Receita Provisionada = entregue (status=served) porém ainda não fechado.
+    const realizedRevenue = paid
+      .filter((o) => (o as any).archived === true)
+      .reduce((s, o) => s + Number(o.subtotal || 0), 0);
+    const provisionedRevenue = paid
+      .filter((o) => (o as any).archived !== true && o.status === "served")
+      .reduce((s, o) => s + Number(o.subtotal || 0), 0);
+    const revenue = realizedRevenue + provisionedRevenue;
     const count = paid.length;
     const avg = count ? revenue / count : 0;
 
@@ -90,19 +100,22 @@ function AnalyticsPage() {
       paid.map((o) => `${o.table_label ?? "-"}|${o.customer_name ?? "-"}`),
     ).size;
 
-    // Per-day buckets
+    // Per-day buckets (separa realizada vs provisionada)
     const perDay = Array.from({ length: days }, (_, i) => {
       const d = new Date(since);
       d.setDate(d.getDate() + i);
-      return { date: d, revenue: 0, count: 0 };
+      return { date: d, revenue: 0, realized: 0, provisioned: 0, count: 0 };
     });
     paid.forEach((o) => {
       const idx = Math.floor(
         (startOfDay(new Date(o.created_at)).getTime() - since.getTime()) / 86_400_000,
       );
       if (idx >= 0 && idx < perDay.length) {
-        perDay[idx].revenue += Number(o.subtotal || 0);
+        const v = Number(o.subtotal || 0);
+        perDay[idx].revenue += v;
         perDay[idx].count += 1;
+        if ((o as any).archived === true) perDay[idx].realized += v;
+        else if (o.status === "served") perDay[idx].provisioned += v;
       }
     });
 
@@ -138,14 +151,27 @@ function AnalyticsPage() {
       served: 0,
       cancelled: 0,
     };
-    orders
+    all
       .filter((o) => new Date(o.created_at) >= since)
       .forEach((o) => {
         statusCount[o.status] += 1;
       });
 
-    return { revenue, count, avg, customers, perDay, topItems, perHour, maxHour, statusCount, since };
-  }, [orders, range]);
+    return {
+      revenue,
+      realizedRevenue,
+      provisionedRevenue,
+      count,
+      avg,
+      customers,
+      perDay,
+      topItems,
+      perHour,
+      maxHour,
+      statusCount,
+      since,
+    };
+  }, [orders, archivedOrders, range]);
 
   if (rLoading || !restaurant) {
     return (
