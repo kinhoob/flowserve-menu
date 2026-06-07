@@ -10,7 +10,10 @@ import {
   Clock,
   Trophy,
   Download,
+  CheckCircle2,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useOrders, STATUS_LABELS, type Order, type OrderStatus } from "@/features/orders/order-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
