@@ -632,8 +632,20 @@ function LandingPage() {
       </main>
 
       <footer className="relative z-10 mx-auto w-full max-w-7xl px-6 py-10">
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-border pt-8 text-xs text-muted-foreground sm:flex-row">
+        <div className="flex flex-col gap-6 border-t border-border pt-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <FluxLogo className="text-base" />
+          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <a href="#faq" className="transition hover:text-foreground">FAQ</a>
+            <Link to="/privacidade" className="transition hover:text-foreground">
+              Política de Privacidade
+            </Link>
+            <Link to="/termos" className="transition hover:text-foreground">
+              Termos de Uso
+            </Link>
+            <a href="mailto:contato@flux.app" className="transition hover:text-foreground">
+              Contato
+            </a>
+          </nav>
           <p>© {new Date().getFullYear()} Flux Labs. Feito para a hospitalidade.</p>
         </div>
       </footer>
