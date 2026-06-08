@@ -78,6 +78,7 @@ const plans: Plan[] = [
       "Pedidos por QR Code",
       "KDS para cozinha e bar",
       "Cardápio digital ilimitado",
+      "Até 5 QR Codes",
       "Suporte por email",
     ],
     cta: "Começar grátis",
@@ -91,7 +92,7 @@ const plans: Plan[] = [
     period: "/mês",
     description: "Gestão Total. Tudo do Essential mais a operação de salão.",
     features: [
-      "Até 5 QR Codes por estabelecimento",
+      "QR Codes ilimitados",
       "Rota do Garçom (lançamento rápido)",
       "Análises de pico e ticket médio",
       "Alertas sonoros em tempo real",
