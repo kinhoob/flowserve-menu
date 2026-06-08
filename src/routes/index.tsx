@@ -158,6 +158,9 @@ function LandingPage() {
           <a href="#features" className="transition hover:text-foreground">Produto</a>
           <a href="#why" className="transition hover:text-foreground">Por que Flux</a>
           <a href="#pricing" className="transition hover:text-foreground">Planos</a>
+          <a href="#faq" className="transition hover:text-foreground">FAQ</a>
+          <Link to="/privacidade" className="transition hover:text-foreground">Privacidade</Link>
+          <Link to="/termos" className="transition hover:text-foreground">Termos</Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link
