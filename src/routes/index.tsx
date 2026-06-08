@@ -158,6 +158,9 @@ function LandingPage() {
           <a href="#features" className="transition hover:text-foreground">Produto</a>
           <a href="#why" className="transition hover:text-foreground">Por que Flux</a>
           <a href="#pricing" className="transition hover:text-foreground">Planos</a>
+          <a href="#faq" className="transition hover:text-foreground">FAQ</a>
+          <Link to="/privacidade" className="transition hover:text-foreground">Privacidade</Link>
+          <Link to="/termos" className="transition hover:text-foreground">Termos</Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link
@@ -514,6 +517,79 @@ function LandingPage() {
 
         </section>
 
+        {/* FAQ */}
+        <section id="faq" className="py-24">
+          <FadeIn>
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="text-xs uppercase tracking-[0.18em] text-primary">FAQ</p>
+              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
+                Perguntas frequentes.
+              </h2>
+              <p className="mt-4 text-muted-foreground">
+                Tudo o que você precisa saber antes de começar. Não achou sua dúvida?{" "}
+                <a href="mailto:contato@flux.app" className="text-primary hover:underline">
+                  fale com a gente
+                </a>
+                .
+              </p>
+            </div>
+          </FadeIn>
+
+          <div className="mx-auto mt-12 max-w-3xl space-y-3">
+            {[
+              {
+                q: "Preciso instalar algum aplicativo?",
+                a: "Não. O Flux roda 100% no navegador, tanto para o cliente final (via QR Code) quanto para o salão, cozinha e administração. Funciona em celular, tablet e desktop.",
+              },
+              {
+                q: "Quanto tempo leva para colocar no ar?",
+                a: "Em média 10 minutos. Você cria a conta, cadastra o cardápio (ou importa), gera seus QR Codes e já pode receber pedidos.",
+              },
+              {
+                q: "Tem fidelidade ou taxa de setup?",
+                a: "Não. Os planos são mensais, sem fidelidade e sem taxa de setup. Cancele quando quiser direto no painel.",
+              },
+              {
+                q: "Qual a diferença entre Basic, Essential e Pro?",
+                a: "Basic é só cardápio digital (visualização). Essential libera pedidos por QR Code e KDS de cozinha, com até 5 QR Codes. Pro inclui QR Codes ilimitados, Rota do Garçom, análises de pico e suporte prioritário.",
+              },
+              {
+                q: "Os dados do meu estabelecimento ficam seguros?",
+                a: "Sim. Cada estabelecimento opera em ambiente multi-tenant isolado, com criptografia em trânsito, controle de acesso por função e backups contínuos. Conformidade com a LGPD.",
+              },
+              {
+                q: "Posso testar antes de pagar?",
+                a: "Sim. Todos os planos pagos começam com período de teste grátis. Você só é cobrado se decidir continuar.",
+              },
+              {
+                q: "O Flux emite nota fiscal?",
+                a: "A emissão de NFC-e/SAT está no roadmap. Hoje o Flux opera como sistema de comanda, pedidos e KDS — e exporta os dados para o seu sistema fiscal.",
+              },
+              {
+                q: "Como funciona o suporte?",
+                a: "Essential tem suporte por email em horário comercial. Pro tem suporte prioritário com tempo de resposta menor. Enterprise tem gerente de conta dedicado.",
+              },
+            ].map((item, i) => (
+              <FadeIn key={item.q} delay={0.04 * i}>
+                <details className="group rounded-2xl border border-border bg-surface/60 px-5 py-4 transition-all hover:border-[oklch(0.78_0.13_84_/_0.3)] open:border-[oklch(0.78_0.13_84_/_0.4)] open:bg-surface">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-foreground">
+                    <span>{item.q}</span>
+                    <span
+                      aria-hidden
+                      className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-border text-muted-foreground transition-transform group-open:rotate-45"
+                    >
+                      +
+                    </span>
+                  </summary>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+                    {item.a}
+                  </p>
+                </details>
+              </FadeIn>
+            ))}
+          </div>
+        </section>
+
         {/* CTA FINAL */}
         <section className="py-24">
           <FadeIn>
@@ -556,8 +632,20 @@ function LandingPage() {
       </main>
 
       <footer className="relative z-10 mx-auto w-full max-w-7xl px-6 py-10">
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-border pt-8 text-xs text-muted-foreground sm:flex-row">
+        <div className="flex flex-col gap-6 border-t border-border pt-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <FluxLogo className="text-base" />
+          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            <a href="#faq" className="transition hover:text-foreground">FAQ</a>
+            <Link to="/privacidade" className="transition hover:text-foreground">
+              Política de Privacidade
+            </Link>
+            <Link to="/termos" className="transition hover:text-foreground">
+              Termos de Uso
+            </Link>
+            <a href="mailto:contato@flux.app" className="transition hover:text-foreground">
+              Contato
+            </a>
+          </nav>
           <p>© {new Date().getFullYear()} Flux Labs. Feito para a hospitalidade.</p>
         </div>
       </footer>
