@@ -1,14 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, ChefHat, Store, Check, Sparkles, Crown, Rocket, AlertTriangle, Users, Plus, Trash2, Save } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, ChefHat, Store, Check, Sparkles, Crown, Rocket, AlertTriangle, Users, Plus, Trash2, Save, ExternalLink } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTrialStatus, daysLeft } from "@/features/billing/trial-guard";
 import { useStaff, useCreateStaff, useUpdateStaff, useDeleteStaff, type StaffMember } from "@/features/staff/staff-queries";
+import { useAuth } from "@/features/auth/auth-provider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useStripeCheckout } from "@/hooks/use-stripe-checkout";
+import { createPortalSession } from "@/lib/payments.functions";
+import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
+import { PaymentTestModeBanner } from "@/components/payments/payment-test-mode-banner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
