@@ -613,7 +613,7 @@ function LandingPage() {
                 </h2>
                 <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
                   Comece com um teste grátis. Traga seu cardápio, sua equipe e suas
-                  mesas — do resto, a gente cuida.
+                  mesas e o resto deixa que a gente cuida.
                 </p>
                 <div className="mt-8">
                   <Link
