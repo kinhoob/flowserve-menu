@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MSlugRouteImport } from './routes/m.$slug'
+import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedQrcodesRouteImport } from './routes/_authenticated/qrcodes'
@@ -23,6 +24,7 @@ import { Route as AuthenticatedMenuRouteImport } from './routes/_authenticated/m
 import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
@@ -51,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
 const MSlugRoute = MSlugRouteImport.update({
   id: '/m/$slug',
   path: '/m/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
+  id: '/checkout/return',
+  path: '/checkout/return',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedWaiterRoute = AuthenticatedWaiterRouteImport.update({
@@ -93,6 +100,12 @@ const AuthenticatedAnalyticsRoute = AuthenticatedAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -107,7 +120,9 @@ export interface FileRoutesByFullPath {
   '/qrcodes': typeof AuthenticatedQrcodesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
+  '/checkout/return': typeof CheckoutReturnRoute
   '/m/$slug': typeof MSlugRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -122,7 +137,9 @@ export interface FileRoutesByTo {
   '/qrcodes': typeof AuthenticatedQrcodesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
+  '/checkout/return': typeof CheckoutReturnRoute
   '/m/$slug': typeof MSlugRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -139,7 +156,9 @@ export interface FileRoutesById {
   '/_authenticated/qrcodes': typeof AuthenticatedQrcodesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
+  '/checkout/return': typeof CheckoutReturnRoute
   '/m/$slug': typeof MSlugRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -156,7 +175,9 @@ export interface FileRouteTypes {
     | '/qrcodes'
     | '/settings'
     | '/waiter'
+    | '/checkout/return'
     | '/m/$slug'
+    | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -171,7 +192,9 @@ export interface FileRouteTypes {
     | '/qrcodes'
     | '/settings'
     | '/waiter'
+    | '/checkout/return'
     | '/m/$slug'
+    | '/api/public/payments/webhook'
   id:
     | '__root__'
     | '/'
@@ -187,7 +210,9 @@ export interface FileRouteTypes {
     | '/_authenticated/qrcodes'
     | '/_authenticated/settings'
     | '/_authenticated/waiter'
+    | '/checkout/return'
     | '/m/$slug'
+    | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -196,7 +221,9 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   TermosRoute: typeof TermosRoute
+  CheckoutReturnRoute: typeof CheckoutReturnRoute
   MSlugRoute: typeof MSlugRoute
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -241,6 +268,13 @@ declare module '@tanstack/react-router' {
       path: '/m/$slug'
       fullPath: '/m/$slug'
       preLoaderRoute: typeof MSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/return': {
+      id: '/checkout/return'
+      path: '/checkout/return'
+      fullPath: '/checkout/return'
+      preLoaderRoute: typeof CheckoutReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/waiter': {
@@ -299,6 +333,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalyticsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -334,7 +375,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   TermosRoute: TermosRoute,
+  CheckoutReturnRoute: CheckoutReturnRoute,
   MSlugRoute: MSlugRoute,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

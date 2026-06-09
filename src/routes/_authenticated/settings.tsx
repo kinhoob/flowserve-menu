@@ -1,14 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, ChefHat, Store, Check, Sparkles, Crown, Rocket, AlertTriangle, Users, Plus, Trash2, Save } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Loader2, ChefHat, Store, Check, Sparkles, Crown, Rocket, AlertTriangle, Users, Plus, Trash2, Save, ExternalLink } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTrialStatus, daysLeft } from "@/features/billing/trial-guard";
 import { useStaff, useCreateStaff, useUpdateStaff, useDeleteStaff, type StaffMember } from "@/features/staff/staff-queries";
+import { useAuth } from "@/features/auth/auth-provider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useStripeCheckout } from "@/hooks/use-stripe-checkout";
+import { createPortalSession } from "@/lib/payments.functions";
+import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
+import { PaymentTestModeBanner } from "@/components/payments/payment-test-mode-banner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -16,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
 });
 
-type PlanId = "essential" | "pro" | "enterprise";
+type PlanId = "basic" | "essential" | "pro" | "enterprise";
 
 const PLANS: {
   id: PlanId;
@@ -26,18 +32,29 @@ const PLANS: {
   icon: typeof Sparkles;
   description: string;
   features: string[];
-  checkoutUrl: string;
+  priceId?: string;
+  comingSoon?: boolean;
   featured?: boolean;
 }[] = [
+  {
+    id: "basic",
+    name: "Basic",
+    price: "R$ 20",
+    period: "/mês",
+    icon: Sparkles,
+    description: "Cardápio digital com QR Code, sem pedidos.",
+    features: ["Cardápio digital ilimitado", "QR Code para o salão", "Atualizações em tempo real"],
+    priceId: "basic_monthly",
+  },
   {
     id: "essential",
     name: "Essential",
     price: "R$ 99",
     period: "/mês",
-    icon: Sparkles,
-    description: "Para começar com o pé direito.",
-    features: ["Até 10 mesas", "Cardápio digital com QR Code", "KDS básico", "Suporte por e-mail"],
-    checkoutUrl: "https://buy.stripe.com/test_essential",
+    icon: Crown,
+    description: "Operação digital completa para começar.",
+    features: ["Pedidos por QR Code", "KDS para cozinha e bar", "Até 5 QR Codes", "Suporte por email"],
+    priceId: "essential_monthly",
   },
   {
     id: "pro",
@@ -45,15 +62,15 @@ const PLANS: {
     price: "R$ 199",
     period: "/mês",
     icon: Crown,
-    description: "Para operações em ritmo profissional.",
+    description: "Gestão total com modo garçom e análises.",
     features: [
-      "Mesas ilimitadas",
+      "QR Codes ilimitados",
       "Modo Garçom + alertas sonoros",
       "Análises de pico e relatórios",
       "Bar e Cozinha separados",
       "Suporte prioritário",
     ],
-    checkoutUrl: "https://buy.stripe.com/test_pro",
+    priceId: "pro_monthly",
     featured: true,
   },
   {
@@ -63,21 +80,38 @@ const PLANS: {
     period: "",
     icon: Rocket,
     description: "Multi-unidades e integrações sob medida.",
-    features: [
-      "Multi-unidade & franquias",
-      "Integrações personalizadas",
-      "SLA dedicado",
-      "Onboarding presencial",
-    ],
-    checkoutUrl: "mailto:vendas@flux.app?subject=Plano%20Enterprise",
+    features: ["Multi-unidade & franquias", "Integrações personalizadas", "SLA dedicado", "Onboarding presencial"],
+    comingSoon: true,
   },
 ];
 
 function SettingsPage() {
   const { data: restaurant, isLoading } = useRestaurant();
   const { data: trialInfo } = useTrialStatus();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [kitchenOpen, setKitchenOpen] = useState(true);
+  const { openCheckout, closeCheckout, isOpen, checkoutElement } = useStripeCheckout();
+  const paymentsReady = isPaymentsConfigured();
+
+  // Load current active subscription (if any)
+  const { data: subscription } = useQuery({
+    queryKey: ["subscription", user?.id],
+    enabled: !!user?.id && paymentsReady,
+    queryFn: async () => {
+      const env = paymentsReady ? getStripeEnvironment() : "sandbox";
+      const { data, error } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", user!.id)
+        .eq("environment", env)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
 
   useEffect(() => {
     if (restaurant) setKitchenOpen((restaurant as any).kitchen_open ?? true);
@@ -102,6 +136,32 @@ function SettingsPage() {
     }
   }
 
+  async function handleSubscribe(plan: typeof PLANS[number]) {
+    if (!plan.priceId) return;
+    if (!paymentsReady) {
+      toast.error("Pagamentos não configurados nesta build.");
+      return;
+    }
+    openCheckout({
+      priceId: plan.priceId,
+      customerEmail: user?.email,
+      userId: user?.id,
+      returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+    });
+  }
+
+  async function handleManageBilling() {
+    try {
+      const result = await createPortalSession({
+        data: { environment: getStripeEnvironment(), returnUrl: window.location.href },
+      });
+      if ("error" in result) throw new Error(result.error);
+      window.open(result.url, "_blank");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao abrir portal de assinatura");
+    }
+  }
+
   if (isLoading || !restaurant) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
@@ -114,9 +174,18 @@ function SettingsPage() {
   const trialDays = daysLeft(trialInfo);
   const isTrial = profilePlan === "trial";
 
-  // Derive current paid plan from restaurant or profile (fallback)
-  const currentPlan: PlanId = ((restaurant as any).plan as PlanId) ?? "essential";
-  const effectivePlanName = isTrial ? "Trial" : (PLANS.find((p) => p.id === currentPlan)?.name ?? "Essential");
+  // Resolve current paid plan from active subscription (price_id) → fallback to profile plan_type.
+  const currentPlanId: PlanId | null = (() => {
+    if (subscription?.price_id) {
+      const found = PLANS.find((p) => p.priceId === subscription.price_id);
+      if (found) return found.id;
+    }
+    if (profilePlan && profilePlan !== "trial") return profilePlan as PlanId;
+    return null;
+  })();
+  const effectivePlanName = isTrial
+    ? "Trial"
+    : (PLANS.find((p) => p.id === currentPlanId)?.name ?? profilePlan);
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8">
@@ -180,6 +249,8 @@ function SettingsPage() {
 
 
         <TabsContent value="billing" className="mt-6 space-y-6">
+          <PaymentTestModeBanner />
+
           <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -190,12 +261,24 @@ function SettingsPage() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {isTrial
                     ? `Período de teste — ${trialDays} ${trialDays === 1 ? "dia restante" : "dias restantes"}.`
-                    : "Faturamento mensal · próximo ciclo gerenciado pelo provedor de pagamento."}
+                    : subscription?.current_period_end
+                      ? `Próxima cobrança em ${new Date(subscription.current_period_end as string).toLocaleDateString("pt-BR")}.`
+                      : "Faturamento mensal recorrente."}
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
-                <Check className="h-3 w-3" /> Ativo
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
+                  <Check className="h-3 w-3" /> Ativo
+                </span>
+                {subscription?.stripe_customer_id && (
+                  <button
+                    onClick={handleManageBilling}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium transition hover:bg-accent"
+                  >
+                    Gerenciar assinatura <ExternalLink className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
           </section>
 
@@ -208,10 +291,11 @@ function SettingsPage() {
             </div>
           )}
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {PLANS.map((plan) => {
               const Icon = plan.icon;
-              const isCurrent = !isTrial && plan.id === currentPlan;
+              const isCurrent = !isTrial && plan.id === currentPlanId;
+              const disabled = plan.comingSoon || isCurrent;
               return (
                 <div
                   key={plan.id}
@@ -219,12 +303,19 @@ function SettingsPage() {
                     "relative flex flex-col rounded-2xl border bg-surface p-6 transition",
                     plan.featured
                       ? "border-[oklch(0.78_0.13_84_/_0.5)] shadow-[0_0_40px_-12px_oklch(0.78_0.13_84_/_0.4)]"
-                      : "border-border",
+                      : plan.comingSoon
+                        ? "border-dashed border-border"
+                        : "border-border",
                   )}
                 >
                   {plan.featured && (
                     <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground">
                       Mais vendido
+                    </span>
+                  )}
+                  {plan.comingSoon && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-border bg-background px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Em breve
                     </span>
                   )}
                   <div className="flex items-center gap-2">
@@ -244,25 +335,21 @@ function SettingsPage() {
                       </li>
                     ))}
                   </ul>
-                  <a
-                    href={plan.checkoutUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-disabled={isCurrent}
-                    onClick={(e) => {
-                      if (isCurrent) e.preventDefault();
-                    }}
+                  <button
+                    type="button"
+                    onClick={() => handleSubscribe(plan)}
+                    disabled={disabled}
                     className={cn(
                       "mt-6 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium transition",
-                      isCurrent
+                      disabled
                         ? "cursor-not-allowed bg-muted text-muted-foreground"
                         : plan.featured
                           ? "bg-primary text-primary-foreground hover:opacity-90"
                           : "border border-border bg-background hover:bg-accent",
                     )}
                   >
-                    {isCurrent ? "Plano atual" : "Assinar agora"}
-                  </a>
+                    {isCurrent ? "Plano atual" : plan.comingSoon ? "Em breve" : "Assinar agora"}
+                  </button>
                 </div>
               );
             })}
@@ -273,6 +360,17 @@ function SettingsPage() {
           </p>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isOpen} onOpenChange={(o) => !o && closeCheckout()}>
+        <DialogContent className="max-w-2xl p-0 sm:max-w-3xl">
+          <DialogHeader className="border-b border-border p-4">
+            <DialogTitle className="font-display text-lg tracking-tight">Finalizar assinatura</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[80vh] overflow-y-auto p-2">
+            {checkoutElement}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
