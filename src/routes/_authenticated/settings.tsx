@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
 });
 
-type PlanId = "essential" | "pro" | "enterprise";
+type PlanId = "basic" | "essential" | "pro" | "enterprise";
 
 const PLANS: {
   id: PlanId;
@@ -32,18 +32,29 @@ const PLANS: {
   icon: typeof Sparkles;
   description: string;
   features: string[];
-  checkoutUrl: string;
+  priceId?: string;
+  comingSoon?: boolean;
   featured?: boolean;
 }[] = [
+  {
+    id: "basic",
+    name: "Basic",
+    price: "R$ 20",
+    period: "/mês",
+    icon: Sparkles,
+    description: "Cardápio digital com QR Code, sem pedidos.",
+    features: ["Cardápio digital ilimitado", "QR Code para o salão", "Atualizações em tempo real"],
+    priceId: "basic_monthly",
+  },
   {
     id: "essential",
     name: "Essential",
     price: "R$ 99",
     period: "/mês",
-    icon: Sparkles,
-    description: "Para começar com o pé direito.",
-    features: ["Até 10 mesas", "Cardápio digital com QR Code", "KDS básico", "Suporte por e-mail"],
-    checkoutUrl: "https://buy.stripe.com/test_essential",
+    icon: Crown,
+    description: "Operação digital completa para começar.",
+    features: ["Pedidos por QR Code", "KDS para cozinha e bar", "Até 5 QR Codes", "Suporte por email"],
+    priceId: "essential_monthly",
   },
   {
     id: "pro",
@@ -51,15 +62,15 @@ const PLANS: {
     price: "R$ 199",
     period: "/mês",
     icon: Crown,
-    description: "Para operações em ritmo profissional.",
+    description: "Gestão total com modo garçom e análises.",
     features: [
-      "Mesas ilimitadas",
+      "QR Codes ilimitados",
       "Modo Garçom + alertas sonoros",
       "Análises de pico e relatórios",
       "Bar e Cozinha separados",
       "Suporte prioritário",
     ],
-    checkoutUrl: "https://buy.stripe.com/test_pro",
+    priceId: "pro_monthly",
     featured: true,
   },
   {
@@ -69,13 +80,8 @@ const PLANS: {
     period: "",
     icon: Rocket,
     description: "Multi-unidades e integrações sob medida.",
-    features: [
-      "Multi-unidade & franquias",
-      "Integrações personalizadas",
-      "SLA dedicado",
-      "Onboarding presencial",
-    ],
-    checkoutUrl: "mailto:vendas@flux.app?subject=Plano%20Enterprise",
+    features: ["Multi-unidade & franquias", "Integrações personalizadas", "SLA dedicado", "Onboarding presencial"],
+    comingSoon: true,
   },
 ];
 
