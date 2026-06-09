@@ -249,6 +249,8 @@ function SettingsPage() {
 
 
         <TabsContent value="billing" className="mt-6 space-y-6">
+          <PaymentTestModeBanner />
+
           <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -259,12 +261,24 @@ function SettingsPage() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {isTrial
                     ? `Período de teste — ${trialDays} ${trialDays === 1 ? "dia restante" : "dias restantes"}.`
-                    : "Faturamento mensal · próximo ciclo gerenciado pelo provedor de pagamento."}
+                    : subscription?.current_period_end
+                      ? `Próxima cobrança em ${new Date(subscription.current_period_end as string).toLocaleDateString("pt-BR")}.`
+                      : "Faturamento mensal recorrente."}
                 </p>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
-                <Check className="h-3 w-3" /> Ativo
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
+                  <Check className="h-3 w-3" /> Ativo
+                </span>
+                {subscription?.stripe_customer_id && (
+                  <button
+                    onClick={handleManageBilling}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium transition hover:bg-accent"
+                  >
+                    Gerenciar assinatura <ExternalLink className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
           </section>
 
@@ -277,10 +291,11 @@ function SettingsPage() {
             </div>
           )}
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {PLANS.map((plan) => {
               const Icon = plan.icon;
-              const isCurrent = !isTrial && plan.id === currentPlan;
+              const isCurrent = !isTrial && plan.id === currentPlanId;
+              const disabled = plan.comingSoon || isCurrent;
               return (
                 <div
                   key={plan.id}
@@ -288,12 +303,19 @@ function SettingsPage() {
                     "relative flex flex-col rounded-2xl border bg-surface p-6 transition",
                     plan.featured
                       ? "border-[oklch(0.78_0.13_84_/_0.5)] shadow-[0_0_40px_-12px_oklch(0.78_0.13_84_/_0.4)]"
-                      : "border-border",
+                      : plan.comingSoon
+                        ? "border-dashed border-border"
+                        : "border-border",
                   )}
                 >
                   {plan.featured && (
                     <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-primary px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground">
                       Mais vendido
+                    </span>
+                  )}
+                  {plan.comingSoon && (
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full border border-border bg-background px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Em breve
                     </span>
                   )}
                   <div className="flex items-center gap-2">
@@ -313,25 +335,21 @@ function SettingsPage() {
                       </li>
                     ))}
                   </ul>
-                  <a
-                    href={plan.checkoutUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-disabled={isCurrent}
-                    onClick={(e) => {
-                      if (isCurrent) e.preventDefault();
-                    }}
+                  <button
+                    type="button"
+                    onClick={() => handleSubscribe(plan)}
+                    disabled={disabled}
                     className={cn(
                       "mt-6 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium transition",
-                      isCurrent
+                      disabled
                         ? "cursor-not-allowed bg-muted text-muted-foreground"
                         : plan.featured
                           ? "bg-primary text-primary-foreground hover:opacity-90"
                           : "border border-border bg-background hover:bg-accent",
                     )}
                   >
-                    {isCurrent ? "Plano atual" : "Assinar agora"}
-                  </a>
+                    {isCurrent ? "Plano atual" : plan.comingSoon ? "Em breve" : "Assinar agora"}
+                  </button>
                 </div>
               );
             })}
@@ -342,6 +360,17 @@ function SettingsPage() {
           </p>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={isOpen} onOpenChange={(o) => !o && closeCheckout()}>
+        <DialogContent className="max-w-2xl p-0 sm:max-w-3xl">
+          <DialogHeader className="border-b border-border p-4">
+            <DialogTitle className="font-display text-lg tracking-tight">Finalizar assinatura</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[80vh] overflow-y-auto p-2">
+            {checkoutElement}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
