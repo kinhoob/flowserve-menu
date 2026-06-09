@@ -88,8 +88,30 @@ const PLANS: {
 function SettingsPage() {
   const { data: restaurant, isLoading } = useRestaurant();
   const { data: trialInfo } = useTrialStatus();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [kitchenOpen, setKitchenOpen] = useState(true);
+  const { openCheckout, closeCheckout, isOpen, checkoutElement } = useStripeCheckout();
+  const paymentsReady = isPaymentsConfigured();
+
+  // Load current active subscription (if any)
+  const { data: subscription } = useQuery({
+    queryKey: ["subscription", user?.id],
+    enabled: !!user?.id && paymentsReady,
+    queryFn: async () => {
+      const env = paymentsReady ? getStripeEnvironment() : "sandbox";
+      const { data, error } = await supabase
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", user!.id)
+        .eq("environment", env)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
 
   useEffect(() => {
     if (restaurant) setKitchenOpen((restaurant as any).kitchen_open ?? true);
@@ -114,6 +136,32 @@ function SettingsPage() {
     }
   }
 
+  async function handleSubscribe(plan: typeof PLANS[number]) {
+    if (!plan.priceId) return;
+    if (!paymentsReady) {
+      toast.error("Pagamentos não configurados nesta build.");
+      return;
+    }
+    openCheckout({
+      priceId: plan.priceId,
+      customerEmail: user?.email,
+      userId: user?.id,
+      returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+    });
+  }
+
+  async function handleManageBilling() {
+    try {
+      const result = await createPortalSession({
+        data: { environment: getStripeEnvironment(), returnUrl: window.location.href },
+      });
+      if ("error" in result) throw new Error(result.error);
+      window.open(result.url, "_blank");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao abrir portal de assinatura");
+    }
+  }
+
   if (isLoading || !restaurant) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
@@ -126,9 +174,18 @@ function SettingsPage() {
   const trialDays = daysLeft(trialInfo);
   const isTrial = profilePlan === "trial";
 
-  // Derive current paid plan from restaurant or profile (fallback)
-  const currentPlan: PlanId = ((restaurant as any).plan as PlanId) ?? "essential";
-  const effectivePlanName = isTrial ? "Trial" : (PLANS.find((p) => p.id === currentPlan)?.name ?? "Essential");
+  // Resolve current paid plan from active subscription (price_id) → fallback to profile plan_type.
+  const currentPlanId: PlanId | null = (() => {
+    if (subscription?.price_id) {
+      const found = PLANS.find((p) => p.priceId === subscription.price_id);
+      if (found) return found.id;
+    }
+    if (profilePlan && profilePlan !== "trial") return profilePlan as PlanId;
+    return null;
+  })();
+  const effectivePlanName = isTrial
+    ? "Trial"
+    : (PLANS.find((p) => p.id === currentPlanId)?.name ?? profilePlan);
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8">
