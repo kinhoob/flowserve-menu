@@ -122,6 +122,14 @@ function KitchenPage() {
     if (orders) initialized.current = true;
   }, [orders, soundOn]);
 
+  if (trial && !canAccess(trial, "kitchen")) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <FeatureLocked feature="kitchen" />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
