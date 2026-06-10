@@ -153,7 +153,7 @@ function QRCodesPage() {
       {reachedLimit && (
         <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft px-5 py-3 text-sm text-foreground">
           Você atingiu o limite de <strong>{tableLimit}</strong> QR Codes do seu plano atual.{" "}
-          <a href="/settings" className="font-medium text-primary underline-offset-2 hover:underline">Faça upgrade</a> para liberar mais mesas.
+          <a href="/settings?tab=billing" className="font-medium text-primary underline-offset-2 hover:underline">Faça upgrade</a> para liberar mais mesas.
         </div>
       )}
 

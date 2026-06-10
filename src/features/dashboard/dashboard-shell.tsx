@@ -10,13 +10,15 @@ import {
   Bell,
   Search,
   HandPlatter,
+  Lock,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/features/auth/auth-provider";
 import { FluxLogo } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 import { useTrialStatus, canAccess, type FeatureKey } from "@/features/billing/trial-guard";
+import { UpgradeProModal } from "@/features/billing/upgrade-modal";
 
 type NavItem = {
   label: string;
@@ -41,11 +43,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: trial } = useTrialStatus();
+  const [lockedLabel, setLockedLabel] = useState<string | null>(null);
   const initials = (user?.user_metadata?.display_name || user?.email || "U")
     .slice(0, 2)
     .toUpperCase();
-
-  const visibleNav = NAV.filter((n) => !n.feature || !trial || canAccess(trial, n.feature));
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -54,29 +55,39 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           <FluxLogo />
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {visibleNav.map(({ label, to, icon: Icon, soon, id }) => {
+          {NAV.map(({ label, to, icon: Icon, soon, id, feature }) => {
+            const locked = !!feature && !!trial && !canAccess(trial, feature);
             const active = pathname === to && !soon;
             return (
               <Link
                 key={label}
                 to={to}
                 id={id}
+                onClick={(e) => {
+                  if (locked) {
+                    e.preventDefault();
+                    setLockedLabel(label);
+                  }
+                }}
                 className={cn(
                   "group relative flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-all duration-300",
                   active
                     ? "bg-gold-soft text-foreground ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]"
                     : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground hover:translate-x-0.5",
+                  locked && "opacity-70",
                 )}
               >
                 <span className="flex items-center gap-3">
                   <Icon className={cn("h-4 w-4 transition", active && "text-primary")} />
                   {label}
                 </span>
-                {soon && (
+                {locked ? (
+                  <Lock className="h-3.5 w-3.5 text-primary" />
+                ) : soon ? (
                   <span className="rounded-md border border-border px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
                     Em breve
                   </span>
-                )}
+                ) : null}
               </Link>
             );
           })}
@@ -129,6 +140,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </motion.div>
         </main>
       </div>
+
+      <UpgradeProModal
+        open={lockedLabel !== null}
+        featureLabel={lockedLabel}
+        onClose={() => setLockedLabel(null)}
+      />
     </div>
   );
 }
