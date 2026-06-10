@@ -89,6 +89,7 @@ const PLANS: {
 ];
 
 function SettingsPage() {
+  const { tab } = Route.useSearch();
   const { data: restaurant, isLoading } = useRestaurant();
   const { data: trialInfo } = useTrialStatus();
   const { user } = useAuth();
@@ -202,7 +203,7 @@ function SettingsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="operation" className="w-full">
+      <Tabs key={tab ?? "operation"} defaultValue={tab ?? "operation"} className="w-full">
         <TabsList className="bg-surface">
           <TabsTrigger value="operation">Operação</TabsTrigger>
           <TabsTrigger value="establishment">Estabelecimento</TabsTrigger>
