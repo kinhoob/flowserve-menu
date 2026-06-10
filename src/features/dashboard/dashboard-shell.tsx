@@ -140,6 +140,12 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </motion.div>
         </main>
       </div>
+
+      <UpgradeProModal
+        open={lockedLabel !== null}
+        featureLabel={lockedLabel}
+        onClose={() => setLockedLabel(null)}
+      />
     </div>
   );
 }

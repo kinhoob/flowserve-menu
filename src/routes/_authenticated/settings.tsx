@@ -18,6 +18,9 @@ import { PaymentTestModeBanner } from "@/components/payments/payment-test-mode-b
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
+  validateSearch: (search: Record<string, unknown>): { tab?: string } => ({
+    tab: typeof search.tab === "string" ? search.tab : undefined,
+  }),
   head: () => ({ meta: [{ title: "Configurações — Flux" }] }),
   component: SettingsPage,
 });
