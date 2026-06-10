@@ -19,6 +19,7 @@ import { formatPrice } from "@/routes/_authenticated/menu";
 import { cn } from "@/lib/utils";
 import { playChime } from "@/lib/sound";
 import { StaffPicker } from "@/features/staff/staff-picker";
+import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
 
 export const Route = createFileRoute("/_authenticated/kitchen")({
   head: () => ({ meta: [{ title: "Cozinha — Flux" }] }),
@@ -45,6 +46,7 @@ function elapsed(ts: string) {
 function KitchenPage() {
   const qc = useQueryClient();
   const { data: restaurant } = useRestaurant();
+  const { data: trial } = useTrialStatus();
   const { data: orders, isLoading } = useOrders(restaurant?.id);
   const update = useUpdateOrderStatus(restaurant?.id);
   const archive = useArchiveServedOrders(restaurant?.id);
