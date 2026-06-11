@@ -19,6 +19,10 @@ import {
 } from "@/features/billing/trial-guard";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  validateSearch: (search: Record<string, unknown>): { checkout?: string; session_id?: string } => ({
+    checkout: typeof search.checkout === "string" ? search.checkout : undefined,
+    session_id: typeof search.session_id === "string" ? search.session_id : undefined,
+  }),
   head: () => ({
     meta: [{ title: "Dashboard — Flux" }],
   }),
