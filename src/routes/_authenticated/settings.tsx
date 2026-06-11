@@ -122,11 +122,14 @@ function SettingsPage() {
     if (restaurant) setKitchenOpen((restaurant as any).kitchen_open ?? true);
   }, [restaurant]);
 
-  // Auto-open checkout when arriving with ?plan=basic|essential|pro (from landing CTAs)
+  // Auto-open checkout when arriving with ?plan=basic|essential|pro or pending_plan in sessionStorage
   useEffect(() => {
-    if (!planParam || !paymentsReady || !user) return;
-    const plan = PLANS.find((p) => p.id === planParam && p.priceId);
+    if (!paymentsReady || !user) return;
+    const pending = planParam ?? (typeof window !== "undefined" ? sessionStorage.getItem("flux:pending_plan") : null);
+    if (!pending) return;
+    const plan = PLANS.find((p) => p.id === pending && p.priceId);
     if (!plan?.priceId) return;
+    if (typeof window !== "undefined") sessionStorage.removeItem("flux:pending_plan");
     openCheckout({
       priceId: plan.priceId,
       customerEmail: user.email,
