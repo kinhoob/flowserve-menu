@@ -18,8 +18,9 @@ import { PaymentTestModeBanner } from "@/components/payments/payment-test-mode-b
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  validateSearch: (search: Record<string, unknown>): { tab?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { tab?: string; plan?: string } => ({
     tab: typeof search.tab === "string" ? search.tab : undefined,
+    plan: typeof search.plan === "string" ? search.plan : undefined,
   }),
   head: () => ({ meta: [{ title: "Configurações — Flux" }] }),
   component: SettingsPage,
@@ -47,7 +48,7 @@ const PLANS: {
     icon: Sparkles,
     description: "Cardápio digital com QR Code, sem pedidos.",
     features: ["Cardápio digital ilimitado", "QR Code para o salão", "Atualizações em tempo real"],
-    priceId: "basic_monthly",
+    priceId: "price_1ThDYwRCz3xsp5na0BjTL7Hd",
   },
   {
     id: "essential",
@@ -57,7 +58,7 @@ const PLANS: {
     icon: Crown,
     description: "Operação digital completa para começar.",
     features: ["Pedidos por QR Code", "KDS para cozinha e bar", "Até 5 QR Codes", "Suporte por email"],
-    priceId: "essential_monthly",
+    priceId: "price_1ThDaORCz3xsp5naEai7LNVJ",
   },
   {
     id: "pro",
@@ -73,7 +74,7 @@ const PLANS: {
       "Bar e Cozinha separados",
       "Suporte prioritário",
     ],
-    priceId: "pro_monthly",
+    priceId: "price_1ThDcMRCz3xsp5naiRcanTGKk",
     featured: true,
   },
   {
@@ -89,7 +90,7 @@ const PLANS: {
 ];
 
 function SettingsPage() {
-  const { tab } = Route.useSearch();
+  const { tab, plan: planParam } = Route.useSearch();
   const { data: restaurant, isLoading } = useRestaurant();
   const { data: trialInfo } = useTrialStatus();
   const { user } = useAuth();
@@ -121,6 +122,23 @@ function SettingsPage() {
     if (restaurant) setKitchenOpen((restaurant as any).kitchen_open ?? true);
   }, [restaurant]);
 
+  // Auto-open checkout when arriving with ?plan=basic|essential|pro or pending_plan in sessionStorage
+  useEffect(() => {
+    if (!paymentsReady || !user) return;
+    const pending = planParam ?? (typeof window !== "undefined" ? sessionStorage.getItem("flux:pending_plan") : null);
+    if (!pending) return;
+    const plan = PLANS.find((p) => p.id === pending && p.priceId);
+    if (!plan?.priceId) return;
+    if (typeof window !== "undefined") sessionStorage.removeItem("flux:pending_plan");
+    openCheckout({
+      priceId: plan.priceId,
+      customerEmail: user.email,
+      userId: user.id,
+      returnUrl: `${window.location.origin}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planParam, paymentsReady, user?.id]);
+
   const update = useMutation({
     mutationFn: async (patch: { kitchen_open?: boolean }) => {
       const { error } = await supabase.from("restaurants").update(patch).eq("id", restaurant!.id);
@@ -150,7 +168,7 @@ function SettingsPage() {
       priceId: plan.priceId,
       customerEmail: user?.email,
       userId: user?.id,
-      returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+      returnUrl: `${window.location.origin}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     });
   }
 
@@ -203,7 +221,7 @@ function SettingsPage() {
         </p>
       </div>
 
-      <Tabs key={tab ?? "operation"} defaultValue={tab ?? "operation"} className="w-full">
+      <Tabs key={tab ?? (planParam ? "billing" : "operation")} defaultValue={tab ?? (planParam ? "billing" : "operation")} className="w-full">
         <TabsList className="bg-surface">
           <TabsTrigger value="operation">Operação</TabsTrigger>
           <TabsTrigger value="establishment">Estabelecimento</TabsTrigger>

@@ -50,6 +50,7 @@ type Plan = {
   featured: boolean;
   badge: string | null;
   comingSoon: boolean;
+  slug?: "basic" | "essential" | "pro";
 };
 
 const plans: Plan[] = [
@@ -68,6 +69,7 @@ const plans: Plan[] = [
     featured: false,
     badge: null,
     comingSoon: false,
+    slug: "basic",
   },
   {
     name: "Essential",
@@ -85,6 +87,7 @@ const plans: Plan[] = [
     featured: false,
     badge: null,
     comingSoon: false,
+    slug: "essential",
   },
   {
     name: "Pro",
@@ -102,6 +105,7 @@ const plans: Plan[] = [
     featured: true,
     badge: "Mais Popular",
     comingSoon: false,
+    slug: "pro",
   },
   {
     name: "Enterprise",
@@ -497,7 +501,12 @@ function LandingPage() {
                       ) : (
                         <Link
                           to="/auth"
-                          search={{ mode: "signup" }}
+                          search={{ mode: "signup", redirect: "/settings" }}
+                          onClick={() => {
+                            if (plan.slug && typeof window !== "undefined") {
+                              sessionStorage.setItem("flux:pending_plan", plan.slug);
+                            }
+                          }}
                           className={`group/btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
                             plan.featured
                               ? "bg-primary text-primary-foreground shadow-[0_15px_35px_-12px_oklch(0.78_0.13_84_/_0.6)] hover:shadow-[0_22px_45px_-15px_oklch(0.78_0.13_84_/_0.75)]"

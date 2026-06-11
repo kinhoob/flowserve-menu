@@ -1,6 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowUpRight, Bell, DollarSign, Receipt, Users, Flame } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/auth-provider";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
@@ -18,6 +19,10 @@ import {
 } from "@/features/billing/trial-guard";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  validateSearch: (search: Record<string, unknown>): { checkout?: string; session_id?: string } => ({
+    checkout: typeof search.checkout === "string" ? search.checkout : undefined,
+    session_id: typeof search.session_id === "string" ? search.session_id : undefined,
+  }),
   head: () => ({
     meta: [{ title: "Dashboard — Flux" }],
   }),
@@ -32,6 +37,15 @@ function startOfToday() {
 
 function DashboardPage() {
   const { user } = useAuth();
+  const { checkout: checkoutStatus } = Route.useSearch();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (checkoutStatus === "success") {
+      toast.success("Assinatura confirmada! Seu plano será ativado em instantes.");
+      navigate({ to: "/dashboard", search: {}, replace: true });
+    }
+  }, [checkoutStatus, navigate]);
   const { data: restaurant } = useRestaurant();
   const { data: orders } = useOrders(restaurant?.id);
   const { data: waiterCalls = [] } = useWaiterCalls(restaurant?.id);
