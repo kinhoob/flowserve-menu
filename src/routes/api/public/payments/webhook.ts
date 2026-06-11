@@ -13,9 +13,16 @@ function getSupabase(): any {
   return _supabase;
 }
 
-// Map our human-readable price IDs to internal plan_type values used by profiles.
+// Map Stripe price IDs (or lookup keys) to internal plan_type values.
+const PRICE_TO_PLAN: Record<string, string> = {
+  price_1ThDYwRCz3xsp5na0BjTL7Hd: "basic",
+  price_1ThDaORCz3xsp5naEai7LNVJ: "essential",
+  price_1ThDcMRCz3xsp5naiRcanTGKk: "pro",
+};
+
 function planTypeFromPriceId(priceId: string | null | undefined): string | null {
   if (!priceId) return null;
+  if (PRICE_TO_PLAN[priceId]) return PRICE_TO_PLAN[priceId];
   if (priceId.startsWith("basic")) return "basic";
   if (priceId.startsWith("essential")) return "essential";
   if (priceId.startsWith("pro")) return "pro";
