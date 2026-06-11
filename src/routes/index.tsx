@@ -105,6 +105,7 @@ const plans: Plan[] = [
     featured: true,
     badge: "Mais Popular",
     comingSoon: false,
+    slug: "pro",
   },
   {
     name: "Enterprise",
