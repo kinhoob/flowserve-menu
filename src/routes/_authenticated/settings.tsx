@@ -122,6 +122,20 @@ function SettingsPage() {
     if (restaurant) setKitchenOpen((restaurant as any).kitchen_open ?? true);
   }, [restaurant]);
 
+  // Auto-open checkout when arriving with ?plan=basic|essential|pro (from landing CTAs)
+  useEffect(() => {
+    if (!planParam || !paymentsReady || !user) return;
+    const plan = PLANS.find((p) => p.id === planParam && p.priceId);
+    if (!plan?.priceId) return;
+    openCheckout({
+      priceId: plan.priceId,
+      customerEmail: user.email,
+      userId: user.id,
+      returnUrl: `${window.location.origin}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planParam, paymentsReady, user?.id]);
+
   const update = useMutation({
     mutationFn: async (patch: { kitchen_open?: boolean }) => {
       const { error } = await supabase.from("restaurants").update(patch).eq("id", restaurant!.id);
