@@ -69,6 +69,7 @@ const plans: Plan[] = [
     featured: false,
     badge: null,
     comingSoon: false,
+    slug: "basic",
   },
   {
     name: "Essential",
