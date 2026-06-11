@@ -221,7 +221,7 @@ function SettingsPage() {
         </p>
       </div>
 
-      <Tabs key={tab ?? "operation"} defaultValue={tab ?? "operation"} className="w-full">
+      <Tabs key={tab ?? (planParam ? "billing" : "operation")} defaultValue={tab ?? (planParam ? "billing" : "operation")} className="w-full">
         <TabsList className="bg-surface">
           <TabsTrigger value="operation">Operação</TabsTrigger>
           <TabsTrigger value="establishment">Estabelecimento</TabsTrigger>
