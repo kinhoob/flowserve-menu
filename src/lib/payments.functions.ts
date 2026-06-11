@@ -60,9 +60,16 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     try {
       const stripe = createStripeClient(data.environment);
 
-      const prices = await stripe.prices.list({ lookup_keys: [data.priceId] });
-      if (!prices.data.length) throw new Error("Price not found");
-      const stripePrice = prices.data[0];
+      // Accept either a native Stripe price id (price_xxx) or a human-readable
+      // lookup_key (e.g. "pro_monthly").
+      let stripePrice;
+      if (data.priceId.startsWith("price_")) {
+        stripePrice = await stripe.prices.retrieve(data.priceId);
+      } else {
+        const prices = await stripe.prices.list({ lookup_keys: [data.priceId] });
+        if (!prices.data.length) throw new Error("Price not found");
+        stripePrice = prices.data[0];
+      }
       const isRecurring = stripePrice.type === "recurring";
 
       const customerId =
