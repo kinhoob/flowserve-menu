@@ -90,7 +90,7 @@ const PLANS: {
 ];
 
 function SettingsPage() {
-  const { tab } = Route.useSearch();
+  const { tab, plan: planParam } = Route.useSearch();
   const { data: restaurant, isLoading } = useRestaurant();
   const { data: trialInfo } = useTrialStatus();
   const { user } = useAuth();
