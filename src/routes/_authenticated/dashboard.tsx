@@ -37,6 +37,15 @@ function startOfToday() {
 
 function DashboardPage() {
   const { user } = useAuth();
+  const { checkout: checkoutStatus } = Route.useSearch();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (checkoutStatus === "success") {
+      toast.success("Assinatura confirmada! Seu plano será ativado em instantes.");
+      navigate({ to: "/dashboard", search: {}, replace: true });
+    }
+  }, [checkoutStatus, navigate]);
   const { data: restaurant } = useRestaurant();
   const { data: orders } = useOrders(restaurant?.id);
   const { data: waiterCalls = [] } = useWaiterCalls(restaurant?.id);
