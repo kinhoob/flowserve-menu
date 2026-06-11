@@ -48,7 +48,7 @@ const PLANS: {
     icon: Sparkles,
     description: "Cardápio digital com QR Code, sem pedidos.",
     features: ["Cardápio digital ilimitado", "QR Code para o salão", "Atualizações em tempo real"],
-    priceId: "basic_monthly",
+    priceId: "price_1ThDYwRCz3xsp5na0BjTL7Hd",
   },
   {
     id: "essential",
@@ -58,7 +58,7 @@ const PLANS: {
     icon: Crown,
     description: "Operação digital completa para começar.",
     features: ["Pedidos por QR Code", "KDS para cozinha e bar", "Até 5 QR Codes", "Suporte por email"],
-    priceId: "essential_monthly",
+    priceId: "price_1ThDaORCz3xsp5naEai7LNVJ",
   },
   {
     id: "pro",
@@ -74,7 +74,7 @@ const PLANS: {
       "Bar e Cozinha separados",
       "Suporte prioritário",
     ],
-    priceId: "pro_monthly",
+    priceId: "price_1ThDcMRCz3xsp5naiRcanTGKk",
     featured: true,
   },
   {
