@@ -50,6 +50,7 @@ type Plan = {
   featured: boolean;
   badge: string | null;
   comingSoon: boolean;
+  slug?: "basic" | "essential" | "pro";
 };
 
 const plans: Plan[] = [
