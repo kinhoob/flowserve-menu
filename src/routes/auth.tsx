@@ -8,6 +8,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { FluxLogo } from "@/components/brand/logo";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { sendWelcomeEmailFn } from "@/lib/email/email.functions";
+
+async function fireWelcomeEmail() {
+  try {
+    await sendWelcomeEmailFn();
+  } catch (err) {
+    console.error("[welcome] dispatch failed", err);
+  }
+}
 
 const searchSchema = z.object({
   mode: z.enum(["login", "signup"]).optional().default("login"),
@@ -115,6 +124,7 @@ function AuthPage() {
       });
       if (error) throw error;
       toast.success("Email confirmado. Vamos configurar seu restaurante.");
+      void fireWelcomeEmail();
       navigate({ to: redirectTo ?? "/dashboard" });
     } catch (err) {
       toast.error(friendlyError(err instanceof Error ? err.message : ""));
@@ -151,6 +161,7 @@ function AuthPage() {
         return;
       }
       if (result.redirected) return;
+      void fireWelcomeEmail();
       navigate({ to: redirectTo ?? "/dashboard" });
     } catch (err) {
       toast.error(friendlyError(err instanceof Error ? err.message : ""));
