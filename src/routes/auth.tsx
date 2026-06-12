@@ -161,6 +161,7 @@ function AuthPage() {
         return;
       }
       if (result.redirected) return;
+      void fireWelcomeEmail();
       navigate({ to: redirectTo ?? "/dashboard" });
     } catch (err) {
       toast.error(friendlyError(err instanceof Error ? err.message : ""));
