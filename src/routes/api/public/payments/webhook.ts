@@ -66,7 +66,36 @@ async function handleSubscriptionCreatedOrUpdated(subscription: any, env: Stripe
   // Update the profile's plan_type if subscription is active/trialing.
   const plan = planTypeFromPriceId(priceId);
   if (plan && (subscription.status === "active" || subscription.status === "trialing")) {
+    const { data: prevProfile } = await sb
+      .from("profiles")
+      .select("plan_type, display_name")
+      .eq("id", userId)
+      .maybeSingle();
+
     await sb.from("profiles").update({ plan_type: plan }).eq("id", userId);
+
+    // Send "subscription confirmed" email once, when transitioning into a paid plan.
+    const wasPaid = prevProfile?.plan_type === "basic" ||
+      prevProfile?.plan_type === "essential" ||
+      prevProfile?.plan_type === "pro";
+    if (!wasPaid) {
+      try {
+        const { data: userRes } = await sb.auth.admin.getUserById(userId);
+        const toEmail = userRes?.user?.email;
+        if (toEmail) {
+          const { sendSubscriptionConfirmedEmail } = await import(
+            "@/lib/email/send-subscription-confirmed.server"
+          );
+          await sendSubscriptionConfirmedEmail({
+            to: toEmail,
+            planType: plan,
+            displayName: prevProfile?.display_name ?? null,
+          });
+        }
+      } catch (err) {
+        console.error("[webhook] Failed to send confirmation email:", err);
+      }
+    }
   }
 }
 
