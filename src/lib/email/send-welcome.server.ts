@@ -33,7 +33,7 @@ function renderWelcomeHtml(displayName: string | null): string {
           </td></tr>
           <tr><td style="padding:12px 40px 36px 40px;" align="center">
             <a href="https://flux.app/dashboard" style="display:inline-block;background:linear-gradient(180deg,#e6c478 0%,#c79a3d 100%);color:#1a1408;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:12px;box-shadow:0 12px 30px -10px rgba(212,175,90,0.5);">
-              Começar agora
+              Acessar meu Painel
             </a>
             <p style="margin:26px 0 0 0;font-size:13px;color:#7a7a85;line-height:1.6;">
               Precisa de ajuda? Responda este email — a gente lê tudo.
