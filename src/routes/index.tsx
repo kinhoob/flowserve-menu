@@ -125,6 +125,12 @@ const plans: Plan[] = [
   },
 ];
 
+const STRIPE_PAYMENT_LINKS: Record<"basic" | "essential" | "pro", string> = {
+  basic: "https://buy.stripe.com/test_14A28tbqigv26e97ajdjO02",
+  essential: "https://buy.stripe.com/test_cNi5kFamegv27idbqzdjO01",
+  pro: "https://buy.stripe.com/test_5kQ14pbqiceM461bqzdjO00",
+};
+
 function LandingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
