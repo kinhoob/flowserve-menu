@@ -18,9 +18,9 @@ function renderWelcomeHtml(displayName: string | null): string {
           </td></tr>
           <tr><td style="padding:20px 40px 8px 40px;">
             <p style="margin:0 0 16px 0;font-size:15px;line-height:1.65;color:#d4d4dc;">
-              Sua conta está pronta. Você ganhou
-              <strong style="color:#d4af5a;">7 dias grátis</strong>
-              para explorar tudo o que o Flux pode fazer pelo seu restaurante — sem precisar cadastrar cartão.
+              Olá! É um prazer ter você no <strong style="color:#ffffff;">Flux</strong>. Estamos aqui para transformar a
+              agilidade do seu atendimento. Seu próximo passo é cadastrar seu primeiro cardápio e gerar seus
+              <strong style="color:#d4af5a;">QR Codes</strong>.
             </p>
             <div style="background:#13131a;border:1px solid #2a2418;border-radius:14px;padding:20px 22px;margin:22px 0;">
               <div style="font-size:11px;color:#d4af5a;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px;font-weight:600;">Primeiros passos</div>
