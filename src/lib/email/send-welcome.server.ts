@@ -68,7 +68,7 @@ export async function sendWelcomeEmail(opts: {
     body: JSON.stringify({
       from: "Flux App <onboarding@resend.dev>",
       to: [opts.to],
-      subject: "Bem-vindo ao Flux — sua conta está pronta",
+      subject: "Bem-vindo ao Flux! 🚀 Seu salão está prestes a evoluir.",
       html: renderWelcomeHtml(opts.displayName ?? null),
     }),
   });
