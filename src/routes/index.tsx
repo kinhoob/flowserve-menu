@@ -125,6 +125,12 @@ const plans: Plan[] = [
   },
 ];
 
+const STRIPE_PAYMENT_LINKS: Record<"basic" | "essential" | "pro", string> = {
+  basic: "https://buy.stripe.com/test_14A28tbqigv26e97ajdjO02",
+  essential: "https://buy.stripe.com/test_cNi5kFamegv27idbqzdjO01",
+  pro: "https://buy.stripe.com/test_5kQ14pbqiceM461bqzdjO00",
+};
+
 function LandingPage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
@@ -499,14 +505,10 @@ function LandingPage() {
                           {plan.cta}
                         </button>
                       ) : (
-                        <Link
-                          to="/auth"
-                          search={{ mode: "signup", redirect: "/settings" }}
-                          onClick={() => {
-                            if (plan.slug && typeof window !== "undefined") {
-                              sessionStorage.setItem("flux:pending_plan", plan.slug);
-                            }
-                          }}
+                        <a
+                          href={plan.slug ? STRIPE_PAYMENT_LINKS[plan.slug] : "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className={`group/btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
                             plan.featured
                               ? "bg-primary text-primary-foreground shadow-[0_15px_35px_-12px_oklch(0.78_0.13_84_/_0.6)] hover:shadow-[0_22px_45px_-15px_oklch(0.78_0.13_84_/_0.75)]"
@@ -515,7 +517,7 @@ function LandingPage() {
                         >
                           {plan.cta}
                           <ArrowUpRight className="h-4 w-4 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
-                        </Link>
+                        </a>
                       )}
                     </div>
                   </div>

@@ -89,6 +89,12 @@ const PLANS: {
   },
 ];
 
+const STRIPE_PAYMENT_LINKS: Record<"basic" | "essential" | "pro", string> = {
+  basic: "https://buy.stripe.com/test_14A28tbqigv26e97ajdjO02",
+  essential: "https://buy.stripe.com/test_cNi5kFamegv27idbqzdjO01",
+  pro: "https://buy.stripe.com/test_5kQ14pbqiceM461bqzdjO00",
+};
+
 function SettingsPage() {
   const { tab, plan: planParam } = Route.useSearch();
   const { data: restaurant, isLoading } = useRestaurant();
@@ -122,22 +128,17 @@ function SettingsPage() {
     if (restaurant) setKitchenOpen((restaurant as any).kitchen_open ?? true);
   }, [restaurant]);
 
-  // Auto-open checkout when arriving with ?plan=basic|essential|pro or pending_plan in sessionStorage
+  // Auto-redirect to Stripe Payment Link when arriving with ?plan=basic|essential|pro or pending_plan in sessionStorage
   useEffect(() => {
-    if (!paymentsReady || !user) return;
+    if (!user) return;
     const pending = planParam ?? (typeof window !== "undefined" ? sessionStorage.getItem("flux:pending_plan") : null);
     if (!pending) return;
-    const plan = PLANS.find((p) => p.id === pending && p.priceId);
-    if (!plan?.priceId) return;
+    const link = STRIPE_PAYMENT_LINKS[pending as keyof typeof STRIPE_PAYMENT_LINKS];
+    if (!link) return;
     if (typeof window !== "undefined") sessionStorage.removeItem("flux:pending_plan");
-    openCheckout({
-      priceId: plan.priceId,
-      customerEmail: user.email,
-      userId: user.id,
-      returnUrl: `${window.location.origin}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-    });
+    window.location.href = link;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planParam, paymentsReady, user?.id]);
+  }, [planParam, user?.id]);
 
   const update = useMutation({
     mutationFn: async (patch: { kitchen_open?: boolean }) => {
@@ -158,18 +159,10 @@ function SettingsPage() {
     }
   }
 
-  async function handleSubscribe(plan: typeof PLANS[number]) {
-    if (!plan.priceId) return;
-    if (!paymentsReady) {
-      toast.error("Pagamentos não configurados nesta build.");
-      return;
-    }
-    openCheckout({
-      priceId: plan.priceId,
-      customerEmail: user?.email,
-      userId: user?.id,
-      returnUrl: `${window.location.origin}/dashboard?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-    });
+  function handleSubscribe(plan: typeof PLANS[number]) {
+    const link = STRIPE_PAYMENT_LINKS[plan.id as keyof typeof STRIPE_PAYMENT_LINKS];
+    if (!link) return;
+    window.open(link, "_blank", "noopener,noreferrer");
   }
 
   async function handleManageBilling() {
