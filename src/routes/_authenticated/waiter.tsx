@@ -146,16 +146,29 @@ function WaiterPage() {
               onClick={() => (isBusy ? setBillTable(t.label) : setOpenTable(t.id))}
               className={cn(
                 "relative aspect-square rounded-2xl border p-4 text-left transition",
-                billCall
+          const stripped = t.label.replace(/^Mesa\s*/i, "").trim();
+          const isBusy = occupied.has(t.label) || occupied.has(stripped);
+          const callList = callsByLabel.get(stripped) ?? [];
+          const billCall = billCallsByLabel.get(stripped);
+          const waiterCall = callList.find((c) => c.kind === "call");
+          const hasAnyCall = callList.length > 0;
+          return (
+            <motion.button
+              key={t.id}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => (isBusy || hasAnyCall ? setBillTable(t.label) : setOpenTable(t.id))}
+              className={cn(
+                "relative aspect-square rounded-2xl border p-4 text-left transition",
+                hasAnyCall
                   ? "border-[oklch(0.78_0.18_84_/_0.7)] bg-[oklch(0.78_0.18_84_/_0.12)] animate-pulse shadow-[0_0_30px_-8px_oklch(0.78_0.18_84_/_0.6)]"
                   : isBusy
                     ? "border-[oklch(0.62_0.21_25_/_0.55)] bg-[oklch(0.62_0.21_25_/_0.08)]"
                     : "border-border bg-surface hover:border-[oklch(0.78_0.13_84_/_0.4)]",
               )}
             >
-              {billCall && (
+              {hasAnyCall && (
                 <span className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background animate-pulse">
-                  <DollarSign className="h-3.5 w-3.5" />
+                  {billCall ? <DollarSign className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
                 </span>
               )}
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Mesa</div>
@@ -164,7 +177,7 @@ function WaiterPage() {
                 <span
                   className={cn(
                     "inline-flex items-center gap-1.5",
-                    billCall
+                    hasAnyCall
                       ? "text-primary font-medium"
                       : isBusy
                         ? "text-[oklch(0.7_0.18_25)]"
@@ -174,16 +187,22 @@ function WaiterPage() {
                   <span
                     className={cn(
                       "h-1.5 w-1.5 rounded-full",
-                      billCall
+                      hasAnyCall
                         ? "bg-primary animate-pulse"
                         : isBusy
                           ? "bg-[oklch(0.7_0.18_25)] animate-pulse"
                           : "bg-emerald-400",
                     )}
                   />
-                  {billCall ? "Pedindo a conta" : isBusy ? "Ver conta" : "Livre"}
+                  {billCall
+                    ? "Pedindo a conta"
+                    : waiterCall
+                      ? "Chamando garçom"
+                      : isBusy
+                        ? "Ver conta"
+                        : "Livre"}
                 </span>
-                {isBusy ? (
+                {isBusy || hasAnyCall ? (
                   <Receipt className="h-3.5 w-3.5 text-[oklch(0.78_0.18_25)]" />
                 ) : (
                   <Plus className="h-3.5 w-3.5 text-muted-foreground" />
