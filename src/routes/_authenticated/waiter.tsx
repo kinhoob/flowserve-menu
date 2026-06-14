@@ -138,16 +138,6 @@ function WaiterPage() {
         {sorted.map((t) => {
           const stripped = t.label.replace(/^Mesa\s*/i, "").trim();
           const isBusy = occupied.has(t.label) || occupied.has(stripped);
-          const billCall = billCallsByLabel.get(stripped);
-          return (
-            <motion.button
-              key={t.id}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => (isBusy ? setBillTable(t.label) : setOpenTable(t.id))}
-              className={cn(
-                "relative aspect-square rounded-2xl border p-4 text-left transition",
-          const stripped = t.label.replace(/^Mesa\s*/i, "").trim();
-          const isBusy = occupied.has(t.label) || occupied.has(stripped);
           const callList = callsByLabel.get(stripped) ?? [];
           const billCall = billCallsByLabel.get(stripped);
           const waiterCall = callList.find((c) => c.kind === "call");
