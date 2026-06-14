@@ -47,17 +47,29 @@ function WaiterPage() {
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
 
-  // Calls "pedir conta" by table_label
-  const billCallsByLabel = useMemo(() => {
-    const m = new Map<string, { id: string; created_at: string }>();
+  // Calls "pedir conta" e "chamar garçom" por table_label (qualquer chamado não resolvido)
+  const callsByLabel = useMemo(() => {
+    const m = new Map<string, { id: string; created_at: string; kind: "bill" | "call" }[]>();
     for (const c of waiterCalls) {
       if (c.resolved) continue;
-      if ((c as any).kind !== "bill") continue;
+      const kind = ((c as any).kind === "bill" ? "bill" : "call") as "bill" | "call";
       const lbl = (c.table_label ?? "").replace(/^Mesa\s*/i, "").trim();
-      if (lbl) m.set(lbl, { id: c.id, created_at: c.created_at });
+      if (!lbl) continue;
+      const arr = m.get(lbl) ?? [];
+      arr.push({ id: c.id, created_at: c.created_at, kind });
+      m.set(lbl, arr);
     }
     return m;
   }, [waiterCalls]);
+
+  const billCallsByLabel = useMemo(() => {
+    const m = new Map<string, { id: string; created_at: string }>();
+    for (const [lbl, arr] of callsByLabel) {
+      const bill = arr.find((c) => c.kind === "bill");
+      if (bill) m.set(lbl, { id: bill.id, created_at: bill.created_at });
+    }
+    return m;
+  }, [callsByLabel]);
 
   // Occupancy: any active order tied to the table_label (realtime via useOrders)
   const occupied = useMemo(() => {
@@ -126,24 +138,27 @@ function WaiterPage() {
         {sorted.map((t) => {
           const stripped = t.label.replace(/^Mesa\s*/i, "").trim();
           const isBusy = occupied.has(t.label) || occupied.has(stripped);
+          const callList = callsByLabel.get(stripped) ?? [];
           const billCall = billCallsByLabel.get(stripped);
+          const waiterCall = callList.find((c) => c.kind === "call");
+          const hasAnyCall = callList.length > 0;
           return (
             <motion.button
               key={t.id}
               whileTap={{ scale: 0.96 }}
-              onClick={() => (isBusy ? setBillTable(t.label) : setOpenTable(t.id))}
+              onClick={() => (isBusy || hasAnyCall ? setBillTable(t.label) : setOpenTable(t.id))}
               className={cn(
                 "relative aspect-square rounded-2xl border p-4 text-left transition",
-                billCall
+                hasAnyCall
                   ? "border-[oklch(0.78_0.18_84_/_0.7)] bg-[oklch(0.78_0.18_84_/_0.12)] animate-pulse shadow-[0_0_30px_-8px_oklch(0.78_0.18_84_/_0.6)]"
                   : isBusy
                     ? "border-[oklch(0.62_0.21_25_/_0.55)] bg-[oklch(0.62_0.21_25_/_0.08)]"
                     : "border-border bg-surface hover:border-[oklch(0.78_0.13_84_/_0.4)]",
               )}
             >
-              {billCall && (
+              {hasAnyCall && (
                 <span className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background animate-pulse">
-                  <DollarSign className="h-3.5 w-3.5" />
+                  {billCall ? <DollarSign className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
                 </span>
               )}
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Mesa</div>
@@ -152,7 +167,7 @@ function WaiterPage() {
                 <span
                   className={cn(
                     "inline-flex items-center gap-1.5",
-                    billCall
+                    hasAnyCall
                       ? "text-primary font-medium"
                       : isBusy
                         ? "text-[oklch(0.7_0.18_25)]"
@@ -162,16 +177,22 @@ function WaiterPage() {
                   <span
                     className={cn(
                       "h-1.5 w-1.5 rounded-full",
-                      billCall
+                      hasAnyCall
                         ? "bg-primary animate-pulse"
                         : isBusy
                           ? "bg-[oklch(0.7_0.18_25)] animate-pulse"
                           : "bg-emerald-400",
                     )}
                   />
-                  {billCall ? "Pedindo a conta" : isBusy ? "Ver conta" : "Livre"}
+                  {billCall
+                    ? "Pedindo a conta"
+                    : waiterCall
+                      ? "Chamando garçom"
+                      : isBusy
+                        ? "Ver conta"
+                        : "Livre"}
                 </span>
-                {isBusy ? (
+                {isBusy || hasAnyCall ? (
                   <Receipt className="h-3.5 w-3.5 text-[oklch(0.78_0.18_25)]" />
                 ) : (
                   <Plus className="h-3.5 w-3.5 text-muted-foreground" />
@@ -618,8 +639,7 @@ function BillModal({
         .update({ archived: true, status: "served" } as any)
         .eq("restaurant_id", restaurantId)
         .in("table_label", variants)
-        .eq("archived", false as any)
-        .neq("status", "cancelled");
+        .in("status", ACTIVE);
       if (error) throw error;
       await resolveCallsForTable();
     },

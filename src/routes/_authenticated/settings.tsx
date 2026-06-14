@@ -43,7 +43,7 @@ const PLANS: {
   {
     id: "basic",
     name: "Basic",
-    price: "R$ 20",
+    price: "R$ 30",
     period: "/mês",
     icon: Sparkles,
     description: "Cardápio digital com QR Code, sem pedidos.",
