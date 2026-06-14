@@ -47,17 +47,29 @@ function WaiterPage() {
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
 
-  // Calls "pedir conta" by table_label
-  const billCallsByLabel = useMemo(() => {
-    const m = new Map<string, { id: string; created_at: string }>();
+  // Calls "pedir conta" e "chamar garçom" por table_label (qualquer chamado não resolvido)
+  const callsByLabel = useMemo(() => {
+    const m = new Map<string, { id: string; created_at: string; kind: "bill" | "call" }[]>();
     for (const c of waiterCalls) {
       if (c.resolved) continue;
-      if ((c as any).kind !== "bill") continue;
+      const kind = ((c as any).kind === "bill" ? "bill" : "call") as "bill" | "call";
       const lbl = (c.table_label ?? "").replace(/^Mesa\s*/i, "").trim();
-      if (lbl) m.set(lbl, { id: c.id, created_at: c.created_at });
+      if (!lbl) continue;
+      const arr = m.get(lbl) ?? [];
+      arr.push({ id: c.id, created_at: c.created_at, kind });
+      m.set(lbl, arr);
     }
     return m;
   }, [waiterCalls]);
+
+  const billCallsByLabel = useMemo(() => {
+    const m = new Map<string, { id: string; created_at: string }>();
+    for (const [lbl, arr] of callsByLabel) {
+      const bill = arr.find((c) => c.kind === "bill");
+      if (bill) m.set(lbl, { id: bill.id, created_at: bill.created_at });
+    }
+    return m;
+  }, [callsByLabel]);
 
   // Occupancy: any active order tied to the table_label (realtime via useOrders)
   const occupied = useMemo(() => {
