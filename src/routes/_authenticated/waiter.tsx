@@ -639,8 +639,7 @@ function BillModal({
         .update({ archived: true, status: "served" } as any)
         .eq("restaurant_id", restaurantId)
         .in("table_label", variants)
-        .eq("archived", false as any)
-        .neq("status", "cancelled");
+        .in("status", ACTIVE);
       if (error) throw error;
       await resolveCallsForTable();
     },
