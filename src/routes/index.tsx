@@ -56,7 +56,7 @@ type Plan = {
 const plans: Plan[] = [
   {
     name: "Basic",
-    price: "R$ 20",
+    price: "R$ 30",
     period: "/mês",
     description: "Cardápio Digital Essencial. Apenas visualização — sem pedidos ou chamados.",
     features: [
