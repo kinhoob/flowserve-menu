@@ -599,6 +599,21 @@ function BillModal({
       .eq("resolved", false);
   }
 
+  function optimisticallyArchive(ids: string[]) {
+    qc.setQueriesData<Order[]>({ queryKey: ["orders"] }, (prev) =>
+      prev ? prev.filter((o) => !ids.includes(o.id)) : prev,
+    );
+  }
+  function optimisticallyArchiveByLabel(labels: string[]) {
+    qc.setQueriesData<Order[]>({ queryKey: ["orders"] }, (prev) =>
+      prev
+        ? prev.filter(
+            (o) => !(o.table_label && labels.includes(o.table_label) && ACTIVE.includes(o.status)),
+          )
+        : prev,
+    );
+  }
+
   const close = useMutation({
     mutationFn: async () => {
       const ids = orders.map((o) => o.id);
@@ -618,9 +633,12 @@ function BillModal({
         if (error) throw error;
       }
       await resolveCallsForTable();
+      return ids;
     },
-    onSuccess: () => {
+    onSuccess: (ids) => {
+      optimisticallyArchive(ids);
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.refetchQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["waiter_calls"] });
       toast.success(`${tableLabel} liberada`);
       onClose();
@@ -642,15 +660,19 @@ function BillModal({
         .in("status", ACTIVE);
       if (error) throw error;
       await resolveCallsForTable();
+      return variants;
     },
-    onSuccess: () => {
+    onSuccess: (variants) => {
+      optimisticallyArchiveByLabel(variants);
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.refetchQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["waiter_calls"] });
       toast.success(`${tableLabel} marcada como livre`);
       onClose();
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao liberar mesa"),
   });
+
 
   return (
     <motion.div
