@@ -297,6 +297,30 @@ function SettingsPage() {
         <TabsContent value="billing" className="mt-6 space-y-6">
           <PaymentTestModeBanner />
 
+          {justUpgraded && (
+            <div className="flex items-start justify-between gap-3 rounded-2xl border border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft px-5 py-4 animate-fade-up">
+              <div className="flex items-start gap-3">
+                <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div>
+                  <p className="font-display text-base tracking-tight text-foreground">
+                    🎉 Parabéns! Seu plano <strong>{justUpgraded}</strong> já está ativo.
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Seus recursos foram liberados — pode usar à vontade.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setJustUpgraded(null)}
+                className="rounded-md p-1 text-muted-foreground hover:text-foreground"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+
           <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
