@@ -104,11 +104,13 @@ function SettingsPage() {
   const [kitchenOpen, setKitchenOpen] = useState(true);
   const { openCheckout, closeCheckout, isOpen, checkoutElement } = useStripeCheckout();
   const paymentsReady = isPaymentsConfigured();
+  const [justUpgraded, setJustUpgraded] = useState<string | null>(null);
 
   // Load current active subscription (if any)
   const { data: subscription } = useQuery({
     queryKey: ["subscription", user?.id],
     enabled: !!user?.id && paymentsReady,
+    refetchInterval: 5000,
     queryFn: async () => {
       const env = paymentsReady ? getStripeEnvironment() : "sandbox";
       const { data, error } = await supabase
@@ -128,6 +130,34 @@ function SettingsPage() {
     if (restaurant) setKitchenOpen((restaurant as any).kitchen_open ?? true);
   }, [restaurant]);
 
+  // Realtime: detecta transição trial → plano pago e mostra banner + toast
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`profile-plan-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+        (payload) => {
+          const prevPlan = (payload.old as any)?.plan_type;
+          const newPlan = (payload.new as any)?.plan_type;
+          if (newPlan && newPlan !== prevPlan && newPlan !== "trial") {
+            const label = newPlan.charAt(0).toUpperCase() + newPlan.slice(1);
+            setJustUpgraded(label);
+            toast.success(`Parabéns! Plano ${label} ativo`, {
+              description: "Seus recursos foram liberados.",
+            });
+            qc.invalidateQueries({ queryKey: ["trial-status"] });
+            qc.invalidateQueries({ queryKey: ["subscription"] });
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, qc]);
+
   // Auto-redirect to Stripe Payment Link when arriving with ?plan=basic|essential|pro or pending_plan in sessionStorage
   useEffect(() => {
     if (!user) return;
@@ -139,6 +169,7 @@ function SettingsPage() {
     window.location.href = link;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planParam, user?.id]);
+
 
   const update = useMutation({
     mutationFn: async (patch: { kitchen_open?: boolean }) => {
