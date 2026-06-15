@@ -31,7 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     // Set up listener BEFORE getSession (Supabase auth pattern)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      // Ignore noisy events (TOKEN_REFRESHED fires ~hourly and on focus; INITIAL_SESSION duplicates getSession)
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") {
+        // Still complete initial load if we somehow only get INITIAL_SESSION
+        if (event === "INITIAL_SESSION") finishAuthLoad(newSession);
+        return;
+      }
       finishAuthLoad(newSession);
     });
 
