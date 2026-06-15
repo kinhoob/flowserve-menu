@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowUpRight, Bell, DollarSign, Receipt, Users, Flame } from "lucide-react";
+import { ArrowUpRight, Bell, DollarSign, Receipt, Users, Flame, Loader2, Store } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -46,7 +46,7 @@ function DashboardPage() {
       navigate({ to: "/dashboard", search: {}, replace: true });
     }
   }, [checkoutStatus, navigate]);
-  const { data: restaurant } = useRestaurant();
+  const { data: restaurant, isLoading: restaurantLoading, isError: restaurantError } = useRestaurant();
   const { data: orders } = useOrders(restaurant?.id);
   const { data: waiterCalls = [] } = useWaiterCalls(restaurant?.id);
   const resolveCall = useResolveWaiterCall(restaurant?.id);
@@ -112,6 +112,34 @@ function DashboardPage() {
   const hour = new Date().getHours();
   const greeting =
     hour < 5 ? "Boa madrugada" : hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+
+  if (restaurantLoading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (restaurantError || !restaurant) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
+          <Store className="h-5 w-5 text-primary" />
+        </div>
+        <p className="mt-4 text-sm font-medium">Nenhum item encontrado</p>
+        <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+          Configure seu restaurante para começar a acompanhar pedidos, mesas e chamadas.
+        </p>
+        <Link
+          to="/onboarding"
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+        >
+          Configurar restaurante
+        </Link>
+      </div>
+    );
+  }
 
   const STATS = [
     {

@@ -55,6 +55,7 @@ function PublicMenuPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["public-menu", slug],
+    retry: false,
     queryFn: async () => {
       const { data: r, error: rErr } = await supabase
         .from("restaurants")
@@ -368,7 +369,7 @@ function PublicMenuPage() {
       </div>
 
       <main className="mx-auto max-w-3xl px-5 pb-32 pt-6">
-        {categories.length === 0 ? (
+        {categories.length === 0 || data.items.length === 0 ? (
           <EmptyMenu />
         ) : (
           categories.map((cat) => {
@@ -765,7 +766,8 @@ function EmptyMenu() {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/40 py-20 text-center">
       <UtensilsCrossed className="h-6 w-6 text-muted-foreground" />
-      <p className="mt-3 text-sm text-muted-foreground">Cardápio em breve.</p>
+      <p className="mt-3 text-sm font-medium">Nenhum item encontrado</p>
+      <p className="mt-1 max-w-xs text-xs text-muted-foreground">Este cardápio ainda não tem categorias ou produtos disponíveis.</p>
     </div>
   );
 }
