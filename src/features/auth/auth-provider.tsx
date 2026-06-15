@@ -16,18 +16,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+    const timeout = window.setTimeout(() => {
+      if (!active) return;
+      setSession(null);
+      setLoading(false);
+    }, 8000);
+
+    const finishAuthLoad = (nextSession: Session | null) => {
+      if (!active) return;
+      window.clearTimeout(timeout);
+      setSession(nextSession);
+      setLoading(false);
+    };
+
     // Set up listener BEFORE getSession (Supabase auth pattern)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      setSession(newSession);
-      setLoading(false);
+      finishAuthLoad(newSession);
     });
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => finishAuthLoad(data.session))
+      .catch(() => finishAuthLoad(null));
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const value = useMemo<AuthState>(

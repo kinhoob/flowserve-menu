@@ -10,6 +10,7 @@ export function useRestaurant() {
   return useQuery({
     queryKey: ["restaurant", user?.id],
     enabled: !!user,
+    retry: false,
     queryFn: async (): Promise<Restaurant | null> => {
       const { data, error } = await supabase
         .from("restaurants")

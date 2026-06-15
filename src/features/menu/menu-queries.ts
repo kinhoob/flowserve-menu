@@ -9,6 +9,7 @@ export function useCategories(restaurantId: string | undefined) {
   return useQuery({
     queryKey: ["categories", restaurantId],
     enabled: !!restaurantId,
+    retry: false,
     queryFn: async (): Promise<Category[]> => {
       const { data, error } = await supabase
         .from("categories")
@@ -26,6 +27,7 @@ export function useMenuItems(restaurantId: string | undefined, categoryId: strin
   return useQuery({
     queryKey: ["menu_items", restaurantId, categoryId],
     enabled: !!restaurantId && !!categoryId,
+    retry: false,
     queryFn: async (): Promise<MenuItem[]> => {
       const { data, error } = await supabase
         .from("menu_items")
