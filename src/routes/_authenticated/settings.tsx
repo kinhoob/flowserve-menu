@@ -104,11 +104,13 @@ function SettingsPage() {
   const [kitchenOpen, setKitchenOpen] = useState(true);
   const { openCheckout, closeCheckout, isOpen, checkoutElement } = useStripeCheckout();
   const paymentsReady = isPaymentsConfigured();
+  const [justUpgraded, setJustUpgraded] = useState<string | null>(null);
 
   // Load current active subscription (if any)
   const { data: subscription } = useQuery({
     queryKey: ["subscription", user?.id],
     enabled: !!user?.id && paymentsReady,
+    refetchInterval: 5000,
     queryFn: async () => {
       const env = paymentsReady ? getStripeEnvironment() : "sandbox";
       const { data, error } = await supabase
@@ -128,6 +130,34 @@ function SettingsPage() {
     if (restaurant) setKitchenOpen((restaurant as any).kitchen_open ?? true);
   }, [restaurant]);
 
+  // Realtime: detecta transição trial → plano pago e mostra banner + toast
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`profile-plan-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
+        (payload) => {
+          const prevPlan = (payload.old as any)?.plan_type;
+          const newPlan = (payload.new as any)?.plan_type;
+          if (newPlan && newPlan !== prevPlan && newPlan !== "trial") {
+            const label = newPlan.charAt(0).toUpperCase() + newPlan.slice(1);
+            setJustUpgraded(label);
+            toast.success(`Parabéns! Plano ${label} ativo`, {
+              description: "Seus recursos foram liberados.",
+            });
+            qc.invalidateQueries({ queryKey: ["trial-status"] });
+            qc.invalidateQueries({ queryKey: ["subscription"] });
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, qc]);
+
   // Auto-redirect to Stripe Payment Link when arriving with ?plan=basic|essential|pro or pending_plan in sessionStorage
   useEffect(() => {
     if (!user) return;
@@ -139,6 +169,7 @@ function SettingsPage() {
     window.location.href = link;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planParam, user?.id]);
+
 
   const update = useMutation({
     mutationFn: async (patch: { kitchen_open?: boolean }) => {
@@ -265,6 +296,30 @@ function SettingsPage() {
 
         <TabsContent value="billing" className="mt-6 space-y-6">
           <PaymentTestModeBanner />
+
+          {justUpgraded && (
+            <div className="flex items-start justify-between gap-3 rounded-2xl border border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft px-5 py-4 animate-fade-up">
+              <div className="flex items-start gap-3">
+                <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                <div>
+                  <p className="font-display text-base tracking-tight text-foreground">
+                    🎉 Parabéns! Seu plano <strong>{justUpgraded}</strong> já está ativo.
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Seus recursos foram liberados — pode usar à vontade.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setJustUpgraded(null)}
+                className="rounded-md p-1 text-muted-foreground hover:text-foreground"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
 
           <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
