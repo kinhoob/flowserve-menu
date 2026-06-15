@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, ChefHat, Store, Check, Sparkles, Crown, Rocket, AlertTriangle, Users, Plus, Trash2, Save, ExternalLink } from "lucide-react";
@@ -97,7 +97,7 @@ const STRIPE_PAYMENT_LINKS: Record<"basic" | "essential" | "pro", string> = {
 
 function SettingsPage() {
   const { tab, plan: planParam } = Route.useSearch();
-  const { data: restaurant, isLoading } = useRestaurant();
+  const { data: restaurant, isLoading, isError, error } = useRestaurant();
   const { data: trialInfo } = useTrialStatus();
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -208,10 +208,32 @@ function SettingsPage() {
     }
   }
 
-  if (isLoading || !restaurant) {
+  if (isLoading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (isError || !restaurant) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
+          <Store className="h-5 w-5 text-primary" />
+        </div>
+        <p className="mt-4 text-sm font-medium">Nenhum item encontrado</p>
+        <p className="mt-1 max-w-sm text-xs text-muted-foreground">
+          {isError ? (error as Error).message : "Configure seu restaurante para liberar as configurações."}
+        </p>
+        {!isError && (
+          <Link
+            to="/onboarding"
+            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+          >
+            Configurar restaurante
+          </Link>
+        )}
       </div>
     );
   }
