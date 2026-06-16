@@ -764,10 +764,14 @@ function ModifierPicker({
 
 function EmptyMenu() {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/40 py-20 text-center">
-      <UtensilsCrossed className="h-6 w-6 text-muted-foreground" />
-      <p className="mt-3 text-sm font-medium">Nenhum item encontrado</p>
-      <p className="mt-1 max-w-xs text-xs text-muted-foreground">Este cardápio ainda não tem categorias ou produtos disponíveis.</p>
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/40 px-6 py-24 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
+        <UtensilsCrossed className="h-6 w-6 text-primary" />
+      </div>
+      <p className="mt-5 font-display text-2xl tracking-tight">O cardápio está sendo preparado 👨‍🍳</p>
+      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+        Volte em instantes para conferir nossas delícias!
+      </p>
     </div>
   );
 }

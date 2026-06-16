@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowUpRight, Bell, DollarSign, Receipt, Users, Flame, Loader2, Store } from "lucide-react";
+import { ArrowUpRight, Bell, DollarSign, Receipt, Users, Flame, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AdminTour } from "@/features/onboarding/admin-tour";
+import { WelcomeRestaurantModal } from "@/features/onboarding/welcome-restaurant-modal";
 import {
   useTrialStatus,
   isTrialExpired,
@@ -122,23 +123,7 @@ function DashboardPage() {
   }
 
   if (restaurantError || !restaurant) {
-    return (
-      <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-          <Store className="h-5 w-5 text-primary" />
-        </div>
-        <p className="mt-4 text-sm font-medium">Nenhum item encontrado</p>
-        <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-          Configure seu restaurante para começar a acompanhar pedidos, mesas e chamadas.
-        </p>
-        <Link
-          to="/onboarding"
-          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-        >
-          Configurar restaurante
-        </Link>
-      </div>
-    );
+    return <WelcomeRestaurantModal />;
   }
 
   const STATS = [
