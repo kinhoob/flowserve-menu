@@ -772,14 +772,14 @@ function BillModal({
             <div className="flex gap-2">
               <button
                 onClick={onAddItems}
-                className="flex-1 rounded-xl border border-border bg-background py-3 text-sm font-medium transition hover:border-[oklch(0.78_0.13_84_/_0.4)]"
+                className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-border bg-background text-sm font-semibold transition hover:border-[oklch(0.78_0.13_84_/_0.4)]"
               >
                 + Itens
               </button>
               <button
                 onClick={() => close.mutate()}
                 disabled={close.isPending || orders.length === 0}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-95 disabled:opacity-50"
               >
                 {close.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalizar e liberar"}
               </button>
@@ -791,9 +791,9 @@ function BillModal({
                 }
               }}
               disabled={forceFree.isPending}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-transparent py-2.5 text-xs font-medium text-muted-foreground transition hover:border-emerald-400/50 hover:text-emerald-400 disabled:opacity-50"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border bg-transparent text-sm font-medium text-muted-foreground transition hover:border-emerald-400/50 hover:text-emerald-400 disabled:opacity-50"
             >
-              {forceFree.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Marcar mesa como livre (sem cobrança)"}
+              {forceFree.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Marcar mesa como livre (sem cobrança)"}
             </button>
           </div>
         </div>
