@@ -35,14 +35,23 @@ export function useTrialStatus() {
   return useQuery({
     queryKey: ["trial-status", user?.id],
     enabled: !!user?.id,
+    retry: false,
     queryFn: async (): Promise<TrialInfo | null> => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("plan_type, trial_ends_at" as any)
-        .eq("id", user!.id)
-        .maybeSingle();
-      if (error) throw error;
-      return (data as unknown as TrialInfo) ?? null;
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("plan_type, trial_ends_at" as any)
+          .eq("id", user!.id)
+          .maybeSingle();
+        if (error) {
+          console.error("[trial-status] fetch error", error);
+          return null;
+        }
+        return (data as unknown as TrialInfo) ?? null;
+      } catch (e) {
+        console.error("[trial-status] unexpected error", e);
+        return null;
+      }
     },
     refetchOnWindowFocus: false,
   });
