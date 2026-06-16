@@ -19,9 +19,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
     const timeout = window.setTimeout(() => {
       if (!active) return;
-      setSession(null);
+      // Safety: liberate the UI even if Supabase never responds
       setLoading(false);
-    }, 8000);
+    }, 5000);
 
     const finishAuthLoad = (nextSession: Session | null) => {
       if (!active) return;
