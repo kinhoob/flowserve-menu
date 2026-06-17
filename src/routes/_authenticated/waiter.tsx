@@ -583,9 +583,14 @@ function BillModal({
   const allItems = orders.flatMap((o) => o.order_items);
   const subtotal = allItems.reduce((s, it) => s + Number(it.price_snapshot) * it.quantity, 0);
   const [serviceFeeOn, setServiceFeeOn] = useState(false);
-  const [coverInput, setCoverInput] = useState("");
-  const serviceFee = serviceFeeOn ? subtotal * 0.1 : 0;
-  const cover = Math.max(0, Number(coverInput.replace(",", ".")) || 0);
+  const [serviceFeePct, setServiceFeePct] = useState("10");
+  const [peopleInput, setPeopleInput] = useState("1");
+  const [coverPerPersonInput, setCoverPerPersonInput] = useState("");
+  const pct = Math.max(0, Math.min(100, Number(serviceFeePct.replace(",", ".")) || 0));
+  const serviceFee = serviceFeeOn ? subtotal * (pct / 100) : 0;
+  const people = Math.max(1, Math.floor(Number(peopleInput) || 1));
+  const coverPerPerson = Math.max(0, Number(coverPerPersonInput.replace(",", ".")) || 0);
+  const cover = coverPerPerson * people;
   const total = subtotal + serviceFee + cover;
 
   async function resolveCallsForTable() {
@@ -730,42 +735,78 @@ function BillModal({
               <span className="text-muted-foreground">Subtotal</span>
               <span>{formatPrice(subtotal, currency)}</span>
             </div>
-            <label className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2 text-sm cursor-pointer">
-              <span className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={serviceFeeOn}
-                  onChange={(e) => setServiceFeeOn(e.target.checked)}
-                  className="h-4 w-4 accent-primary"
-                />
-                <span>Taxa de Serviço (10%)</span>
-              </span>
-              <span className="text-muted-foreground">
-                {serviceFeeOn ? `+ ${formatPrice(serviceFee, currency)}` : "—"}
-              </span>
-            </label>
-            <div>
-              <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
-                Couvert Artístico
+
+            <div className="rounded-xl border border-border bg-background px-3 py-2">
+              <label className="flex items-center justify-between gap-3 text-sm cursor-pointer">
+                <span className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={serviceFeeOn}
+                    onChange={(e) => setServiceFeeOn(e.target.checked)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  <span>Taxa de Serviço</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    step="0.5"
+                    value={serviceFeePct}
+                    onChange={(e) => setServiceFeePct(e.target.value)}
+                    disabled={!serviceFeeOn}
+                    className="w-14 rounded-md border border-border bg-background px-2 py-1 text-right text-sm outline-none disabled:opacity-50"
+                  />
+                  <span className="text-xs text-muted-foreground">%</span>
+                  <span className="ml-2 min-w-[64px] text-right text-muted-foreground">
+                    {serviceFeeOn ? `+ ${formatPrice(serviceFee, currency)}` : "—"}
+                  </span>
+                </span>
               </label>
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 focus-within:border-[oklch(0.78_0.13_84_/_0.5)]">
-                <span className="text-xs text-muted-foreground">+</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  step="0.01"
-                  value={coverInput}
-                  onChange={(e) => setCoverInput(e.target.value)}
-                  placeholder="0,00"
-                  className="w-full bg-transparent text-sm outline-none"
-                />
-                <span className="text-[11px] text-muted-foreground">{currency}</span>
+            </div>
+
+            <div className="rounded-xl border border-border bg-background px-3 py-2 space-y-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Couvert Artístico (por pessoa)
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">Pessoas</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    step="1"
+                    value={peopleInput}
+                    onChange={(e) => setPeopleInput(e.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none"
+                  />
+                </label>
+                <label className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">{currency}/pessoa</span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step="0.01"
+                    value={coverPerPersonInput}
+                    onChange={(e) => setCoverPerPersonInput(e.target.value)}
+                    placeholder="0,00"
+                    className="w-full rounded-md border border-border bg-background px-2 py-1 text-sm outline-none"
+                  />
+                </label>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{people} × {formatPrice(coverPerPerson, currency)}</span>
+                <span>{cover > 0 ? `+ ${formatPrice(cover, currency)}` : "—"}</span>
               </div>
             </div>
-            <div className="flex items-center justify-between border-t border-border pt-2">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground">Total</span>
-              <span className="font-display text-2xl tracking-tight">{formatPrice(total, currency)}</span>
+
+            <div className="flex items-center justify-between border-t border-border pt-3">
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">Total Geral</span>
+              <span className="font-display text-3xl tracking-tight text-primary">{formatPrice(total, currency)}</span>
             </div>
           </div>
           <div className="flex flex-col gap-2">
