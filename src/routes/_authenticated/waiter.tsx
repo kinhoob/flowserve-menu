@@ -706,26 +706,72 @@ function BillModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-3">
-          {allItems.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">Sem itens nesta conta.</p>
+          {orders.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              <p>Sem itens ativos nesta mesa.</p>
+              <p className="mt-1 text-xs">Se a mesa aparece ocupada, use "Marcar mesa como livre" abaixo.</p>
+            </div>
           ) : (
-            <ul className="divide-y divide-border">
-              {allItems.map((it) => (
-                <li key={it.id} className="flex flex-col gap-0.5 py-2.5">
-                  <div className="flex items-center justify-between gap-2 text-sm">
-                    <span>
-                      <span className="font-medium text-primary">{it.quantity}×</span> {it.name_snapshot}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
-                    </span>
-                  </div>
-                  {it.notes && (
-                    <span className="pl-5 text-[11px] italic text-muted-foreground">obs: {it.notes}</span>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+                <span>Histórico da mesa</span>
+                <span>{orders.length} {orders.length === 1 ? "pedido" : "pedidos"}</span>
+              </div>
+              {[...orders]
+                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                .map((o, idx) => {
+                  const when = new Date(o.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                  const orderSubtotal = o.order_items.reduce(
+                    (s, it) => s + Number(it.price_snapshot) * it.quantity,
+                    0,
+                  );
+                  const statusMap: Record<string, { label: string; cls: string }> = {
+                    pending: { label: "Aguardando", cls: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
+                    accepted: { label: "Aceito", cls: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
+                    preparing: { label: "Preparando", cls: "bg-orange-500/15 text-orange-300 border-orange-500/30" },
+                    ready: { label: "Pronto", cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+                    served: { label: "Entregue", cls: "bg-muted text-muted-foreground border-border" },
+                  };
+                  const st = statusMap[o.status] ?? statusMap.served;
+                  return (
+                    <div key={o.id} className="rounded-xl border border-border bg-background/40 p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                          <span className="font-semibold text-foreground">Pedido #{idx + 1}</span>
+                          <span className="text-muted-foreground">{when}</span>
+                          {o.created_by_name && (
+                            <span className="text-muted-foreground">· {o.created_by_name}</span>
+                          )}
+                        </div>
+                        <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider", st.cls)}>
+                          {st.label}
+                        </span>
+                      </div>
+                      <ul className="divide-y divide-border/60">
+                        {o.order_items.map((it) => (
+                          <li key={it.id} className="flex flex-col gap-0.5 py-1.5">
+                            <div className="flex items-center justify-between gap-2 text-sm">
+                              <span>
+                                <span className="font-medium text-primary">{it.quantity}×</span> {it.name_snapshot}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
+                              </span>
+                            </div>
+                            {it.notes && (
+                              <span className="pl-5 text-[11px] italic text-muted-foreground">obs: {it.notes}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5 text-[11px]">
+                        <span className="text-muted-foreground">Subtotal do pedido</span>
+                        <span className="font-medium">{formatPrice(orderSubtotal, currency)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
           )}
         </div>
 
