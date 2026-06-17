@@ -31,14 +31,7 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-const partners = [
-  "ATELIER",
-  "MARÉ",
-  "VINHO & SAL",
-  "OBRA PRIMA",
-  "CASA DOURADA",
-  "BAR NOIR",
-];
+const partners = ["ATELIER", "MARÉ", "VINHO & SAL", "OBRA PRIMA", "CASA DOURADA", "BAR NOIR"];
 
 type Plan = {
   name: string;
@@ -165,12 +158,24 @@ function LandingPage() {
           </span>
         </div>
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-          <a href="#features" className="transition hover:text-foreground">Produto</a>
-          <a href="#why" className="transition hover:text-foreground">Por que Flux</a>
-          <a href="#pricing" className="transition hover:text-foreground">Planos</a>
-          <a href="#faq" className="transition hover:text-foreground">FAQ</a>
-          <Link to="/privacidade" className="transition hover:text-foreground">Privacidade</Link>
-          <Link to="/termos" className="transition hover:text-foreground">Termos</Link>
+          <a href="#features" className="transition hover:text-foreground">
+            Produto
+          </a>
+          <a href="#why" className="transition hover:text-foreground">
+            Por que Flux?
+          </a>
+          <a href="#pricing" className="transition hover:text-foreground">
+            Planos
+          </a>
+          <a href="#faq" className="transition hover:text-foreground">
+            FAQ
+          </a>
+          <Link to="/privacidade" className="transition hover:text-foreground">
+            Privacidade
+          </Link>
+          <Link to="/termos" className="transition hover:text-foreground">
+            Termos
+          </Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link
@@ -208,8 +213,7 @@ function LandingPage() {
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 text-xs text-muted-foreground backdrop-blur"
             >
-              <Sparkles className="h-3.5 w-3.5 text-primary" />
-              A plataforma escolhida pela hospitalidade moderna
+              <Sparkles className="h-3.5 w-3.5 text-primary" />A plataforma escolhida pela hospitalidade moderna
             </motion.span>
             <motion.h1
               variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
@@ -217,18 +221,15 @@ function LandingPage() {
               className="mt-6 font-display text-5xl leading-[1.02] tracking-tight md:text-7xl"
             >
               A evolução do atendimento. <br className="hidden md:block" />
-              Onde a{" "}
-              <span className="text-gradient-gold italic">agilidade encontra</span>{" "}
-              a hospitalidade.
+              Onde a <span className="text-gradient-gold italic">agilidade encontra</span> a hospitalidade.
             </motion.h1>
             <motion.p
               variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
               className="mx-auto mt-6 max-w-xl text-balance text-base text-muted-foreground md:text-lg"
             >
-              Reduza o tempo de espera em até 40% e transforme seu salão em uma
-              engrenagem perfeita. Pedidos por QR, comandas em tempo real e analytics
-              à altura da sua marca.
+              Reduza o tempo de espera em até 40% e transforme seu salão em uma engrenagem perfeita. Pedidos por QR,
+              comandas em tempo real e analytics à altura da sua marca.
             </motion.p>
             <motion.div
               variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
@@ -251,7 +252,6 @@ function LandingPage() {
               </a>
             </motion.div>
           </motion.div>
-
         </section>
 
         {/* SOCIAL PROOF */}
@@ -277,15 +277,12 @@ function LandingPage() {
         <section id="features" className="py-24">
           <FadeIn>
             <div className="mx-auto max-w-2xl text-center">
-              <p className="text-xs uppercase tracking-[0.18em] text-primary">
-                Feito para o serviço
-              </p>
+              <p className="text-xs uppercase tracking-[0.18em] text-primary">Feito para o serviço</p>
               <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
                 Cada bloco. Uma vantagem competitiva.
               </h2>
               <p className="mt-4 text-muted-foreground">
-                Tudo o que o seu salão precisa para operar como uma máquina
-                silenciosa — e elegante.
+                Tudo o que o seu salão precisa para operar como uma máquina silenciosa — e elegante.
               </p>
             </div>
           </FadeIn>
@@ -357,16 +354,13 @@ function LandingPage() {
           <div className="grid items-center gap-12 md:grid-cols-2">
             <FadeIn>
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-primary">
-                  Por que Flux
-                </p>
+                <p className="text-xs uppercase tracking-[0.18em] text-primary">Por que Flux?</p>
                 <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
                   A hospitalidade merece um software à sua altura.
                 </h2>
                 <p className="mt-5 text-muted-foreground">
-                  Construímos o Flux como se fosse parte do seu salão — silencioso,
-                  rápido, bem-acabado. Não é uma ferramenta corporativa adaptada. É
-                  um produto pensado para a mesa.
+                  Construímos o Flux como se fosse parte do seu salão — silencioso, rápido, bem-acabado. Não é uma
+                  ferramenta corporativa adaptada. É um produto pensado para a mesa.
                 </p>
                 <ul className="mt-8 space-y-3 text-sm text-muted-foreground">
                   {[
@@ -389,16 +383,14 @@ function LandingPage() {
                   className="pointer-events-none absolute inset-0 rounded-3xl bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.08),transparent_70%)]"
                 />
                 <blockquote className="relative font-display text-2xl leading-snug tracking-tight">
-                  "Substituímos três ferramentas pelo Flux. O serviço ficou 22% mais
-                  rápido e o cardápio finalmente combina com o salão."
+                  "Substituímos três ferramentas pelo Flux. O serviço ficou 22% mais rápido e o cardápio finalmente
+                  combina com o salão."
                 </blockquote>
                 <div className="relative mt-6 flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[oklch(0.86_0.12_84)] to-[oklch(0.4_0.05_60)]" />
                   <div>
                     <div className="text-sm font-medium">Mara Vance</div>
-                    <div className="text-xs text-muted-foreground">
-                      GM, Atelier Bar — Lisboa
-                    </div>
+                    <div className="text-xs text-muted-foreground">GM, Atelier Bar — Lisboa</div>
                   </div>
                 </div>
               </div>
@@ -411,12 +403,8 @@ function LandingPage() {
           <FadeIn>
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-xs uppercase tracking-[0.18em] text-primary">Planos</p>
-              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-                Escolha o tamanho do seu salão.
-              </h2>
-              <p className="mt-4 text-muted-foreground">
-                Sem fidelidade, sem taxa de setup. Cancele quando quiser.
-              </p>
+              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">Escolha o tamanho do seu salão.</h2>
+              <p className="mt-4 text-muted-foreground">Sem fidelidade, sem taxa de setup. Cancele quando quiser.</p>
             </div>
           </FadeIn>
 
@@ -461,20 +449,12 @@ function LandingPage() {
 
                     <div>
                       <h3 className="font-display text-2xl tracking-tight">{plan.name}</h3>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {plan.description}
-                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
                     </div>
 
                     <div className="mt-6 flex items-baseline gap-1">
-                      <span className="font-display text-4xl tracking-tight">
-                        {plan.price}
-                      </span>
-                      {plan.period && (
-                        <span className="text-sm text-muted-foreground">
-                          {plan.period}
-                        </span>
-                      )}
+                      <span className="font-display text-4xl tracking-tight">{plan.price}</span>
+                      {plan.period && <span className="text-sm text-muted-foreground">{plan.period}</span>}
                     </div>
 
                     <ul className="mt-8 space-y-3 text-sm">
@@ -525,7 +505,6 @@ function LandingPage() {
               </FadeIn>
             ))}
           </div>
-
         </section>
 
         {/* FAQ */}
@@ -533,9 +512,7 @@ function LandingPage() {
           <FadeIn>
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-xs uppercase tracking-[0.18em] text-primary">FAQ</p>
-              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-                Perguntas frequentes.
-              </h2>
+              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">Perguntas frequentes.</h2>
               <p className="mt-4 text-muted-foreground">
                 Tudo o que você precisa saber antes de começar. Não achou sua dúvida?{" "}
                 <a href="mailto:contato@flux.app" className="text-primary hover:underline">
@@ -592,9 +569,7 @@ function LandingPage() {
                       +
                     </span>
                   </summary>
-                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-                    {item.a}
-                  </p>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.a}</p>
                 </details>
               </FadeIn>
             ))}
@@ -623,8 +598,8 @@ function LandingPage() {
                   Onde a agilidade encontra a hospitalidade.
                 </h2>
                 <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-                  Comece com um teste grátis. Traga seu cardápio, sua equipe e suas
-                  mesas e o resto deixa que a gente cuida.
+                  Comece com um teste grátis. Traga seu cardápio, sua equipe e suas mesas e o resto deixa que a gente
+                  cuida.
                 </p>
                 <div className="mt-8">
                   <Link
@@ -646,7 +621,9 @@ function LandingPage() {
         <div className="flex flex-col gap-6 border-t border-border pt-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <FluxLogo className="text-base" />
           <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <a href="#faq" className="transition hover:text-foreground">FAQ</a>
+            <a href="#faq" className="transition hover:text-foreground">
+              FAQ
+            </a>
             <Link to="/privacidade" className="transition hover:text-foreground">
               Política de Privacidade
             </Link>
@@ -695,18 +672,10 @@ function BentoCard({
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
           <Icon className="h-5 w-5" />
         </div>
-        <h3
-          className={`mt-5 font-display tracking-tight ${
-            size === "lg" ? "text-3xl md:text-4xl" : "text-xl"
-          }`}
-        >
+        <h3 className={`mt-5 font-display tracking-tight ${size === "lg" ? "text-3xl md:text-4xl" : "text-xl"}`}>
           {title}
         </h3>
-        <p
-          className={`mt-2 leading-relaxed text-muted-foreground ${
-            size === "lg" ? "text-base max-w-md" : "text-sm"
-          }`}
-        >
+        <p className={`mt-2 leading-relaxed text-muted-foreground ${size === "lg" ? "text-base max-w-md" : "text-sm"}`}>
           {body}
         </p>
       </div>
