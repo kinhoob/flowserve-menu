@@ -22,7 +22,7 @@ import { UpgradeProModal } from "@/features/billing/upgrade-modal";
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/menu" | "/onboarding" | "/qrcodes" | "/kitchen" | "/analytics" | "/waiter" | "/settings";
+  to: "/dashboard" | "/menu" | "/qrcodes" | "/kitchen" | "/analytics" | "/waiter" | "/settings";
   icon: typeof LayoutDashboard;
   soon?: boolean;
   id?: string;
