@@ -227,12 +227,12 @@ function SettingsPage() {
           {isError ? (error as Error).message : "Configure seu restaurante para liberar as configurações."}
         </p>
         {!isError && (
-          <Link
-            to="/onboarding"
+          <button
+            onClick={() => window.location.reload()}
             className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
           >
-            Configurar restaurante
-          </Link>
+            Recarregar
+          </button>
         )}
       </div>
     );
@@ -275,7 +275,7 @@ function SettingsPage() {
           <TabsTrigger value="billing">Assinatura</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="operation" className="mt-6">
+        <TabsContent value="operation" className="mt-6 space-y-6">
           <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-4">
@@ -297,6 +297,28 @@ function SettingsPage() {
                 </div>
               </div>
               <Switch checked={kitchenOpen} onCheckedChange={toggleKitchen} disabled={update.isPending} />
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-surface p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="font-display text-xl tracking-tight">Tutorial guiado</h2>
+                  <p className="mt-1 max-w-md text-xs text-muted-foreground">
+                    Reveja o tour de boas-vindas com as principais áreas do Flux: cardápio, QR Codes, análises e operação.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent("flux:start-tour"))}
+                className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+              >
+                Ver tutorial
+              </button>
             </div>
           </section>
         </TabsContent>

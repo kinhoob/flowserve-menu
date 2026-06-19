@@ -4,39 +4,39 @@ import { X, ArrowRight, Sparkles } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-provider";
 import { supabase } from "@/integrations/supabase/client";
 
-const STORAGE_KEY = "flux-admin-tour-v1";
+const STORAGE_KEY = "flux-admin-tour-v2";
 
 type Step = {
   selector: string;
   title: string;
   body: string;
-  placement?: "right" | "bottom";
 };
 
 const STEPS: Step[] = [
   {
+    selector: "#nav-settings",
+    title: "1. Personalize seu restaurante",
+    body: "Em Configurações > Estabelecimento, defina o nome, slug público e moeda. Já criamos um workspace pra você começar.",
+  },
+  {
     selector: "#nav-menu",
-    title: "Gerencie o cardápio",
-    body: "Crie categorias (Cozinha ou Bar), itens, preços e modificadores. Tudo aparece em tempo real no QR do cliente.",
-    placement: "right",
+    title: "2. Cadastre categorias e produtos",
+    body: "Crie categorias (Cozinha ou Bar) e adicione itens com preço, foto e modificadores. Tudo aparece em tempo real no QR do cliente.",
   },
   {
     selector: "#nav-qrcodes",
-    title: "Salão & QR Codes",
-    body: "Cadastre mesas, gere QR codes em PDF e acompanhe quais estão ocupadas com pedidos abertos.",
-    placement: "right",
+    title: "3. Gere o QR Code das mesas",
+    body: "Cadastre as mesas do seu salão e baixe o PDF dos QR Codes para imprimir e colar.",
+  },
+  {
+    selector: "#nav-kitchen",
+    title: "4. Acompanhe os pedidos",
+    body: "Aqui chegam os pedidos em tempo real, com status de preparo. O Garçom complementa a operação no salão.",
   },
   {
     selector: "#nav-analytics",
-    title: "Análises de pico",
-    body: "Veja os horários de pico, itens mais vendidos e a receita por dia para tomar decisões melhores.",
-    placement: "right",
-  },
-  {
-    selector: "#nav-settings",
-    title: "Controle de operação",
-    body: "Abra ou feche a cozinha em um toque. Ao fechar, só bebidas ficam disponíveis no cardápio público.",
-    placement: "right",
+    title: "5. Análises e horários de pico",
+    body: "Veja receita por dia, itens mais vendidos e horários mais movimentados para tomar decisões melhores.",
   },
 ];
 
@@ -47,41 +47,47 @@ export function AdminTour() {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [checked, setChecked] = useState(false);
 
+  // First-login auto-start (once per user)
   useEffect(() => {
     if (!user) {
       setChecked(true);
       return;
     }
-
-    // Fast local cache path
-    const localSeen = localStorage.getItem(STORAGE_KEY);
-    if (localSeen) {
+    if (localStorage.getItem(STORAGE_KEY)) {
       setChecked(true);
       return;
     }
-
-    // Source of truth: Supabase profile
     supabase
       .from("profiles")
-      .select("has_seen_onboarding" as any)
+      .select("has_seen_onboarding")
       .eq("id", user.id)
       .single()
       .then(({ data, error }) => {
         if (error) {
-          // Fail-safe: do not show tour on query errors
           setChecked(true);
           return;
         }
-        if ((data as any)?.has_seen_onboarding) {
+        if (data?.has_seen_onboarding) {
           localStorage.setItem(STORAGE_KEY, "1");
         } else {
-          const t = setTimeout(() => setActive(true), 700);
-          // eslint-disable-next-line react-hooks/exhaustive-deps
-          return () => clearTimeout(t);
+          setTimeout(() => {
+            setStep(0);
+            setActive(true);
+          }, 700);
         }
         setChecked(true);
       });
   }, [user]);
+
+  // Manual launch from Settings
+  useEffect(() => {
+    const handler = () => {
+      setStep(0);
+      setActive(true);
+    };
+    window.addEventListener("flux:start-tour", handler);
+    return () => window.removeEventListener("flux:start-tour", handler);
+  }, []);
 
   useEffect(() => {
     if (!active) return;
@@ -103,7 +109,7 @@ export function AdminTour() {
     if (user) {
       await supabase
         .from("profiles")
-        .update({ has_seen_onboarding: true } as any)
+        .update({ has_seen_onboarding: true })
         .eq("id", user.id);
     }
     localStorage.setItem(STORAGE_KEY, "1");
@@ -122,7 +128,6 @@ export function AdminTour() {
   if (!active || !checked) return null;
   const current = STEPS[step];
 
-  // Position tooltip near target (right of sidebar item) or center fallback
   const tooltipStyle: React.CSSProperties = rect
     ? {
         position: "fixed",
@@ -183,7 +188,7 @@ export function AdminTour() {
           </button>
           <button
             onClick={next}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90"
           >
             {step >= STEPS.length - 1 ? "Concluir" : "Próximo"}
             <ArrowRight className="h-3.5 w-3.5" />
