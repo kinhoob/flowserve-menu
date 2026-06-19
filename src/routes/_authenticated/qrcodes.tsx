@@ -51,9 +51,7 @@ function QRCodesPage() {
   const [bulk, setBulk] = useState({ from: 1, to: 10, prefix: "Mesa" });
   const [downloading, setDownloading] = useState(false);
 
-  useEffect(() => {
-    if (!rLoading && !restaurant) navigate({ to: "/onboarding" });
-  }, [rLoading, restaurant, navigate]);
+  // Restaurant is auto-created on signup; no redirect needed.
 
   if (rLoading || !restaurant) {
     return (

@@ -69,9 +69,7 @@ function AnalyticsPage() {
     },
   });
 
-  useEffect(() => {
-    if (!rLoading && !restaurant) navigate({ to: "/onboarding" });
-  }, [rLoading, restaurant, navigate]);
+  // Restaurant is auto-created on signup; no redirect needed.
 
   const stats = useMemo(() => {
     const days = RANGE_DAYS[range];
