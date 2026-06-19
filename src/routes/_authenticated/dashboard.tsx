@@ -11,7 +11,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AdminTour } from "@/features/onboarding/admin-tour";
-import { WelcomeRestaurantModal } from "@/features/onboarding/welcome-restaurant-modal";
 import {
   useTrialStatus,
   isTrialExpired,
@@ -107,8 +106,8 @@ function DashboardPage() {
   const recent = (orders ?? []).slice(0, 6);
 
   const name = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "por aí";
-  const ctaTo = restaurant ? "/menu" : "/onboarding";
-  const ctaLabel = restaurant ? "Gerenciar cardápio" : "Configurar restaurante";
+  const ctaTo = "/menu" as const;
+  const ctaLabel = "Gerenciar cardápio";
 
   const hour = new Date().getHours();
   const greeting =
@@ -123,7 +122,23 @@ function DashboardPage() {
   }
 
   if (restaurantError || !restaurant) {
-    return <WelcomeRestaurantModal />;
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
+          <Flame className="h-6 w-6 text-primary" />
+        </div>
+        <h2 className="mt-5 font-display text-2xl tracking-tight">Preparando seu workspace</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Estamos criando seu restaurante. Atualize a página em alguns segundos.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+        >
+          Atualizar
+        </button>
+      </div>
+    );
   }
 
   const STATS = [

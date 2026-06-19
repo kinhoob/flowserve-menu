@@ -65,9 +65,7 @@ function MenuPage() {
   const deleteItem = useDeleteMenuItem();
   const deleteCat = useDeleteCategory(restaurantId);
 
-  useEffect(() => {
-    if (!rLoading && !restaurant) navigate({ to: "/onboarding" });
-  }, [restaurant, rLoading, navigate]);
+  // Restaurant is auto-created on signup; no redirect needed.
 
   useEffect(() => {
     if (!activeCatId && categories.length) setActiveCatId(categories[0].id);

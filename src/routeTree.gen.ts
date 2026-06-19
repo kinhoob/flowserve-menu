@@ -19,7 +19,6 @@ import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedQrcodesRouteImport } from './routes/_authenticated/qrcodes'
-import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedMenuRouteImport } from './routes/_authenticated/menu'
 import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -75,11 +74,6 @@ const AuthenticatedQrcodesRoute = AuthenticatedQrcodesRouteImport.update({
   path: '/qrcodes',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
 const AuthenticatedMenuRoute = AuthenticatedMenuRouteImport.update({
   id: '/menu',
   path: '/menu',
@@ -116,7 +110,6 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/menu': typeof AuthenticatedMenuRoute
-  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/qrcodes': typeof AuthenticatedQrcodesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
@@ -133,7 +126,6 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/kitchen': typeof AuthenticatedKitchenRoute
   '/menu': typeof AuthenticatedMenuRoute
-  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/qrcodes': typeof AuthenticatedQrcodesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/waiter': typeof AuthenticatedWaiterRoute
@@ -152,7 +144,6 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/kitchen': typeof AuthenticatedKitchenRoute
   '/_authenticated/menu': typeof AuthenticatedMenuRoute
-  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/qrcodes': typeof AuthenticatedQrcodesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
@@ -171,7 +162,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/kitchen'
     | '/menu'
-    | '/onboarding'
     | '/qrcodes'
     | '/settings'
     | '/waiter'
@@ -188,7 +178,6 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/kitchen'
     | '/menu'
-    | '/onboarding'
     | '/qrcodes'
     | '/settings'
     | '/waiter'
@@ -206,7 +195,6 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/kitchen'
     | '/_authenticated/menu'
-    | '/_authenticated/onboarding'
     | '/_authenticated/qrcodes'
     | '/_authenticated/settings'
     | '/_authenticated/waiter'
@@ -298,13 +286,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedQrcodesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/onboarding': {
-      id: '/_authenticated/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
     '/_authenticated/menu': {
       id: '/_authenticated/menu'
       path: '/menu'
@@ -348,7 +329,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedKitchenRoute: typeof AuthenticatedKitchenRoute
   AuthenticatedMenuRoute: typeof AuthenticatedMenuRoute
-  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedQrcodesRoute: typeof AuthenticatedQrcodesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedWaiterRoute: typeof AuthenticatedWaiterRoute
@@ -359,7 +339,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedKitchenRoute: AuthenticatedKitchenRoute,
   AuthenticatedMenuRoute: AuthenticatedMenuRoute,
-  AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedQrcodesRoute: AuthenticatedQrcodesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedWaiterRoute: AuthenticatedWaiterRoute,
