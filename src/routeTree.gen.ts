@@ -17,6 +17,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MSlugRouteImport } from './routes/m.$slug'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
+import { Route as AuthenticatedTablesRouteImport } from './routes/_authenticated/tables'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedQrcodesRouteImport } from './routes/_authenticated/qrcodes'
 import { Route as AuthenticatedMenuRouteImport } from './routes/_authenticated/menu'
@@ -62,6 +63,11 @@ const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
 const AuthenticatedWaiterRoute = AuthenticatedWaiterRouteImport.update({
   id: '/waiter',
   path: '/waiter',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTablesRoute = AuthenticatedTablesRouteImport.update({
+  id: '/tables',
+  path: '/tables',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/menu': typeof AuthenticatedMenuRoute
   '/qrcodes': typeof AuthenticatedQrcodesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/tables': typeof AuthenticatedTablesRoute
   '/waiter': typeof AuthenticatedWaiterRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/m/$slug': typeof MSlugRoute
@@ -128,6 +135,7 @@ export interface FileRoutesByTo {
   '/menu': typeof AuthenticatedMenuRoute
   '/qrcodes': typeof AuthenticatedQrcodesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/tables': typeof AuthenticatedTablesRoute
   '/waiter': typeof AuthenticatedWaiterRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/m/$slug': typeof MSlugRoute
@@ -146,6 +154,7 @@ export interface FileRoutesById {
   '/_authenticated/menu': typeof AuthenticatedMenuRoute
   '/_authenticated/qrcodes': typeof AuthenticatedQrcodesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/tables': typeof AuthenticatedTablesRoute
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/m/$slug': typeof MSlugRoute
@@ -164,6 +173,7 @@ export interface FileRouteTypes {
     | '/menu'
     | '/qrcodes'
     | '/settings'
+    | '/tables'
     | '/waiter'
     | '/checkout/return'
     | '/m/$slug'
@@ -180,6 +190,7 @@ export interface FileRouteTypes {
     | '/menu'
     | '/qrcodes'
     | '/settings'
+    | '/tables'
     | '/waiter'
     | '/checkout/return'
     | '/m/$slug'
@@ -197,6 +208,7 @@ export interface FileRouteTypes {
     | '/_authenticated/menu'
     | '/_authenticated/qrcodes'
     | '/_authenticated/settings'
+    | '/_authenticated/tables'
     | '/_authenticated/waiter'
     | '/checkout/return'
     | '/m/$slug'
@@ -272,6 +284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWaiterRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/tables': {
+      id: '/_authenticated/tables'
+      path: '/tables'
+      fullPath: '/tables'
+      preLoaderRoute: typeof AuthenticatedTablesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
       path: '/settings'
@@ -331,6 +350,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedMenuRoute: typeof AuthenticatedMenuRoute
   AuthenticatedQrcodesRoute: typeof AuthenticatedQrcodesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedTablesRoute: typeof AuthenticatedTablesRoute
   AuthenticatedWaiterRoute: typeof AuthenticatedWaiterRoute
 }
 
@@ -341,6 +361,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedMenuRoute: AuthenticatedMenuRoute,
   AuthenticatedQrcodesRoute: AuthenticatedQrcodesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedTablesRoute: AuthenticatedTablesRoute,
   AuthenticatedWaiterRoute: AuthenticatedWaiterRoute,
 }
 
