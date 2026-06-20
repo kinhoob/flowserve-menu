@@ -11,6 +11,7 @@ import {
   Search,
   HandPlatter,
   Lock,
+  Armchair,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
@@ -22,7 +23,7 @@ import { UpgradeProModal } from "@/features/billing/upgrade-modal";
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/menu" | "/qrcodes" | "/kitchen" | "/analytics" | "/waiter" | "/settings";
+  to: "/dashboard" | "/menu" | "/qrcodes" | "/kitchen" | "/analytics" | "/waiter" | "/settings" | "/tables";
   icon: typeof LayoutDashboard;
   soon?: boolean;
   id?: string;
@@ -34,6 +35,7 @@ const NAV: NavItem[] = [
   { label: "Pedidos", to: "/kitchen", icon: ClipboardList, id: "nav-kitchen", feature: "kitchen" },
   { label: "Garçom", to: "/waiter", icon: HandPlatter, id: "nav-waiter", feature: "waiter" },
   { label: "Cardápio", to: "/menu", icon: UtensilsCrossed, id: "nav-menu", feature: "menu" },
+  { label: "Mesas", to: "/tables", icon: Armchair, id: "nav-tables" },
   { label: "QR Codes", to: "/qrcodes", icon: QrCode, id: "nav-qrcodes" },
   { label: "Análises", to: "/analytics", icon: BarChart3, id: "nav-analytics", feature: "analytics" },
   { label: "Configurações", to: "/settings", icon: Settings, id: "nav-settings" },
