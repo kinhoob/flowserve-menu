@@ -47,7 +47,7 @@ function TablesPage() {
       if (!(OCCUPIED_STATUSES as readonly string[]).includes(o.status)) continue;
       const cur = map.get(o.table_label) ?? { count: 0, total: 0 };
       cur.count += 1;
-      cur.total += Number(o.total ?? 0);
+      cur.total += Number(o.subtotal ?? 0) + Number(o.service_fee ?? 0) + Number(o.cover_charge ?? 0);
       map.set(o.table_label, cur);
     }
     return map;
