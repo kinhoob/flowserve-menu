@@ -153,17 +153,26 @@ function SettingsPage() {
     };
   }, [user?.id, qc]);
 
-  // Auto-redirect to Stripe Payment Link when arriving with ?plan=basic|essential|pro or pending_plan in sessionStorage
+  // Auto-open embedded checkout if user arrives with ?plan=basic|essential|pro
   useEffect(() => {
     if (!user) return;
     const pending = planParam ?? (typeof window !== "undefined" ? sessionStorage.getItem("flux:pending_plan") : null);
     if (!pending) return;
-    const link = STRIPE_PAYMENT_LINKS[pending as keyof typeof STRIPE_PAYMENT_LINKS];
-    if (!link) return;
+    const found = PLANS.find((p) => p.id === pending);
+    if (!found?.priceId) return;
     if (typeof window !== "undefined") sessionStorage.removeItem("flux:pending_plan");
-    window.location.href = link;
+    if (!paymentsReady) {
+      toast.error("Pagamentos não configurados");
+      return;
+    }
+    openCheckout({
+      priceId: found.priceId,
+      customerEmail: user.email ?? undefined,
+      userId: user.id,
+      returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planParam, user?.id]);
+  }, [planParam, user?.id, paymentsReady]);
 
 
   const update = useMutation({
@@ -186,10 +195,19 @@ function SettingsPage() {
   }
 
   function handleSubscribe(plan: typeof PLANS[number]) {
-    const link = STRIPE_PAYMENT_LINKS[plan.id as keyof typeof STRIPE_PAYMENT_LINKS];
-    if (!link) return;
-    window.open(link, "_blank", "noopener,noreferrer");
+    if (!plan.priceId) return;
+    if (!paymentsReady) {
+      toast.error("Pagamentos não configurados");
+      return;
+    }
+    openCheckout({
+      priceId: plan.priceId,
+      customerEmail: user?.email ?? undefined,
+      userId: user?.id ?? "",
+      returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+    });
   }
+
 
   async function handleManageBilling() {
     try {
