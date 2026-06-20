@@ -48,7 +48,7 @@ const PLANS: {
     icon: Sparkles,
     description: "Cardápio digital com QR Code, sem pedidos.",
     features: ["Cardápio digital ilimitado", "QR Code para o salão", "Atualizações em tempo real"],
-    priceId: "price_1ThDYwRCz3xsp5na0BjTL7Hd",
+    priceId: "basic_monthly",
   },
   {
     id: "essential",
@@ -58,7 +58,7 @@ const PLANS: {
     icon: Crown,
     description: "Operação digital completa para começar.",
     features: ["Pedidos por QR Code", "KDS para cozinha e bar", "Até 5 QR Codes", "Suporte por email"],
-    priceId: "price_1ThDaORCz3xsp5naEai7LNVJ",
+    priceId: "essential_monthly",
   },
   {
     id: "pro",
@@ -74,7 +74,7 @@ const PLANS: {
       "Bar e Cozinha separados",
       "Suporte prioritário",
     ],
-    priceId: "price_1ThDcMRCz3xsp5naiRcanTGKk",
+    priceId: "pro_monthly",
     featured: true,
   },
   {
@@ -89,11 +89,6 @@ const PLANS: {
   },
 ];
 
-const STRIPE_PAYMENT_LINKS: Record<"basic" | "essential" | "pro", string> = {
-  basic: "https://buy.stripe.com/test_14A28tbqigv26e97ajdjO02",
-  essential: "https://buy.stripe.com/test_cNi5kFamegv27idbqzdjO01",
-  pro: "https://buy.stripe.com/test_5kQ14pbqiceM461bqzdjO00",
-};
 
 function SettingsPage() {
   const { tab, plan: planParam } = Route.useSearch();
