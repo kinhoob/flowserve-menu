@@ -8,6 +8,7 @@ import {
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
 type PortalSessionResult = { url: string } | { error: string };
+type UpdatePlanResult = { ok: true } | { error: string };
 
 async function resolveOrCreateCustomer(
   stripe: ReturnType<typeof createStripeClient>,
@@ -60,8 +61,6 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     try {
       const stripe = createStripeClient(data.environment);
 
-      // Accept either a native Stripe price id (price_xxx) or a human-readable
-      // lookup_key (e.g. "pro_monthly").
       let stripePrice;
       if (data.priceId.startsWith("price_")) {
         stripePrice = await stripe.prices.retrieve(data.priceId);
@@ -123,7 +122,9 @@ export const createPortalSession = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (subError || !sub?.stripe_customer_id) throw new Error("Nenhuma assinatura encontrada");
+    if (subError || !sub?.stripe_customer_id) {
+      return { error: "Nenhuma assinatura encontrada para gerenciar." };
+    }
 
     try {
       const stripe = createStripeClient(data.environment);
@@ -132,6 +133,62 @@ export const createPortalSession = createServerFn({ method: "POST" })
         ...(data.returnUrl && { return_url: data.returnUrl }),
       });
       return { url: portal.url };
+    } catch (error) {
+      return { error: getStripeErrorMessage(error) };
+    }
+  });
+
+// Swap the price of an existing active subscription, prorating the change.
+// This avoids creating a second parallel subscription when the user clicks
+// another plan card while already subscribed.
+export const updateSubscriptionPlan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { newPriceId: string; environment: StripeEnv }) => {
+    if (!/^[a-zA-Z0-9_-]+$/.test(data.newPriceId)) throw new Error("Invalid priceId");
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<UpdatePlanResult> => {
+    const { supabase, userId } = context;
+
+    const { data: sub, error: subError } = await supabase
+      .from("subscriptions")
+      .select("stripe_subscription_id, status")
+      .eq("user_id", userId)
+      .eq("environment", data.environment)
+      .in("status", ["active", "trialing", "past_due"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (subError || !sub?.stripe_subscription_id) {
+      return { error: "Nenhuma assinatura ativa para trocar." };
+    }
+
+    try {
+      const stripe = createStripeClient(data.environment);
+
+      // Resolve new price by lookup_key (or accept native price_xxx id).
+      let newPrice;
+      if (data.newPriceId.startsWith("price_")) {
+        newPrice = await stripe.prices.retrieve(data.newPriceId);
+      } else {
+        const prices = await stripe.prices.list({ lookup_keys: [data.newPriceId] });
+        if (!prices.data.length) throw new Error("Price not found");
+        newPrice = prices.data[0];
+      }
+
+      // Need the current subscription item id to swap its price.
+      const current = await stripe.subscriptions.retrieve(sub.stripe_subscription_id as string);
+      const itemId = current.items.data[0]?.id;
+      if (!itemId) throw new Error("Subscription has no items");
+
+      await stripe.subscriptions.update(sub.stripe_subscription_id as string, {
+        items: [{ id: itemId, price: newPrice.id }],
+        proration_behavior: "create_prorations",
+        // If they cancelled-at-period-end and are now upgrading, clear it.
+        cancel_at_period_end: false,
+      });
+
+      return { ok: true };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
     }

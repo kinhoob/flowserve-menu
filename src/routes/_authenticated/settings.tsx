@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useStripeCheckout } from "@/hooks/use-stripe-checkout";
-import { createPortalSession } from "@/lib/payments.functions";
+import { createPortalSession, updateSubscriptionPlan } from "@/lib/payments.functions";
 import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
 import { PaymentTestModeBanner } from "@/components/payments/payment-test-mode-banner";
 import { cn } from "@/lib/utils";
@@ -208,6 +208,23 @@ function SettingsPage() {
     });
   }
 
+  // Swap the price of the existing subscription (proration) when the user
+  // already has an active sub and clicks a different plan card.
+  const swapPlan = useMutation({
+    mutationFn: async (newPriceId: string) => {
+      const result = await updateSubscriptionPlan({
+        data: { newPriceId, environment: getStripeEnvironment() },
+      });
+      if ("error" in result) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      toast.success("Plano atualizado! Atualizando seu acesso…");
+      qc.invalidateQueries({ queryKey: ["subscription"] });
+      qc.invalidateQueries({ queryKey: ["trial-status"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao trocar de plano"),
+  });
 
   async function handleManageBilling() {
     try {
@@ -377,6 +394,51 @@ function SettingsPage() {
             </div>
           )}
 
+          {/* Past-due / unpaid banner — access already revoked by webhook. */}
+          {subscription && (subscription.status === "past_due" || subscription.status === "unpaid") && (
+            <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/40 bg-red-500/10 px-5 py-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Pagamento em atraso — acesso bloqueado
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Atualize seu método de pagamento para reativar seu plano imediatamente.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleManageBilling}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90"
+              >
+                Atualizar pagamento <ExternalLink className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
+          {/* Cancelamento agendado — usuário cancelou mas ainda tem período pago. */}
+          {subscription?.cancel_at_period_end && subscription.current_period_end && subscription.status === "active" && (
+            <div className="flex items-start justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-5 py-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Cancelamento agendado</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Você terá acesso ao plano até{" "}
+                    <strong>{new Date(subscription.current_period_end as string).toLocaleDateString("pt-BR")}</strong>.
+                    Reative no portal a qualquer momento.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleManageBilling}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium transition hover:bg-accent"
+              >
+                Reativar
+              </button>
+            </div>
+          )}
 
           <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -388,14 +450,22 @@ function SettingsPage() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {isTrial
                     ? `Período de teste — ${trialDays} ${trialDays === 1 ? "dia restante" : "dias restantes"}.`
-                    : subscription?.current_period_end
-                      ? `Próxima cobrança em ${new Date(subscription.current_period_end as string).toLocaleDateString("pt-BR")}.`
-                      : "Faturamento mensal recorrente."}
+                    : subscription?.cancel_at_period_end && subscription.current_period_end
+                      ? `Acesso até ${new Date(subscription.current_period_end as string).toLocaleDateString("pt-BR")}.`
+                      : subscription?.current_period_end
+                        ? `Próxima cobrança em ${new Date(subscription.current_period_end as string).toLocaleDateString("pt-BR")}.`
+                        : "Faturamento mensal recorrente."}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-3 py-1 text-[11px] font-medium uppercase tracking-wider text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
-                  <Check className="h-3 w-3" /> Ativo
+                <span className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wider ring-1",
+                  subscription?.status === "past_due" || subscription?.status === "unpaid"
+                    ? "bg-red-500/10 text-red-400 ring-red-500/30"
+                    : "bg-gold-soft text-primary ring-[oklch(0.78_0.13_84_/_0.3)]",
+                )}>
+                  <Check className="h-3 w-3" />
+                  {subscription?.status === "past_due" || subscription?.status === "unpaid" ? "Bloqueado" : "Ativo"}
                 </span>
                 {subscription?.stripe_customer_id && (
                   <button
@@ -422,7 +492,32 @@ function SettingsPage() {
             {PLANS.map((plan) => {
               const Icon = plan.icon;
               const isCurrent = !isTrial && plan.id === currentPlanId;
-              const disabled = plan.comingSoon || isCurrent;
+              // User has an active paid subscription on a different plan → swap (proration).
+              const hasActiveSub =
+                !!subscription &&
+                (subscription.status === "active" || subscription.status === "trialing") &&
+                !!currentPlanId;
+              const canSwap = hasActiveSub && !isCurrent && !!plan.priceId && !plan.comingSoon;
+              const disabled = plan.comingSoon || isCurrent || swapPlan.isPending;
+
+              const handleClick = () => {
+                if (canSwap && plan.priceId) {
+                  if (confirm(`Trocar para o plano ${plan.name}? A diferença será cobrada proporcionalmente.`)) {
+                    swapPlan.mutate(plan.priceId);
+                  }
+                } else {
+                  handleSubscribe(plan);
+                }
+              };
+
+              const buttonLabel = isCurrent
+                ? "Plano atual"
+                : plan.comingSoon
+                  ? "Em breve"
+                  : canSwap
+                    ? "Trocar para este plano"
+                    : "Assinar agora";
+
               return (
                 <div
                   key={plan.id}
@@ -464,7 +559,7 @@ function SettingsPage() {
                   </ul>
                   <button
                     type="button"
-                    onClick={() => handleSubscribe(plan)}
+                    onClick={handleClick}
                     disabled={disabled}
                     className={cn(
                       "mt-6 inline-flex items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium transition",
@@ -475,7 +570,11 @@ function SettingsPage() {
                           : "border border-border bg-background hover:bg-accent",
                     )}
                   >
-                    {isCurrent ? "Plano atual" : plan.comingSoon ? "Em breve" : "Assinar agora"}
+                    {swapPlan.isPending && canSwap ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      buttonLabel
+                    )}
                   </button>
                 </div>
               );
