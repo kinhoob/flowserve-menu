@@ -20,7 +20,6 @@ const PRICE_TO_PLAN: Record<string, string> = {
   pro_monthly: "pro",
 };
 
-
 function planTypeFromPriceId(priceId: string | null | undefined): string | null {
   if (!priceId) return null;
   if (PRICE_TO_PLAN[priceId]) return PRICE_TO_PLAN[priceId];
@@ -29,6 +28,16 @@ function planTypeFromPriceId(priceId: string | null | undefined): string | null 
   if (priceId.startsWith("pro")) return "pro";
   return null;
 }
+
+// Statuses where the user has paid access (entitlement on).
+const ENTITLED_STATUSES = new Set(["active", "trialing"]);
+// Statuses that should block access immediately (per user requirement).
+const BLOCKING_STATUSES = new Set([
+  "past_due",
+  "unpaid",
+  "incomplete_expired",
+  "paused",
+]);
 
 async function handleSubscriptionCreatedOrUpdated(subscription: any, env: StripeEnv) {
   const userId = subscription.metadata?.userId;
@@ -64,12 +73,26 @@ async function handleSubscriptionCreatedOrUpdated(subscription: any, env: Stripe
     { onConflict: "stripe_subscription_id" },
   );
 
-  // Update the profile's plan_type if subscription is active/trialing.
   const plan = planTypeFromPriceId(priceId);
-  if (plan && (subscription.status === "active" || subscription.status === "trialing")) {
+
+  // Entitlement on: active or trialing → grant the plan tier.
+  if (plan && ENTITLED_STATUSES.has(subscription.status)) {
     await sb.from("profiles").update({ plan_type: plan }).eq("id", userId);
+    return;
   }
 
+  // Blocking statuses (past_due, unpaid, incomplete_expired, paused):
+  // revoke access immediately by sending the user to trial-expired state.
+  if (BLOCKING_STATUSES.has(subscription.status)) {
+    await sb
+      .from("profiles")
+      .update({ plan_type: "trial", trial_ends_at: new Date(0).toISOString() })
+      .eq("id", userId);
+  }
+  // "incomplete" and "canceled" (with future period_end) are left untouched:
+  // - incomplete: pending first payment, no entitlement change yet
+  // - canceled (with cancel_at_period_end): user keeps current plan until
+  //   the customer.subscription.deleted event arrives at period end
 }
 
 async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
@@ -82,7 +105,12 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
     .eq("environment", env);
 
   if (userId) {
-    await sb.from("profiles").update({ plan_type: "trial" }).eq("id", userId);
+    // Period ended → revoke access. Set trial_ends_at to epoch so the
+    // trial-expired guard kicks in (no free trial reset on cancellation).
+    await sb
+      .from("profiles")
+      .update({ plan_type: "trial", trial_ends_at: new Date(0).toISOString() })
+      .eq("id", userId);
   }
 }
 
