@@ -208,6 +208,23 @@ function SettingsPage() {
     });
   }
 
+  // Swap the price of the existing subscription (proration) when the user
+  // already has an active sub and clicks a different plan card.
+  const swapPlan = useMutation({
+    mutationFn: async (newPriceId: string) => {
+      const result = await updateSubscriptionPlan({
+        data: { newPriceId, environment: getStripeEnvironment() },
+      });
+      if ("error" in result) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: () => {
+      toast.success("Plano atualizado! Atualizando seu acesso…");
+      qc.invalidateQueries({ queryKey: ["subscription"] });
+      qc.invalidateQueries({ queryKey: ["trial-status"] });
+    },
+    onError: (e: any) => toast.error(e.message ?? "Erro ao trocar de plano"),
+  });
 
   async function handleManageBilling() {
     try {
