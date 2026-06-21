@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useStripeCheckout } from "@/hooks/use-stripe-checkout";
-import { createPortalSession } from "@/lib/payments.functions";
+import { createPortalSession, updateSubscriptionPlan } from "@/lib/payments.functions";
 import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
 import { PaymentTestModeBanner } from "@/components/payments/payment-test-mode-banner";
 import { cn } from "@/lib/utils";
