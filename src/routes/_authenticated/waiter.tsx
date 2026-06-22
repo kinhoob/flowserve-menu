@@ -48,18 +48,21 @@ function WaiterPage() {
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
 
+  // Normaliza "Mesa 1", "Mesa Mesa 1", "  Mesa   1  " → "1"
+  const normalizeLabel = (s: string | null | undefined) =>
+    (s ?? "").replace(/^(?:Mesa\s*)+/i, "").trim();
+
   const markFreed = (label: string) => {
-    const stripped = label.replace(/^Mesa\s*/i, "").trim();
-    const variants = [label, stripped, `Mesa ${stripped}`];
+    const key = normalizeLabel(label);
     setRecentlyFreed((prev) => {
       const next = new Set(prev);
-      variants.forEach((v) => next.add(v));
+      next.add(key);
       return next;
     });
     setTimeout(() => {
       setRecentlyFreed((prev) => {
         const next = new Set(prev);
-        variants.forEach((v) => next.delete(v));
+        next.delete(key);
         return next;
       });
     }, 10000);
@@ -71,7 +74,7 @@ function WaiterPage() {
     for (const c of waiterCalls) {
       if (c.resolved) continue;
       const kind = ((c as any).kind === "bill" ? "bill" : "call") as "bill" | "call";
-      const lbl = (c.table_label ?? "").replace(/^Mesa\s*/i, "").trim();
+      const lbl = normalizeLabel(c.table_label);
       if (!lbl) continue;
       const arr = m.get(lbl) ?? [];
       arr.push({ id: c.id, created_at: c.created_at, kind });
@@ -94,13 +97,14 @@ function WaiterPage() {
     const s = new Set<string>();
     for (const o of orders ?? []) {
       if (ACTIVE.includes(o.status) && o.table_label) {
-        if (recentlyFreed.has(o.table_label)) continue;
-        s.add(o.table_label);
-        s.add(o.table_label.replace(/^Mesa\s*/i, "").trim());
+        const key = normalizeLabel(o.table_label);
+        if (!key || recentlyFreed.has(key)) continue;
+        s.add(key);
       }
     }
     return s;
   }, [orders, recentlyFreed]);
+
 
   // Detect newly-ready orders
   useEffect(() => {
@@ -155,12 +159,13 @@ function WaiterPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {sorted.map((t) => {
-          const stripped = t.label.replace(/^Mesa\s*/i, "").trim();
-          const isBusy = occupied.has(t.label) || occupied.has(stripped);
+          const stripped = normalizeLabel(t.label);
+          const isBusy = occupied.has(stripped);
           const callList = callsByLabel.get(stripped) ?? [];
           const billCall = billCallsByLabel.get(stripped);
           const waiterCall = callList.find((c) => c.kind === "call");
           const hasAnyCall = callList.length > 0;
+
           return (
             <motion.button
               key={t.id}
@@ -268,17 +273,15 @@ function WaiterPage() {
           />
         )}
         {billTable && restaurant && (() => {
-          const stripped = billTable.replace(/^Mesa\s*/i, "").trim();
-          const variants = new Set([billTable, stripped, `Mesa ${stripped}`]);
+          const targetKey = billTable.replace(/^(?:Mesa\s*)+/i, "").trim();
           // Inclui TODOS os pedidos ativos da mesa (pending → served / entregue),
-          // independente da grafia do label, para que a soma da conta nunca perca
-          // pedidos já entregues mas ainda não finalizados.
-          const tableOrders = (orders ?? []).filter(
-            (o) =>
-              ACTIVE.includes(o.status) &&
-              o.table_label &&
-              variants.has(o.table_label),
-          );
+          // independente de duplicações de prefixo "Mesa " no label salvo.
+          const tableOrders = (orders ?? []).filter((o) => {
+            if (!ACTIVE.includes(o.status)) return false;
+            if (!o.table_label) return false;
+            const key = o.table_label.replace(/^(?:Mesa\s*)+/i, "").trim();
+            return key === targetKey;
+          });
           return (
             <BillModal
               tableLabel={billTable}
@@ -297,6 +300,7 @@ function WaiterPage() {
             />
           );
         })()}
+
       </AnimatePresence>
 
       <AnimatePresence>
@@ -615,29 +619,27 @@ function BillModal({
   const cover = coverPerPerson * people;
   const total = subtotal + serviceFee + cover;
 
+  const normalize = (s: string | null | undefined) =>
+    (s ?? "").replace(/^(?:Mesa\s*)+/i, "").trim();
+
   async function resolveCallsForTable() {
-    const stripped = tableLabel.replace(/^Mesa\s*/i, "").trim();
-    const variants = Array.from(new Set([tableLabel, stripped, `Mesa ${stripped}`]));
+    const target = normalize(tableLabel);
+    const { data: rows } = await supabase
+      .from("waiter_calls")
+      .select("id, table_label")
+      .eq("restaurant_id", restaurantId)
+      .eq("resolved", false);
+    const ids = (rows ?? []).filter((r: any) => normalize(r.table_label) === target).map((r: any) => r.id);
+    if (ids.length === 0) return;
     await supabase
       .from("waiter_calls")
       .update({ resolved: true, resolved_at: new Date().toISOString() })
-      .eq("restaurant_id", restaurantId)
-      .in("table_label", variants)
-      .eq("resolved", false);
+      .in("id", ids);
   }
 
   function optimisticallyArchive(ids: string[]) {
     qc.setQueriesData<Order[]>({ queryKey: ["orders"] }, (prev) =>
       prev ? prev.filter((o) => !ids.includes(o.id)) : prev,
-    );
-  }
-  function optimisticallyArchiveByLabel(labels: string[]) {
-    qc.setQueriesData<Order[]>({ queryKey: ["orders"] }, (prev) =>
-      prev
-        ? prev.filter(
-            (o) => !(o.table_label && labels.includes(o.table_label) && ACTIVE.includes(o.status)),
-          )
-        : prev,
     );
   }
 
@@ -674,24 +676,33 @@ function BillModal({
     onError: (e: any) => toast.error(e.message ?? "Erro ao fechar conta"),
   });
 
-  // Força liberação: arquiva QUALQUER pedido residual desta mesa (por label) e resolve chamados.
-  // Usado quando a mesa aparece "ocupada" mas não há itens visíveis (estado fantasma).
+  // Força liberação: arquiva QUALQUER pedido residual desta mesa (por label normalizado)
+  // e resolve chamados. Usado quando a mesa aparece "ocupada" mas não há itens visíveis.
   const forceFree = useMutation({
     mutationFn: async () => {
-      const stripped = tableLabel.replace(/^Mesa\s*/i, "").trim();
-      const variants = Array.from(new Set([tableLabel, stripped, `Mesa ${stripped}`]));
-      const { error } = await supabase
+      const target = normalize(tableLabel);
+      const { data: rows, error: selErr } = await supabase
         .from("orders")
-        .update({ archived: true, status: "served" } as any)
+        .select("id, table_label, status")
         .eq("restaurant_id", restaurantId)
-        .in("table_label", variants)
+        .eq("archived", false as any)
         .in("status", ACTIVE);
-      if (error) throw error;
+      if (selErr) throw selErr;
+      const ids = (rows ?? [])
+        .filter((r: any) => normalize(r.table_label) === target)
+        .map((r: any) => r.id);
+      if (ids.length > 0) {
+        const { error } = await supabase
+          .from("orders")
+          .update({ archived: true, status: "served" } as any)
+          .in("id", ids);
+        if (error) throw error;
+      }
       await resolveCallsForTable();
-      return variants;
+      return ids;
     },
-    onSuccess: (variants) => {
-      optimisticallyArchiveByLabel(variants);
+    onSuccess: (ids) => {
+      optimisticallyArchive(ids);
       onFreed(tableLabel);
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.refetchQueries({ queryKey: ["orders"] });
@@ -701,6 +712,7 @@ function BillModal({
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao liberar mesa"),
   });
+
 
 
   return (
