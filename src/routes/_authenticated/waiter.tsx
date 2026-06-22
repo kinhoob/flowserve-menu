@@ -286,6 +286,7 @@ function WaiterPage() {
               orders={tableOrders}
               currency={restaurant.currency}
               onClose={() => setBillTable(null)}
+              onFreed={markFreed}
               onAddItems={() => {
                 const t = sorted.find((x) => x.label === billTable);
                 if (t) {
