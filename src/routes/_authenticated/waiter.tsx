@@ -44,8 +44,26 @@ function WaiterPage() {
   const [openTable, setOpenTable] = useState<string | null>(null);
   const [billTable, setBillTable] = useState<string | null>(null);
   const [ready, setReady] = useState<{ label: string; id: string } | null>(null);
+  const [recentlyFreed, setRecentlyFreed] = useState<Set<string>>(new Set());
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
+
+  const markFreed = (label: string) => {
+    const stripped = label.replace(/^Mesa\s*/i, "").trim();
+    const variants = [label, stripped, `Mesa ${stripped}`];
+    setRecentlyFreed((prev) => {
+      const next = new Set(prev);
+      variants.forEach((v) => next.add(v));
+      return next;
+    });
+    setTimeout(() => {
+      setRecentlyFreed((prev) => {
+        const next = new Set(prev);
+        variants.forEach((v) => next.delete(v));
+        return next;
+      });
+    }, 10000);
+  };
 
   // Calls "pedir conta" e "chamar garçom" por table_label (qualquer chamado não resolvido)
   const callsByLabel = useMemo(() => {
@@ -76,12 +94,13 @@ function WaiterPage() {
     const s = new Set<string>();
     for (const o of orders ?? []) {
       if (ACTIVE.includes(o.status) && o.table_label) {
+        if (recentlyFreed.has(o.table_label)) continue;
         s.add(o.table_label);
         s.add(o.table_label.replace(/^Mesa\s*/i, "").trim());
       }
     }
     return s;
-  }, [orders]);
+  }, [orders, recentlyFreed]);
 
   // Detect newly-ready orders
   useEffect(() => {
@@ -267,6 +286,7 @@ function WaiterPage() {
               orders={tableOrders}
               currency={restaurant.currency}
               onClose={() => setBillTable(null)}
+              onFreed={markFreed}
               onAddItems={() => {
                 const t = sorted.find((x) => x.label === billTable);
                 if (t) {
@@ -571,6 +591,7 @@ function BillModal({
   currency,
   onClose,
   onAddItems,
+  onFreed,
 }: {
   tableLabel: string;
   restaurantId: string;
@@ -578,6 +599,7 @@ function BillModal({
   currency: string;
   onClose: () => void;
   onAddItems: () => void;
+  onFreed: (label: string) => void;
 }) {
   const qc = useQueryClient();
   const allItems = orders.flatMap((o) => o.order_items);
@@ -642,6 +664,7 @@ function BillModal({
     },
     onSuccess: (ids) => {
       optimisticallyArchive(ids);
+      onFreed(tableLabel);
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.refetchQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["waiter_calls"] });
@@ -669,6 +692,7 @@ function BillModal({
     },
     onSuccess: (variants) => {
       optimisticallyArchiveByLabel(variants);
+      onFreed(tableLabel);
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.refetchQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["waiter_calls"] });
@@ -740,13 +764,18 @@ function BillModal({
                           <span className="font-semibold text-foreground">Pedido #{idx + 1}</span>
                           <span className="text-muted-foreground">{when}</span>
                           {o.created_by_name && (
-                            <span className="text-muted-foreground">· {o.created_by_name}</span>
+                            <span className="text-muted-foreground">· por {o.created_by_name}</span>
                           )}
                         </div>
                         <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider", st.cls)}>
                           {st.label}
                         </span>
                       </div>
+                      {(o as any).customer_name && (
+                        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-2 py-0.5 text-[11px] font-medium text-primary">
+                          Cliente: {(o as any).customer_name}
+                        </div>
+                      )}
                       <ul className="divide-y divide-border/60">
                         {o.order_items.map((it) => (
                           <li key={it.id} className="flex flex-col gap-0.5 py-1.5">

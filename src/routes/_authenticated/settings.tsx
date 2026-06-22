@@ -622,13 +622,34 @@ function EstablishmentSection({
     mutationFn: async () => {
       const trimmed = name.trim();
       if (!trimmed) throw new Error("Informe um nome");
-      const { error } = await supabase.from("restaurants").update({ name: trimmed }).eq("id", restaurantId);
-      if (error) throw error;
+      const base = trimmed
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 40) || "restaurante";
+      let nextSlug = base;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const candidate = attempt === 0 ? base : `${base}-${Math.floor(Math.random() * 9000) + 1000}`;
+        const { error } = await supabase
+          .from("restaurants")
+          .update({ name: trimmed, slug: candidate })
+          .eq("id", restaurantId);
+        if (!error) {
+          nextSlug = candidate;
+          return nextSlug;
+        }
+        if (!error.message?.toLowerCase().includes("duplicate") && !error.message?.toLowerCase().includes("unique")) {
+          throw error;
+        }
+      }
+      throw new Error("Não foi possível gerar uma URL única");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["restaurant"] });
       qc.invalidateQueries({ queryKey: ["public-menu"] });
-      toast.success("Nome atualizado");
+      toast.success("Nome e URL atualizados");
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao salvar"),
   });
