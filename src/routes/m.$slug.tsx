@@ -51,7 +51,10 @@ type PublicItem = {
 
 function PublicMenuPage() {
   const { slug } = Route.useParams();
-  const { table } = Route.useSearch();
+  const { table: rawTable } = Route.useSearch();
+  // Normaliza: se o QR vier com "Mesa 1" no parâmetro, evita virar "Mesa Mesa 1"
+  const table = rawTable ? rawTable.replace(/^Mesa\s*/i, "").trim() : undefined;
+
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["public-menu", slug],
