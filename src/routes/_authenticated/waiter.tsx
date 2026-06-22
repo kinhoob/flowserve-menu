@@ -692,6 +692,7 @@ function BillModal({
     },
     onSuccess: (variants) => {
       optimisticallyArchiveByLabel(variants);
+      onFreed(tableLabel);
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.refetchQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["waiter_calls"] });
