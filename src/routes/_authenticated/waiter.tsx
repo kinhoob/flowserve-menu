@@ -619,29 +619,27 @@ function BillModal({
   const cover = coverPerPerson * people;
   const total = subtotal + serviceFee + cover;
 
+  const normalize = (s: string | null | undefined) =>
+    (s ?? "").replace(/^(?:Mesa\s*)+/i, "").trim();
+
   async function resolveCallsForTable() {
-    const stripped = tableLabel.replace(/^Mesa\s*/i, "").trim();
-    const variants = Array.from(new Set([tableLabel, stripped, `Mesa ${stripped}`]));
+    const target = normalize(tableLabel);
+    const { data: rows } = await supabase
+      .from("waiter_calls")
+      .select("id, table_label")
+      .eq("restaurant_id", restaurantId)
+      .eq("resolved", false);
+    const ids = (rows ?? []).filter((r: any) => normalize(r.table_label) === target).map((r: any) => r.id);
+    if (ids.length === 0) return;
     await supabase
       .from("waiter_calls")
       .update({ resolved: true, resolved_at: new Date().toISOString() })
-      .eq("restaurant_id", restaurantId)
-      .in("table_label", variants)
-      .eq("resolved", false);
+      .in("id", ids);
   }
 
   function optimisticallyArchive(ids: string[]) {
     qc.setQueriesData<Order[]>({ queryKey: ["orders"] }, (prev) =>
       prev ? prev.filter((o) => !ids.includes(o.id)) : prev,
-    );
-  }
-  function optimisticallyArchiveByLabel(labels: string[]) {
-    qc.setQueriesData<Order[]>({ queryKey: ["orders"] }, (prev) =>
-      prev
-        ? prev.filter(
-            (o) => !(o.table_label && labels.includes(o.table_label) && ACTIVE.includes(o.status)),
-          )
-        : prev,
     );
   }
 
@@ -678,24 +676,33 @@ function BillModal({
     onError: (e: any) => toast.error(e.message ?? "Erro ao fechar conta"),
   });
 
-  // Força liberação: arquiva QUALQUER pedido residual desta mesa (por label) e resolve chamados.
-  // Usado quando a mesa aparece "ocupada" mas não há itens visíveis (estado fantasma).
+  // Força liberação: arquiva QUALQUER pedido residual desta mesa (por label normalizado)
+  // e resolve chamados. Usado quando a mesa aparece "ocupada" mas não há itens visíveis.
   const forceFree = useMutation({
     mutationFn: async () => {
-      const stripped = tableLabel.replace(/^Mesa\s*/i, "").trim();
-      const variants = Array.from(new Set([tableLabel, stripped, `Mesa ${stripped}`]));
-      const { error } = await supabase
+      const target = normalize(tableLabel);
+      const { data: rows, error: selErr } = await supabase
         .from("orders")
-        .update({ archived: true, status: "served" } as any)
+        .select("id, table_label, status")
         .eq("restaurant_id", restaurantId)
-        .in("table_label", variants)
+        .eq("archived", false as any)
         .in("status", ACTIVE);
-      if (error) throw error;
+      if (selErr) throw selErr;
+      const ids = (rows ?? [])
+        .filter((r: any) => normalize(r.table_label) === target)
+        .map((r: any) => r.id);
+      if (ids.length > 0) {
+        const { error } = await supabase
+          .from("orders")
+          .update({ archived: true, status: "served" } as any)
+          .in("id", ids);
+        if (error) throw error;
+      }
       await resolveCallsForTable();
-      return variants;
+      return ids;
     },
-    onSuccess: (variants) => {
-      optimisticallyArchiveByLabel(variants);
+    onSuccess: (ids) => {
+      optimisticallyArchive(ids);
       onFreed(tableLabel);
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.refetchQueries({ queryKey: ["orders"] });
@@ -705,6 +712,7 @@ function BillModal({
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao liberar mesa"),
   });
+
 
 
   return (
