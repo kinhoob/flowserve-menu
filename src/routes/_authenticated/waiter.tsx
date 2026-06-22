@@ -94,12 +94,13 @@ function WaiterPage() {
     const s = new Set<string>();
     for (const o of orders ?? []) {
       if (ACTIVE.includes(o.status) && o.table_label) {
+        if (recentlyFreed.has(o.table_label)) continue;
         s.add(o.table_label);
         s.add(o.table_label.replace(/^Mesa\s*/i, "").trim());
       }
     }
     return s;
-  }, [orders]);
+  }, [orders, recentlyFreed]);
 
   // Detect newly-ready orders
   useEffect(() => {
