@@ -268,17 +268,15 @@ function WaiterPage() {
           />
         )}
         {billTable && restaurant && (() => {
-          const stripped = billTable.replace(/^Mesa\s*/i, "").trim();
-          const variants = new Set([billTable, stripped, `Mesa ${stripped}`]);
+          const targetKey = billTable.replace(/^(?:Mesa\s*)+/i, "").trim();
           // Inclui TODOS os pedidos ativos da mesa (pending → served / entregue),
-          // independente da grafia do label, para que a soma da conta nunca perca
-          // pedidos já entregues mas ainda não finalizados.
-          const tableOrders = (orders ?? []).filter(
-            (o) =>
-              ACTIVE.includes(o.status) &&
-              o.table_label &&
-              variants.has(o.table_label),
-          );
+          // independente de duplicações de prefixo "Mesa " no label salvo.
+          const tableOrders = (orders ?? []).filter((o) => {
+            if (!ACTIVE.includes(o.status)) return false;
+            if (!o.table_label) return false;
+            const key = o.table_label.replace(/^(?:Mesa\s*)+/i, "").trim();
+            return key === targetKey;
+          });
           return (
             <BillModal
               tableLabel={billTable}
@@ -297,6 +295,7 @@ function WaiterPage() {
             />
           );
         })()}
+
       </AnimatePresence>
 
       <AnimatePresence>
