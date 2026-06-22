@@ -764,13 +764,18 @@ function BillModal({
                           <span className="font-semibold text-foreground">Pedido #{idx + 1}</span>
                           <span className="text-muted-foreground">{when}</span>
                           {o.created_by_name && (
-                            <span className="text-muted-foreground">· {o.created_by_name}</span>
+                            <span className="text-muted-foreground">· por {o.created_by_name}</span>
                           )}
                         </div>
                         <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider", st.cls)}>
                           {st.label}
                         </span>
                       </div>
+                      {(o as any).customer_name && (
+                        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-2 py-0.5 text-[11px] font-medium text-primary">
+                          Cliente: {(o as any).customer_name}
+                        </div>
+                      )}
                       <ul className="divide-y divide-border/60">
                         {o.order_items.map((it) => (
                           <li key={it.id} className="flex flex-col gap-0.5 py-1.5">
