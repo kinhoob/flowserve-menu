@@ -44,8 +44,26 @@ function WaiterPage() {
   const [openTable, setOpenTable] = useState<string | null>(null);
   const [billTable, setBillTable] = useState<string | null>(null);
   const [ready, setReady] = useState<{ label: string; id: string } | null>(null);
+  const [recentlyFreed, setRecentlyFreed] = useState<Set<string>>(new Set());
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
+
+  const markFreed = (label: string) => {
+    const stripped = label.replace(/^Mesa\s*/i, "").trim();
+    const variants = [label, stripped, `Mesa ${stripped}`];
+    setRecentlyFreed((prev) => {
+      const next = new Set(prev);
+      variants.forEach((v) => next.add(v));
+      return next;
+    });
+    setTimeout(() => {
+      setRecentlyFreed((prev) => {
+        const next = new Set(prev);
+        variants.forEach((v) => next.delete(v));
+        return next;
+      });
+    }, 10000);
+  };
 
   // Calls "pedir conta" e "chamar garçom" por table_label (qualquer chamado não resolvido)
   const callsByLabel = useMemo(() => {
