@@ -48,18 +48,21 @@ function WaiterPage() {
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
 
+  // Normaliza "Mesa 1", "Mesa Mesa 1", "  Mesa   1  " → "1"
+  const normalizeLabel = (s: string | null | undefined) =>
+    (s ?? "").replace(/^(?:Mesa\s*)+/i, "").trim();
+
   const markFreed = (label: string) => {
-    const stripped = label.replace(/^Mesa\s*/i, "").trim();
-    const variants = [label, stripped, `Mesa ${stripped}`];
+    const key = normalizeLabel(label);
     setRecentlyFreed((prev) => {
       const next = new Set(prev);
-      variants.forEach((v) => next.add(v));
+      next.add(key);
       return next;
     });
     setTimeout(() => {
       setRecentlyFreed((prev) => {
         const next = new Set(prev);
-        variants.forEach((v) => next.delete(v));
+        next.delete(key);
         return next;
       });
     }, 10000);
@@ -71,7 +74,7 @@ function WaiterPage() {
     for (const c of waiterCalls) {
       if (c.resolved) continue;
       const kind = ((c as any).kind === "bill" ? "bill" : "call") as "bill" | "call";
-      const lbl = (c.table_label ?? "").replace(/^Mesa\s*/i, "").trim();
+      const lbl = normalizeLabel(c.table_label);
       if (!lbl) continue;
       const arr = m.get(lbl) ?? [];
       arr.push({ id: c.id, created_at: c.created_at, kind });
@@ -94,13 +97,14 @@ function WaiterPage() {
     const s = new Set<string>();
     for (const o of orders ?? []) {
       if (ACTIVE.includes(o.status) && o.table_label) {
-        if (recentlyFreed.has(o.table_label)) continue;
-        s.add(o.table_label);
-        s.add(o.table_label.replace(/^Mesa\s*/i, "").trim());
+        const key = normalizeLabel(o.table_label);
+        if (!key || recentlyFreed.has(key)) continue;
+        s.add(key);
       }
     }
     return s;
   }, [orders, recentlyFreed]);
+
 
   // Detect newly-ready orders
   useEffect(() => {
