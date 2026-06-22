@@ -591,6 +591,7 @@ function BillModal({
   currency,
   onClose,
   onAddItems,
+  onFreed,
 }: {
   tableLabel: string;
   restaurantId: string;
@@ -598,6 +599,7 @@ function BillModal({
   currency: string;
   onClose: () => void;
   onAddItems: () => void;
+  onFreed: (label: string) => void;
 }) {
   const qc = useQueryClient();
   const allItems = orders.flatMap((o) => o.order_items);
