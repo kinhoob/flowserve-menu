@@ -159,12 +159,13 @@ function WaiterPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {sorted.map((t) => {
-          const stripped = t.label.replace(/^Mesa\s*/i, "").trim();
-          const isBusy = occupied.has(t.label) || occupied.has(stripped);
+          const stripped = normalizeLabel(t.label);
+          const isBusy = occupied.has(stripped);
           const callList = callsByLabel.get(stripped) ?? [];
           const billCall = billCallsByLabel.get(stripped);
           const waiterCall = callList.find((c) => c.kind === "call");
           const hasAnyCall = callList.length > 0;
+
           return (
             <motion.button
               key={t.id}
