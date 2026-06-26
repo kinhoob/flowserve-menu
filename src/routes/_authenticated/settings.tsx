@@ -360,6 +360,7 @@ function SettingsPage() {
             slug={restaurant.slug}
             currency={restaurant.currency}
             timezone={restaurant.timezone}
+            initialLogoUrl={(restaurant as any).logo_url ?? null}
           />
         </TabsContent>
 
