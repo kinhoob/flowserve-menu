@@ -360,6 +360,7 @@ function SettingsPage() {
             slug={restaurant.slug}
             currency={restaurant.currency}
             timezone={restaurant.timezone}
+            initialLogoUrl={(restaurant as any).logo_url ?? null}
           />
         </TabsContent>
 
@@ -607,16 +608,69 @@ function EstablishmentSection({
   slug,
   currency,
   timezone,
+  initialLogoUrl,
 }: {
   restaurantId: string;
   initialName: string;
   slug: string;
   currency: string;
   timezone: string;
+  initialLogoUrl: string | null;
 }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [name, setName] = useState(initialName);
+  const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl);
+  const [uploading, setUploading] = useState(false);
   useEffect(() => setName(initialName), [initialName]);
+  useEffect(() => setLogoUrl(initialLogoUrl), [initialLogoUrl]);
+
+  const uploadLogo = async (file: File) => {
+    if (!user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande (máx 5MB)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${restaurantId}/logo-${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("menu-images")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
+      const url = data.publicUrl;
+      const { error: dbErr } = await supabase
+        .from("restaurants")
+        .update({ logo_url: url })
+        .eq("id", restaurantId);
+      if (dbErr) throw dbErr;
+      setLogoUrl(url);
+      qc.invalidateQueries({ queryKey: ["restaurant"] });
+      qc.invalidateQueries({ queryKey: ["public-menu"] });
+      toast.success("Logo atualizado");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao enviar imagem");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeLogo = async () => {
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ logo_url: null })
+      .eq("id", restaurantId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setLogoUrl(null);
+    qc.invalidateQueries({ queryKey: ["restaurant"] });
+    qc.invalidateQueries({ queryKey: ["public-menu"] });
+    toast.success("Logo removido");
+  };
 
   const save = useMutation({
     mutationFn: async () => {
@@ -655,6 +709,7 @@ function EstablishmentSection({
   });
 
   const dirty = name.trim() !== initialName.trim();
+  const initials = (initialName || "R").slice(0, 2).toUpperCase();
 
   return (
     <section className="rounded-2xl border border-border bg-surface p-6">
@@ -665,8 +720,52 @@ function EstablishmentSection({
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-xl tracking-tight">Estabelecimento</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Este nome aparece no Dashboard, na navegação e no cardápio público do cliente.
+            Este nome e logo aparecem no Dashboard, na navegação e no cardápio público do cliente.
           </p>
+
+          <div className="mt-5 flex flex-col items-start gap-4 rounded-xl border border-border bg-background/40 p-4 sm:flex-row sm:items-center">
+            <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo do estabelecimento" className="h-full w-full object-cover" />
+              ) : (
+                <span className="font-display text-xl text-primary">{initials}</span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Foto de perfil / Logo</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Aparece no topo do cardápio público. PNG, JPG ou WEBP (máx 5MB).
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium transition hover:border-[oklch(0.78_0.13_84_/_0.5)]">
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Store className="h-3.5 w-3.5" />}
+                  {logoUrl ? "Trocar imagem" : "Enviar imagem"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploading}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadLogo(f);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+                {logoUrl && (
+                  <button
+                    type="button"
+                    onClick={removeLogo}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs text-muted-foreground transition hover:text-foreground"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Remover
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="mt-5 space-y-4">
             <div>
               <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -709,6 +808,7 @@ function EstablishmentSection({
     </section>
   );
 }
+
 
 function TeamSection({ restaurantId }: { restaurantId: string }) {
   const { data: staff = [], isLoading } = useStaff(restaurantId);
