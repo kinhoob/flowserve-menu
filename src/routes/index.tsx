@@ -11,7 +11,10 @@ import {
   Smartphone,
   Radio,
   ShieldCheck,
+  Menu as MenuIcon,
 } from "lucide-react";
+import { useState } from "react";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { motion } from "framer-motion";
 import { FluxLogo } from "@/components/brand/logo";
 import { FadeIn } from "@/components/motion/page-transition";
@@ -125,6 +128,7 @@ const STRIPE_PAYMENT_LINKS: Record<"basic" | "essential" | "pro", string> = {
 };
 
 function LandingPage() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       {/* Ambient glows */}
@@ -188,11 +192,73 @@ function LandingPage() {
           <Link
             to="/auth"
             search={{ mode: "signup" }}
-            className="group inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-[0_10px_30px_-12px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-12px_oklch(0.78_0.13_84_/_0.7)] hover:opacity-95"
+            className="group hidden items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-[0_10px_30px_-12px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-12px_oklch(0.78_0.13_84_/_0.7)] hover:opacity-95 sm:inline-flex"
           >
             Começar agora
             <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
           </Link>
+          <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+            <SheetTrigger asChild>
+              <button
+                aria-label="Abrir menu"
+                className="inline-flex items-center justify-center rounded-xl border border-border bg-surface p-2.5 text-muted-foreground transition hover:text-foreground md:hidden"
+              >
+                <MenuIcon className="h-5 w-5" />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-72 bg-background">
+              <SheetTitle className="sr-only">Menu</SheetTitle>
+              <nav className="mt-8 flex flex-col gap-1 text-sm">
+                {[
+                  { href: "#features", label: "Produto" },
+                  { href: "#why", label: "Por que Flux?" },
+                  { href: "#pricing", label: "Planos" },
+                  { href: "#faq", label: "FAQ" },
+                ].map((l) => (
+                  <a
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setMobileNavOpen(false)}
+                    className="rounded-lg px-3 py-3 text-foreground transition hover:bg-surface"
+                  >
+                    {l.label}
+                  </a>
+                ))}
+                <Link
+                  to="/privacidade"
+                  onClick={() => setMobileNavOpen(false)}
+                  className="rounded-lg px-3 py-3 text-muted-foreground transition hover:bg-surface hover:text-foreground"
+                >
+                  Privacidade
+                </Link>
+                <Link
+                  to="/termos"
+                  onClick={() => setMobileNavOpen(false)}
+                  className="rounded-lg px-3 py-3 text-muted-foreground transition hover:bg-surface hover:text-foreground"
+                >
+                  Termos
+                </Link>
+                <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
+                  <Link
+                    to="/auth"
+                    search={{ mode: "login" }}
+                    onClick={() => setMobileNavOpen(false)}
+                    className="rounded-xl border border-border px-4 py-2.5 text-center text-sm text-foreground transition hover:bg-surface"
+                  >
+                    Entrar
+                  </Link>
+                  <Link
+                    to="/auth"
+                    search={{ mode: "signup" }}
+                    onClick={() => setMobileNavOpen(false)}
+                    className="rounded-xl bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground"
+                  >
+                    Começar agora
+                  </Link>
+                </div>
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
       </motion.header>
 
