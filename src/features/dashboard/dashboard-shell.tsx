@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+
 import { motion } from "framer-motion";
 import { useAuth } from "@/features/auth/auth-provider";
 import { FluxLogo } from "@/components/brand/logo";
