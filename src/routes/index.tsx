@@ -128,6 +128,7 @@ const STRIPE_PAYMENT_LINKS: Record<"basic" | "essential" | "pro", string> = {
 };
 
 function LandingPage() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
       {/* Ambient glows */}
