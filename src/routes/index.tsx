@@ -11,7 +11,10 @@ import {
   Smartphone,
   Radio,
   ShieldCheck,
+  Menu as MenuIcon,
 } from "lucide-react";
+import { useState } from "react";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { motion } from "framer-motion";
 import { FluxLogo } from "@/components/brand/logo";
 import { FadeIn } from "@/components/motion/page-transition";
