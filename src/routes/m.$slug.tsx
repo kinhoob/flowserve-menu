@@ -62,7 +62,7 @@ function PublicMenuPage() {
     queryFn: async () => {
       const { data: r, error: rErr } = await supabase
         .from("restaurants")
-        .select("id,name,description,currency,brand_color,slug,kitchen_open")
+        .select("id,name,description,currency,brand_color,slug,kitchen_open,logo_url")
         .eq("slug", slug)
         .maybeSingle();
       if (rErr) throw rErr;
