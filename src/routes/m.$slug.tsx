@@ -288,10 +288,21 @@ function PublicMenuPage() {
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           className="relative mx-auto max-w-3xl px-5 pb-8 pt-10"
         >
-          <p className="text-xs uppercase tracking-[0.18em] text-primary">Cardápio digital</p>
-          <h1 className="mt-2 font-display text-4xl tracking-tight">
-            <span className="text-gradient-gold italic">{restaurant.name}</span>
-          </h1>
+          <div className="flex items-center gap-4">
+            {(restaurant as any).logo_url ? (
+              <img
+                src={(restaurant as any).logo_url}
+                alt={`Logo ${restaurant.name}`}
+                className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-1 ring-[oklch(0.78_0.13_84_/_0.3)] shadow-[0_8px_24px_-12px_oklch(0.78_0.13_84_/_0.5)]"
+              />
+            ) : null}
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-[0.18em] text-primary">Cardápio digital</p>
+              <h1 className="mt-2 font-display text-4xl tracking-tight">
+                <span className="text-gradient-gold italic">{restaurant.name}</span>
+              </h1>
+            </div>
+          </div>
           {!data.kitchenOpen && (
             <div className="mt-4 rounded-xl border border-[oklch(0.62_0.21_25_/_0.4)] bg-[oklch(0.62_0.21_25_/_0.08)] px-4 py-3 text-sm text-[oklch(0.85_0.12_25)]">
               Cozinha encerrada. Apenas bebidas disponíveis.
