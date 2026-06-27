@@ -826,6 +826,51 @@ function EstablishmentSection({
                 <dd className="mt-1 text-sm">{timezone}</dd>
               </div>
             </dl>
+
+            <div className="rounded-xl border border-border bg-background/40 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Cor da marca</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Personalize a cor de destaque do seu cardápio público para combinar com sua identidade visual.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={brandColor}
+                    onChange={(e) => setBrandColor(e.target.value)}
+                    className="h-10 w-14 cursor-pointer rounded-lg border border-border bg-background p-1"
+                    aria-label="Selecionar cor da marca"
+                  />
+                  <input
+                    type="text"
+                    value={brandColor}
+                    onChange={(e) => setBrandColor(e.target.value)}
+                    className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                    placeholder="#d4a017"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => saveBrandColor(brandColor)}
+                    disabled={savingColor || brandColor === (initialBrandColor || "#d4a017")}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                  >
+                    {savingColor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Salvar
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Pré-visualização</span>
+                <span
+                  className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
+                  style={{ backgroundColor: brandColor }}
+                >
+                  Exemplo de botão
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
