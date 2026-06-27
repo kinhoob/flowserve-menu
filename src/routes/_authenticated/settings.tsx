@@ -609,6 +609,7 @@ function EstablishmentSection({
   currency,
   timezone,
   initialLogoUrl,
+  initialBrandColor,
 }: {
   restaurantId: string;
   initialName: string;
@@ -616,14 +617,36 @@ function EstablishmentSection({
   currency: string;
   timezone: string;
   initialLogoUrl: string | null;
+  initialBrandColor: string | null;
 }) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [name, setName] = useState(initialName);
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl);
   const [uploading, setUploading] = useState(false);
+  const [brandColor, setBrandColor] = useState<string>(initialBrandColor || "#d4a017");
+  const [savingColor, setSavingColor] = useState(false);
   useEffect(() => setName(initialName), [initialName]);
   useEffect(() => setLogoUrl(initialLogoUrl), [initialLogoUrl]);
+  useEffect(() => setBrandColor(initialBrandColor || "#d4a017"), [initialBrandColor]);
+
+  const saveBrandColor = async (color: string) => {
+    setSavingColor(true);
+    try {
+      const { error } = await supabase
+        .from("restaurants")
+        .update({ brand_color: color })
+        .eq("id", restaurantId);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["restaurant"] });
+      qc.invalidateQueries({ queryKey: ["public-menu"] });
+      toast.success("Cor da marca atualizada");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao salvar cor");
+    } finally {
+      setSavingColor(false);
+    }
+  };
 
   const uploadLogo = async (file: File) => {
     if (!user) return;
