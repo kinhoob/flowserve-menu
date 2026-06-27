@@ -361,6 +361,7 @@ function SettingsPage() {
             currency={restaurant.currency}
             timezone={restaurant.timezone}
             initialLogoUrl={(restaurant as any).logo_url ?? null}
+            initialBrandColor={(restaurant as any).brand_color ?? null}
           />
         </TabsContent>
 
