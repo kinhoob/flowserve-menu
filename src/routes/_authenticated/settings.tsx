@@ -613,6 +613,8 @@ function EstablishmentSection({
   timezone,
   initialLogoUrl,
   initialBrandColor,
+  initialBrandTextColor,
+  initialBrandAccentColor,
 }: {
   restaurantId: string;
   initialName: string;
@@ -621,31 +623,49 @@ function EstablishmentSection({
   timezone: string;
   initialLogoUrl: string | null;
   initialBrandColor: string | null;
+  initialBrandTextColor: string | null;
+  initialBrandAccentColor: string | null;
 }) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [name, setName] = useState(initialName);
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl);
   const [uploading, setUploading] = useState(false);
-  const [brandColor, setBrandColor] = useState<string>(initialBrandColor || "#d4a017");
+  const DEFAULT_BG = "#0b0b0c";
+  const DEFAULT_TEXT = "#f5f5f4";
+  const DEFAULT_ACCENT = "#d4a017";
+  const [brandColor, setBrandColor] = useState<string>(initialBrandColor || DEFAULT_BG);
+  const [brandTextColor, setBrandTextColor] = useState<string>(initialBrandTextColor || DEFAULT_TEXT);
+  const [brandAccentColor, setBrandAccentColor] = useState<string>(initialBrandAccentColor || DEFAULT_ACCENT);
   const [savingColor, setSavingColor] = useState(false);
   useEffect(() => setName(initialName), [initialName]);
   useEffect(() => setLogoUrl(initialLogoUrl), [initialLogoUrl]);
-  useEffect(() => setBrandColor(initialBrandColor || "#d4a017"), [initialBrandColor]);
+  useEffect(() => setBrandColor(initialBrandColor || DEFAULT_BG), [initialBrandColor]);
+  useEffect(() => setBrandTextColor(initialBrandTextColor || DEFAULT_TEXT), [initialBrandTextColor]);
+  useEffect(() => setBrandAccentColor(initialBrandAccentColor || DEFAULT_ACCENT), [initialBrandAccentColor]);
 
-  const saveBrandColor = async (color: string) => {
+  const colorsDirty =
+    brandColor !== (initialBrandColor || DEFAULT_BG) ||
+    brandTextColor !== (initialBrandTextColor || DEFAULT_TEXT) ||
+    brandAccentColor !== (initialBrandAccentColor || DEFAULT_ACCENT);
+
+  const saveBrandColor = async () => {
     setSavingColor(true);
     try {
       const { error } = await supabase
         .from("restaurants")
-        .update({ brand_color: color })
+        .update({
+          brand_color: brandColor,
+          brand_text_color: brandTextColor,
+          brand_accent_color: brandAccentColor,
+        } as any)
         .eq("id", restaurantId);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["restaurant"] });
       qc.invalidateQueries({ queryKey: ["public-menu"] });
-      toast.success("Cor da marca atualizada");
+      toast.success("Cores da marca atualizadas");
     } catch (e: any) {
-      toast.error(e.message ?? "Erro ao salvar cor");
+      toast.error(e.message ?? "Erro ao salvar cores");
     } finally {
       setSavingColor(false);
     }
