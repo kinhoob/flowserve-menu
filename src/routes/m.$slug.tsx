@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -62,7 +62,7 @@ function PublicMenuPage() {
     queryFn: async () => {
       const { data: r, error: rErr } = await supabase
         .from("restaurants")
-        .select("id,name,description,currency,brand_color,slug,kitchen_open,logo_url")
+        .select("id,name,description,currency,brand_color,brand_text_color,brand_accent_color,slug,kitchen_open,logo_url")
         .eq("slug", slug)
         .maybeSingle();
       if (rErr) throw rErr;
@@ -275,8 +275,40 @@ function PublicMenuPage() {
   const { restaurant, categories } = data;
   const currency = restaurant.currency;
 
+  const brandBg = (restaurant as any).brand_color as string | null;
+  const brandText = (restaurant as any).brand_text_color as string | null;
+  const brandAccent = (restaurant as any).brand_accent_color as string | null;
+  const hasBrand = !!(brandBg || brandText || brandAccent);
+
+  // Pick readable foreground for the accent (used as primary-foreground).
+  function readableOn(hex: string | null): string {
+    if (!hex) return "#0b0b0c";
+    const m = hex.replace("#", "");
+    if (m.length !== 6) return "#0b0b0c";
+    const r = parseInt(m.slice(0, 2), 16);
+    const g = parseInt(m.slice(2, 4), 16);
+    const b = parseInt(m.slice(4, 6), 16);
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return lum > 0.6 ? "#0b0b0c" : "#ffffff";
+  }
+
+  const brandStyle = hasBrand
+    ? ({
+        ...(brandBg ? { ["--background" as any]: brandBg } : {}),
+        ...(brandText ? { ["--foreground" as any]: brandText } : {}),
+        ...(brandAccent
+          ? {
+              ["--primary" as any]: brandAccent,
+              ["--primary-foreground" as any]: readableOn(brandAccent),
+            }
+          : {}),
+        backgroundColor: brandBg ?? undefined,
+        color: brandText ?? undefined,
+      } as React.CSSProperties)
+    : undefined;
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground" style={brandStyle}>
       <div className="relative overflow-hidden border-b border-border bg-surface">
         <div
           aria-hidden

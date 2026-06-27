@@ -362,6 +362,8 @@ function SettingsPage() {
             timezone={restaurant.timezone}
             initialLogoUrl={(restaurant as any).logo_url ?? null}
             initialBrandColor={(restaurant as any).brand_color ?? null}
+            initialBrandTextColor={(restaurant as any).brand_text_color ?? null}
+            initialBrandAccentColor={(restaurant as any).brand_accent_color ?? null}
           />
         </TabsContent>
 
@@ -611,6 +613,8 @@ function EstablishmentSection({
   timezone,
   initialLogoUrl,
   initialBrandColor,
+  initialBrandTextColor,
+  initialBrandAccentColor,
 }: {
   restaurantId: string;
   initialName: string;
@@ -619,31 +623,49 @@ function EstablishmentSection({
   timezone: string;
   initialLogoUrl: string | null;
   initialBrandColor: string | null;
+  initialBrandTextColor: string | null;
+  initialBrandAccentColor: string | null;
 }) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const [name, setName] = useState(initialName);
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl);
   const [uploading, setUploading] = useState(false);
-  const [brandColor, setBrandColor] = useState<string>(initialBrandColor || "#d4a017");
+  const DEFAULT_BG = "#0b0b0c";
+  const DEFAULT_TEXT = "#f5f5f4";
+  const DEFAULT_ACCENT = "#d4a017";
+  const [brandColor, setBrandColor] = useState<string>(initialBrandColor || DEFAULT_BG);
+  const [brandTextColor, setBrandTextColor] = useState<string>(initialBrandTextColor || DEFAULT_TEXT);
+  const [brandAccentColor, setBrandAccentColor] = useState<string>(initialBrandAccentColor || DEFAULT_ACCENT);
   const [savingColor, setSavingColor] = useState(false);
   useEffect(() => setName(initialName), [initialName]);
   useEffect(() => setLogoUrl(initialLogoUrl), [initialLogoUrl]);
-  useEffect(() => setBrandColor(initialBrandColor || "#d4a017"), [initialBrandColor]);
+  useEffect(() => setBrandColor(initialBrandColor || DEFAULT_BG), [initialBrandColor]);
+  useEffect(() => setBrandTextColor(initialBrandTextColor || DEFAULT_TEXT), [initialBrandTextColor]);
+  useEffect(() => setBrandAccentColor(initialBrandAccentColor || DEFAULT_ACCENT), [initialBrandAccentColor]);
 
-  const saveBrandColor = async (color: string) => {
+  const colorsDirty =
+    brandColor !== (initialBrandColor || DEFAULT_BG) ||
+    brandTextColor !== (initialBrandTextColor || DEFAULT_TEXT) ||
+    brandAccentColor !== (initialBrandAccentColor || DEFAULT_ACCENT);
+
+  const saveBrandColor = async () => {
     setSavingColor(true);
     try {
       const { error } = await supabase
         .from("restaurants")
-        .update({ brand_color: color })
+        .update({
+          brand_color: brandColor,
+          brand_text_color: brandTextColor,
+          brand_accent_color: brandAccentColor,
+        } as any)
         .eq("id", restaurantId);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["restaurant"] });
       qc.invalidateQueries({ queryKey: ["public-menu"] });
-      toast.success("Cor da marca atualizada");
+      toast.success("Cores da marca atualizadas");
     } catch (e: any) {
-      toast.error(e.message ?? "Erro ao salvar cor");
+      toast.error(e.message ?? "Erro ao salvar cores");
     } finally {
       setSavingColor(false);
     }
@@ -828,47 +850,80 @@ function EstablishmentSection({
             </dl>
 
             <div className="rounded-xl border border-border bg-background/40 p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">Cor da marca</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Personalize a cor de destaque do seu cardápio público para combinar com sua identidade visual.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    value={brandColor}
-                    onChange={(e) => setBrandColor(e.target.value)}
-                    className="h-10 w-14 cursor-pointer rounded-lg border border-border bg-background p-1"
-                    aria-label="Selecionar cor da marca"
-                  />
-                  <input
-                    type="text"
-                    value={brandColor}
-                    onChange={(e) => setBrandColor(e.target.value)}
-                    className="w-28 rounded-xl border border-border bg-background px-3 py-2 text-sm font-mono outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
-                    placeholder="#d4a017"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => saveBrandColor(brandColor)}
-                    disabled={savingColor || brandColor === (initialBrandColor || "#d4a017")}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
-                  >
-                    {savingColor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Salvar
-                  </button>
-                </div>
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-medium">Cores da marca</p>
+                <p className="text-xs text-muted-foreground">
+                  Personalize seu cardápio público com a identidade visual do seu estabelecimento.
+                  Disponível em todos os planos.
+                </p>
               </div>
-              <div className="mt-3 flex items-center gap-2">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Pré-visualização</span>
-                <span
-                  className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-white"
-                  style={{ backgroundColor: brandColor }}
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {[
+                  {
+                    label: "Principal (fundo)",
+                    hint: "Cor de fundo do cardápio",
+                    value: brandColor,
+                    set: setBrandColor,
+                  },
+                  {
+                    label: "Secundária (texto)",
+                    hint: "Cor das letras",
+                    value: brandTextColor,
+                    set: setBrandTextColor,
+                  },
+                  {
+                    label: "Destaque (botões)",
+                    hint: "Preços, botões e detalhes",
+                    value: brandAccentColor,
+                    set: setBrandAccentColor,
+                  },
+                ].map((c) => (
+                  <div key={c.label} className="rounded-lg border border-border bg-background/60 p-3">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{c.label}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground/80">{c.hint}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={c.value}
+                        onChange={(e) => c.set(e.target.value)}
+                        className="h-9 w-12 cursor-pointer rounded-lg border border-border bg-background p-1"
+                        aria-label={`Selecionar ${c.label}`}
+                      />
+                      <input
+                        type="text"
+                        value={c.value}
+                        onChange={(e) => c.set(e.target.value)}
+                        className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-mono outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                        placeholder="#000000"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div
+                  className="flex flex-1 items-center gap-3 rounded-xl border border-border p-4"
+                  style={{ backgroundColor: brandColor, color: brandTextColor }}
                 >
-                  Exemplo de botão
-                </span>
+                  <span className="text-sm font-medium">Pré-visualização do cardápio</span>
+                  <span
+                    className="ml-auto inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
+                    style={{ backgroundColor: brandAccentColor, color: "#fff" }}
+                  >
+                    R$ 49,90
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => saveBrandColor()}
+                  disabled={savingColor || !colorsDirty}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {savingColor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Salvar cores
+                </button>
               </div>
             </div>
           </div>
