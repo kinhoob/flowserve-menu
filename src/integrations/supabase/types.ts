@@ -367,7 +367,9 @@ export type Database = {
       }
       restaurants: {
         Row: {
+          brand_accent_color: string | null
           brand_color: string
+          brand_text_color: string | null
           created_at: string
           currency: string
           description: string | null
@@ -381,7 +383,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          brand_accent_color?: string | null
           brand_color?: string
+          brand_text_color?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -395,7 +399,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          brand_accent_color?: string | null
           brand_color?: string
+          brand_text_color?: string | null
           created_at?: string
           currency?: string
           description?: string | null
