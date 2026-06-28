@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Bell, Check, Loader2, Minus, Plus, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/routes/_authenticated/menu";
-import { FluxLogo } from "@/components/brand/logo";
+import { FluxLogo, FluxMark } from "@/components/brand/logo";
 import {
   fetchModifiersForRestaurant,
   type ModifierGroupWithOptions,
@@ -655,6 +655,12 @@ function PublicMenuPage() {
           setPickerItem(null);
         }}
       />
+
+      <footer className="mt-10 flex items-center justify-center gap-1.5 pb-6 text-[11px] text-muted-foreground/70">
+        <span>Feito no</span>
+        <FluxMark />
+        <span className="font-medium">FluxQr</span>
+      </footer>
     </div>
   );
 }
