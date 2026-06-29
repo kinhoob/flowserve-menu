@@ -76,6 +76,7 @@ export function FeatureLocked({ feature }: { feature: FeatureKey }) {
     menu: "Cardápio",
     kitchen: "Pedidos",
     dashboard: "Dashboard",
+    tables: "Mapa de Mesas",
   };
   return (
     <div className="mx-auto max-w-xl rounded-3xl border border-border bg-surface/80 p-10 text-center shadow-[0_40px_80px_-30px_oklch(0_0_0_/_0.7)]">
