@@ -25,7 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useTrialStatus } from "@/features/billing/trial-guard";
+import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
 import { getTableLimit } from "@/features/staff/staff-picker";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
