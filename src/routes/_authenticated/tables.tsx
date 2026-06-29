@@ -25,7 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useTrialStatus } from "@/features/billing/trial-guard";
+import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
 import { getTableLimit } from "@/features/staff/staff-picker";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -76,6 +76,14 @@ function TablesPage() {
   const { data: trial } = useTrialStatus();
   const tableLimit = getTableLimit(trial?.plan_type);
   const reachedLimit = tables.length >= tableLimit;
+
+  if (trial && !canAccess(trial, "tables")) {
+    return (
+      <div className="mx-auto max-w-6xl space-y-6">
+        <FeatureLocked feature="tables" />
+      </div>
+    );
+  }
 
   const createOne = useCreateTable(restaurant?.id);
   const createMany = useCreateManyTables(restaurant?.id);
