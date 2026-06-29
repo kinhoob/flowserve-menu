@@ -7,7 +7,7 @@ export function FluxLogo({ className }: { className?: string }) {
       <img
         src={logoAsset.url}
         alt="FluxQr"
-        className="h-7 w-7 object-contain"
+        className="h-9 w-9 object-contain"
       />
       <span>FluxQr</span>
     </span>
