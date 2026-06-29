@@ -19,7 +19,7 @@ export function FluxMark({ className }: { className?: string }) {
     <img
       src={logoAsset.url}
       alt="FluxQr"
-      className={cn("inline-block h-4 w-4 object-contain align-[-2px]", className)}
+      className={cn("inline-block h-5 w-5 object-contain align-[-2px]", className)}
     />
   );
 }
