@@ -11,14 +11,14 @@ type TrialInfo = {
   trial_ends_at: string;
 };
 
-export type FeatureKey = "analytics" | "waiter" | "menu" | "kitchen" | "dashboard";
+export type FeatureKey = "analytics" | "waiter" | "menu" | "kitchen" | "dashboard" | "tables";
 
 // Trial behaves like Pro so users experience the full potential of Flux.
 const PLAN_FEATURES: Record<string, FeatureKey[]> = {
-  trial: ["analytics", "waiter", "menu", "kitchen", "dashboard"],
-  pro: ["analytics", "waiter", "menu", "kitchen", "dashboard"],
-  enterprise: ["analytics", "waiter", "menu", "kitchen", "dashboard"],
-  essential: ["menu", "kitchen", "dashboard"],
+  trial: ["analytics", "waiter", "menu", "kitchen", "dashboard", "tables"],
+  pro: ["analytics", "waiter", "menu", "kitchen", "dashboard", "tables"],
+  enterprise: ["analytics", "waiter", "menu", "kitchen", "dashboard", "tables"],
+  essential: ["menu", "kitchen", "dashboard", "tables"],
   basic: ["menu", "dashboard"],
 };
 
