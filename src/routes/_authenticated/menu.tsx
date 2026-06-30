@@ -5,9 +5,12 @@ import {
   GripVertical,
   Loader2,
   MoreHorizontal,
+  ArrowUp,
+  ArrowDown,
   Pencil,
   Plus,
   Search,
+  Tag,
   Trash2,
   UtensilsCrossed,
 } from "lucide-react";
@@ -19,6 +22,8 @@ import {
   useDeleteCategory,
   useDeleteMenuItem,
   useMenuItems,
+  useReorderCategories,
+  useReorderMenuItems,
   useUpdateCategory,
   useUpsertMenuItem,
   type Category,
@@ -160,17 +165,14 @@ function MenuPage() {
               }
             />
           ) : (
-            <ul className="grid gap-3 stagger sm:grid-cols-2">
-              {filtered.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  currency={currency}
-                  onEdit={() => setItemDialog({ open: true, item })}
-                  onDelete={() => setDelItem(item)}
-                />
-              ))}
-            </ul>
+            <ItemsList
+              items={filtered}
+              fullCount={items.length}
+              currency={currency}
+              isFiltered={!!query}
+              onEdit={(item) => setItemDialog({ open: true, item })}
+              onDelete={(item) => setDelItem(item)}
+            />
           )}
         </div>
       </div>
@@ -259,6 +261,15 @@ function CategoriesPanel({
 }) {
   const create = useCreateCategory(restaurantId);
   const update = useUpdateCategory(restaurantId);
+  const reorder = useReorderCategories(restaurantId);
+
+  const move = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= categories.length) return;
+    const reordered = [...categories];
+    [reordered[idx], reordered[target]] = [reordered[target], reordered[idx]];
+    reorder.mutate(reordered.map((c, i) => ({ id: c.id, position: i })));
+  };
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [newKind, setNewKind] = useState<"food" | "drink">("food");
@@ -320,7 +331,7 @@ function CategoriesPanel({
         </div>
       ) : (
         <ul className="space-y-0.5">
-          {categories.map((c) => {
+          {categories.map((c, idx) => {
             const active = c.id === activeId;
             const editing = editingId === c.id;
             return (
@@ -381,6 +392,15 @@ function CategoriesPanel({
                         }}
                       >
                         <Pencil className="h-3.5 w-3.5" /> Renomear
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => move(idx, -1)} disabled={idx === 0}>
+                        <ArrowUp className="h-3.5 w-3.5" /> Mover p/ cima
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => move(idx, 1)}
+                        disabled={idx === categories.length - 1}
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" /> Mover p/ baixo
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => toggleKind(c)}>
                         <UtensilsCrossed className="h-3.5 w-3.5" />
@@ -455,18 +475,76 @@ function CategoriesPanel({
   );
 }
 
+function ItemsList({
+  items,
+  fullCount,
+  currency,
+  isFiltered,
+  onEdit,
+  onDelete,
+}: {
+  items: MenuItem[];
+  fullCount: number;
+  currency: string;
+  isFiltered: boolean;
+  onEdit: (item: MenuItem) => void;
+  onDelete: (item: MenuItem) => void;
+}) {
+  const reorder = useReorderMenuItems();
+  const move = (idx: number, dir: -1 | 1) => {
+    if (isFiltered) {
+      toast.message("Limpe a busca para reordenar");
+      return;
+    }
+    const target = idx + dir;
+    if (target < 0 || target >= items.length) return;
+    const next = [...items];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    reorder.mutate(next.map((it, i) => ({ id: it.id, position: i })));
+  };
+  return (
+    <ul className="grid gap-3 stagger sm:grid-cols-2">
+      {items.map((item, idx) => (
+        <ItemCard
+          key={item.id}
+          item={item}
+          currency={currency}
+          canMoveUp={!isFiltered && idx > 0}
+          canMoveDown={!isFiltered && idx < items.length - 1}
+          onMoveUp={() => move(idx, -1)}
+          onMoveDown={() => move(idx, 1)}
+          onEdit={() => onEdit(item)}
+          onDelete={() => onDelete(item)}
+        />
+      ))}
+      {fullCount === 0 && null}
+    </ul>
+  );
+}
+
 function ItemCard({
   item,
   currency,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
   onEdit,
   onDelete,
 }: {
   item: MenuItem;
   currency: string;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const upsert = useUpsertMenuItem(item.restaurant_id);
+  const isPromo = (item as any).is_promo === true;
+  const originalPrice = (item as any).original_price ? Number((item as any).original_price) : null;
+  const promoLabel = ((item as any).promo_label as string | null) || "PROMO";
   return (
     <li
       className={
@@ -474,6 +552,11 @@ function ItemCard({
         (item.is_available ? "" : "opacity-60")
       }
     >
+      {isPromo && (
+        <span className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary-foreground shadow">
+          <Tag className="h-2.5 w-2.5" /> {promoLabel}
+        </span>
+      )}
       <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-background/60">
         {item.image_url ? (
           <img
@@ -490,8 +573,15 @@ function ItemCard({
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start justify-between gap-2">
           <h3 className="truncate text-sm font-medium">{item.name}</h3>
-          <div className="font-display text-lg tracking-tight text-primary">
-            {formatPrice(Number(item.price), currency)}
+          <div className="flex flex-col items-end">
+            {isPromo && originalPrice ? (
+              <span className="text-[10px] text-muted-foreground line-through">
+                {formatPrice(originalPrice, currency)}
+              </span>
+            ) : null}
+            <div className="font-display text-lg tracking-tight text-primary">
+              {formatPrice(Number(item.price), currency)}
+            </div>
           </div>
         </div>
         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
@@ -514,6 +604,22 @@ function ItemCard({
             )}
           </div>
           <div className="flex items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
+            <button
+              onClick={onMoveUp}
+              disabled={!canMoveUp}
+              title="Mover para cima"
+              className="rounded-md p-1.5 text-muted-foreground transition hover:bg-background hover:text-foreground disabled:opacity-30"
+            >
+              <ArrowUp className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={onMoveDown}
+              disabled={!canMoveDown}
+              title="Mover para baixo"
+              className="rounded-md p-1.5 text-muted-foreground transition hover:bg-background hover:text-foreground disabled:opacity-30"
+            >
+              <ArrowDown className="h-3.5 w-3.5" />
+            </button>
             <button
               onClick={() =>
                 upsert.mutate({

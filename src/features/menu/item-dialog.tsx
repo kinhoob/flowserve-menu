@@ -29,6 +29,9 @@ const schema = z.object({
   is_available: z.boolean(),
   dietary_tags: z.array(z.string()),
   image_url: z.string().nullable().optional(),
+  is_promo: z.boolean(),
+  original_price: z.coerce.number().min(0).max(99999).nullable(),
+  promo_label: z.string().trim().max(40).nullable(),
 });
 type Vals = z.infer<typeof schema>;
 
@@ -61,6 +64,9 @@ export function ItemDialog({
       is_available: true,
       dietary_tags: [],
       image_url: null,
+      is_promo: false,
+      original_price: null,
+      promo_label: null,
     },
   });
 
@@ -75,12 +81,16 @@ export function ItemDialog({
         is_available: item?.is_available ?? true,
         dietary_tags: item?.dietary_tags ?? [],
         image_url: item?.image_url ?? null,
+        is_promo: (item as any)?.is_promo ?? false,
+        original_price: (item as any)?.original_price ? Number((item as any).original_price) : null,
+        promo_label: (item as any)?.promo_label ?? null,
       });
     }
   }, [open, item, form]);
 
   const tags = form.watch("dietary_tags");
   const imageUrl = form.watch("image_url");
+  const isPromo = form.watch("is_promo");
 
   const toggleTag = (t: string) => {
     const next = tags.includes(t) ? tags.filter((x) => x !== t) : [...tags, t];
@@ -120,7 +130,10 @@ export function ItemDialog({
         is_available: values.is_available,
         dietary_tags: values.dietary_tags,
         image_url: values.image_url ?? null,
-      });
+        is_promo: values.is_promo,
+        original_price: values.is_promo ? values.original_price ?? null : null,
+        promo_label: values.is_promo ? values.promo_label ?? null : null,
+      } as any);
       toast.success(currentItem ? "Item atualizado" : "Item criado — agora adicione opções se quiser");
       setCurrentItem(saved as MenuItem);
       if (!currentItem) setTab("modifiers");
@@ -266,6 +279,48 @@ export function ItemDialog({
                   onCheckedChange={(v) => form.setValue("is_available", v, { shouldDirty: true })}
                 />
               </div>
+
+              <div className="rounded-xl border border-[oklch(0.78_0.13_84_/_0.3)] bg-gold-soft/50 px-4 py-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">Em promoção</div>
+                    <div className="text-xs text-muted-foreground">Destaca o item com selo no cardápio</div>
+                  </div>
+                  <Switch
+                    checked={isPromo}
+                    onCheckedChange={(v) => form.setValue("is_promo", v, { shouldDirty: true })}
+                  />
+                </div>
+                {isPromo && (
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Preço original (riscado)
+                      </label>
+                      <input
+                        {...form.register("original_price")}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="59,90"
+                        className="input-field mt-1.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Etiqueta
+                      </label>
+                      <input
+                        {...form.register("promo_label")}
+                        type="text"
+                        placeholder="OFERTA"
+                        className="input-field mt-1.5"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

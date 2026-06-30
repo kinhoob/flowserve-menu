@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, ChefHat, Store, Check, Sparkles, Crown, Rocket, AlertTriangle, Users, Plus, Trash2, Save, ExternalLink } from "lucide-react";
+import { Loader2, ChefHat, Store, Check, Sparkles, Crown, Rocket, AlertTriangle, Users, Plus, Trash2, Save, ExternalLink, Image as ImageIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
@@ -364,6 +364,16 @@ function SettingsPage() {
             initialBrandColor={(restaurant as any).brand_color ?? null}
             initialBrandTextColor={(restaurant as any).brand_text_color ?? null}
             initialBrandAccentColor={(restaurant as any).brand_accent_color ?? null}
+            initialBrandCardColor={(restaurant as any).brand_card_color ?? null}
+            initialBrandHeaderColor={(restaurant as any).brand_header_color ?? null}
+            initialBrandButtonColor={(restaurant as any).brand_button_color ?? null}
+            initialBanner={{
+              enabled: (restaurant as any).banner_enabled ?? false,
+              title: (restaurant as any).banner_title ?? "",
+              description: (restaurant as any).banner_description ?? "",
+              image_url: (restaurant as any).banner_image_url ?? null,
+              cta_label: (restaurant as any).banner_cta_label ?? "",
+            }}
           />
         </TabsContent>
 
@@ -615,6 +625,10 @@ function EstablishmentSection({
   initialBrandColor,
   initialBrandTextColor,
   initialBrandAccentColor,
+  initialBrandCardColor,
+  initialBrandHeaderColor,
+  initialBrandButtonColor,
+  initialBanner,
 }: {
   restaurantId: string;
   initialName: string;
@@ -625,6 +639,16 @@ function EstablishmentSection({
   initialBrandColor: string | null;
   initialBrandTextColor: string | null;
   initialBrandAccentColor: string | null;
+  initialBrandCardColor: string | null;
+  initialBrandHeaderColor: string | null;
+  initialBrandButtonColor: string | null;
+  initialBanner: {
+    enabled: boolean;
+    title: string;
+    description: string;
+    image_url: string | null;
+    cta_label: string;
+  };
 }) {
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -634,31 +658,57 @@ function EstablishmentSection({
   const DEFAULT_BG = "#0b0b0c";
   const DEFAULT_TEXT = "#f5f5f4";
   const DEFAULT_ACCENT = "#d4a017";
+  const DEFAULT_CARD = "#171716";
+  const DEFAULT_HEADER = "#0b0b0c";
+  const DEFAULT_BUTTON = "#d4a017";
   const [brandColor, setBrandColor] = useState<string>(initialBrandColor || DEFAULT_BG);
   const [brandTextColor, setBrandTextColor] = useState<string>(initialBrandTextColor || DEFAULT_TEXT);
   const [brandAccentColor, setBrandAccentColor] = useState<string>(initialBrandAccentColor || DEFAULT_ACCENT);
+  const [brandCardColor, setBrandCardColor] = useState<string>(initialBrandCardColor || DEFAULT_CARD);
+  const [brandHeaderColor, setBrandHeaderColor] = useState<string>(initialBrandHeaderColor || DEFAULT_HEADER);
+  const [brandButtonColor, setBrandButtonColor] = useState<string>(initialBrandButtonColor || DEFAULT_BUTTON);
   const [savingColor, setSavingColor] = useState(false);
+
+  // Banner state
+  const [bannerEnabled, setBannerEnabled] = useState(initialBanner.enabled);
+  const [bannerTitle, setBannerTitle] = useState(initialBanner.title || "");
+  const [bannerDescription, setBannerDescription] = useState(initialBanner.description || "");
+  const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(initialBanner.image_url);
+  const [bannerCtaLabel, setBannerCtaLabel] = useState(initialBanner.cta_label || "");
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [savingBanner, setSavingBanner] = useState(false);
+
   useEffect(() => setName(initialName), [initialName]);
   useEffect(() => setLogoUrl(initialLogoUrl), [initialLogoUrl]);
   useEffect(() => setBrandColor(initialBrandColor || DEFAULT_BG), [initialBrandColor]);
   useEffect(() => setBrandTextColor(initialBrandTextColor || DEFAULT_TEXT), [initialBrandTextColor]);
   useEffect(() => setBrandAccentColor(initialBrandAccentColor || DEFAULT_ACCENT), [initialBrandAccentColor]);
+  useEffect(() => setBrandCardColor(initialBrandCardColor || DEFAULT_CARD), [initialBrandCardColor]);
+  useEffect(() => setBrandHeaderColor(initialBrandHeaderColor || DEFAULT_HEADER), [initialBrandHeaderColor]);
+  useEffect(() => setBrandButtonColor(initialBrandButtonColor || DEFAULT_BUTTON), [initialBrandButtonColor]);
 
   const colorsDirty =
     brandColor !== (initialBrandColor || DEFAULT_BG) ||
     brandTextColor !== (initialBrandTextColor || DEFAULT_TEXT) ||
-    brandAccentColor !== (initialBrandAccentColor || DEFAULT_ACCENT);
+    brandAccentColor !== (initialBrandAccentColor || DEFAULT_ACCENT) ||
+    brandCardColor !== (initialBrandCardColor || DEFAULT_CARD) ||
+    brandHeaderColor !== (initialBrandHeaderColor || DEFAULT_HEADER) ||
+    brandButtonColor !== (initialBrandButtonColor || DEFAULT_BUTTON);
 
-  const saveBrandColor = async () => {
+  const saveBrandColor = async (overrides?: Partial<Record<string, string>>) => {
     setSavingColor(true);
     try {
+      const payload: any = {
+        brand_color: overrides?.brand_color ?? brandColor,
+        brand_text_color: overrides?.brand_text_color ?? brandTextColor,
+        brand_accent_color: overrides?.brand_accent_color ?? brandAccentColor,
+        brand_card_color: overrides?.brand_card_color ?? brandCardColor,
+        brand_header_color: overrides?.brand_header_color ?? brandHeaderColor,
+        brand_button_color: overrides?.brand_button_color ?? brandButtonColor,
+      };
       const { error } = await supabase
         .from("restaurants")
-        .update({
-          brand_color: brandColor,
-          brand_text_color: brandTextColor,
-          brand_accent_color: brandAccentColor,
-        } as any)
+        .update(payload)
         .eq("id", restaurantId);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["restaurant"] });
@@ -668,6 +718,71 @@ function EstablishmentSection({
       toast.error(e.message ?? "Erro ao salvar cores");
     } finally {
       setSavingColor(false);
+    }
+  };
+
+  const resetBrandColors = async () => {
+    setBrandColor(DEFAULT_BG);
+    setBrandTextColor(DEFAULT_TEXT);
+    setBrandAccentColor(DEFAULT_ACCENT);
+    setBrandCardColor(DEFAULT_CARD);
+    setBrandHeaderColor(DEFAULT_HEADER);
+    setBrandButtonColor(DEFAULT_BUTTON);
+    await saveBrandColor({
+      brand_color: DEFAULT_BG,
+      brand_text_color: DEFAULT_TEXT,
+      brand_accent_color: DEFAULT_ACCENT,
+      brand_card_color: DEFAULT_CARD,
+      brand_header_color: DEFAULT_HEADER,
+      brand_button_color: DEFAULT_BUTTON,
+    });
+  };
+
+  const uploadBannerImage = async (file: File) => {
+    if (!user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande (máx 5MB)");
+      return;
+    }
+    setBannerUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${restaurantId}/banner-${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("menu-images")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
+      setBannerImageUrl(data.publicUrl);
+      toast.success("Imagem do banner enviada");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao enviar imagem");
+    } finally {
+      setBannerUploading(false);
+    }
+  };
+
+  const saveBanner = async () => {
+    setSavingBanner(true);
+    try {
+      const { error } = await supabase
+        .from("restaurants")
+        .update({
+          banner_enabled: bannerEnabled,
+          banner_title: bannerTitle || null,
+          banner_description: bannerDescription || null,
+          banner_image_url: bannerImageUrl,
+          banner_cta_label: bannerCtaLabel || null,
+        } as any)
+        .eq("id", restaurantId);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["restaurant"] });
+      qc.invalidateQueries({ queryKey: ["public-menu"] });
+      toast.success("Banner promocional salvo");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao salvar banner");
+    } finally {
+      setSavingBanner(false);
     }
   };
 
@@ -860,24 +975,12 @@ function EstablishmentSection({
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {[
-                  {
-                    label: "Principal (fundo)",
-                    hint: "Cor de fundo do cardápio",
-                    value: brandColor,
-                    set: setBrandColor,
-                  },
-                  {
-                    label: "Secundária (texto)",
-                    hint: "Cor das letras",
-                    value: brandTextColor,
-                    set: setBrandTextColor,
-                  },
-                  {
-                    label: "Destaque (botões)",
-                    hint: "Preços, botões e detalhes",
-                    value: brandAccentColor,
-                    set: setBrandAccentColor,
-                  },
+                  { label: "Principal (fundo)", hint: "Cor de fundo do cardápio", value: brandColor, set: setBrandColor },
+                  { label: "Secundária (texto)", hint: "Cor das letras", value: brandTextColor, set: setBrandTextColor },
+                  { label: "Destaque", hint: "Preços e detalhes", value: brandAccentColor, set: setBrandAccentColor },
+                  { label: "Cabeçalho", hint: "Topo do cardápio", value: brandHeaderColor, set: setBrandHeaderColor },
+                  { label: "Cards", hint: "Fundo dos itens", value: brandCardColor, set: setBrandCardColor },
+                  { label: "Botões", hint: "Cor dos botões", value: brandButtonColor, set: setBrandButtonColor },
                 ].map((c) => (
                   <div key={c.label} className="rounded-lg border border-border bg-background/60 p-3">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{c.label}</p>
@@ -902,27 +1005,145 @@ function EstablishmentSection({
                 ))}
               </div>
 
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div
-                  className="flex flex-1 items-center gap-3 rounded-xl border border-border p-4"
+                  className="flex flex-1 flex-col gap-2 rounded-xl border border-border p-4"
                   style={{ backgroundColor: brandColor, color: brandTextColor }}
                 >
-                  <span className="text-sm font-medium">Pré-visualização do cardápio</span>
-                  <span
-                    className="ml-auto inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
-                    style={{ backgroundColor: brandAccentColor, color: "#fff" }}
+                  <div
+                    className="-mx-2 -mt-2 rounded-lg px-3 py-2 text-xs font-medium"
+                    style={{ backgroundColor: brandHeaderColor, color: brandTextColor }}
                   >
-                    R$ 49,90
-                  </span>
+                    Cabeçalho
+                  </div>
+                  <div
+                    className="flex items-center justify-between rounded-lg p-3"
+                    style={{ backgroundColor: brandCardColor, color: brandTextColor }}
+                  >
+                    <span className="text-sm">Prato exemplo</span>
+                    <span className="text-sm font-medium" style={{ color: brandAccentColor }}>
+                      R$ 49,90
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="self-start rounded-full px-3 py-1.5 text-xs font-medium"
+                    style={{ backgroundColor: brandButtonColor, color: "#fff" }}
+                  >
+                    Botão
+                  </button>
                 </div>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => saveBrandColor()}
+                    disabled={savingColor || !colorsDirty}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                  >
+                    {savingColor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Salvar cores
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetBrandColors}
+                    disabled={savingColor}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-medium text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+                  >
+                    Voltar ao padrão
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Promotional banner */}
+            <div className="rounded-xl border border-border bg-background/40 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium">Banner promocional</p>
+                  <p className="text-xs text-muted-foreground">
+                    Exiba um banner em destaque no topo do cardápio público.
+                  </p>
+                </div>
+                <Switch checked={bannerEnabled} onCheckedChange={setBannerEnabled} />
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Título</label>
+                  <input
+                    type="text"
+                    value={bannerTitle}
+                    onChange={(e) => setBannerTitle(e.target.value)}
+                    placeholder="Happy Hour até 19h"
+                    className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Rótulo do botão (opcional)</label>
+                  <input
+                    type="text"
+                    value={bannerCtaLabel}
+                    onChange={(e) => setBannerCtaLabel(e.target.value)}
+                    placeholder="Aproveitar"
+                    className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Descrição</label>
+                  <textarea
+                    value={bannerDescription}
+                    onChange={(e) => setBannerDescription(e.target.value)}
+                    placeholder="Chopp em dobro e petiscos com 20% off."
+                    rows={2}
+                    className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Imagem (opcional)</label>
+                  <div className="mt-1.5 flex items-center gap-3">
+                    {bannerImageUrl ? (
+                      <img src={bannerImageUrl} alt="Banner" className="h-16 w-28 rounded-lg object-cover" />
+                    ) : (
+                      <div className="flex h-16 w-28 items-center justify-center rounded-lg border border-dashed border-border text-[10px] text-muted-foreground">
+                        Sem imagem
+                      </div>
+                    )}
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs hover:text-foreground">
+                      {bannerUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
+                      Enviar imagem
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadBannerImage(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {bannerImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setBannerImageUrl(null)}
+                        className="text-xs text-muted-foreground hover:text-destructive"
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => saveBrandColor()}
-                  disabled={savingColor || !colorsDirty}
+                  onClick={saveBanner}
+                  disabled={savingBanner}
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
                 >
-                  {savingColor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Salvar cores
+                  {savingBanner ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Salvar banner
                 </button>
               </div>
             </div>

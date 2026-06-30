@@ -67,9 +67,12 @@ export type Database = {
           id: string
           image_url: string | null
           is_available: boolean
+          is_promo: boolean
           name: string
+          original_price: number | null
           position: number
           price: number
+          promo_label: string | null
           restaurant_id: string
           updated_at: string
         }
@@ -81,9 +84,12 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean
+          is_promo?: boolean
           name: string
+          original_price?: number | null
           position?: number
           price?: number
+          promo_label?: string | null
           restaurant_id: string
           updated_at?: string
         }
@@ -95,9 +101,12 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_available?: boolean
+          is_promo?: boolean
           name?: string
+          original_price?: number | null
           position?: number
           price?: number
+          promo_label?: string | null
           restaurant_id?: string
           updated_at?: string
         }
@@ -367,8 +376,16 @@ export type Database = {
       }
       restaurants: {
         Row: {
+          banner_cta_label: string | null
+          banner_description: string | null
+          banner_enabled: boolean
+          banner_image_url: string | null
+          banner_title: string | null
           brand_accent_color: string | null
+          brand_button_color: string | null
+          brand_card_color: string | null
           brand_color: string
+          brand_header_color: string | null
           brand_text_color: string | null
           created_at: string
           currency: string
@@ -383,8 +400,16 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          banner_cta_label?: string | null
+          banner_description?: string | null
+          banner_enabled?: boolean
+          banner_image_url?: string | null
+          banner_title?: string | null
           brand_accent_color?: string | null
+          brand_button_color?: string | null
+          brand_card_color?: string | null
           brand_color?: string
+          brand_header_color?: string | null
           brand_text_color?: string | null
           created_at?: string
           currency?: string
@@ -399,8 +424,16 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          banner_cta_label?: string | null
+          banner_description?: string | null
+          banner_enabled?: boolean
+          banner_image_url?: string | null
+          banner_title?: string | null
           brand_accent_color?: string | null
+          brand_button_color?: string | null
+          brand_card_color?: string | null
           brand_color?: string
+          brand_header_color?: string | null
           brand_text_color?: string | null
           created_at?: string
           currency?: string

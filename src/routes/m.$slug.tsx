@@ -62,7 +62,7 @@ function PublicMenuPage() {
     queryFn: async () => {
       const { data: r, error: rErr } = await supabase
         .from("restaurants")
-        .select("id,name,description,currency,brand_color,brand_text_color,brand_accent_color,slug,kitchen_open,logo_url")
+        .select("id,name,description,currency,brand_color,brand_text_color,brand_accent_color,brand_card_color,brand_header_color,brand_button_color,banner_enabled,banner_title,banner_description,banner_image_url,banner_cta_label,slug,kitchen_open,logo_url")
         .eq("slug", slug)
         .maybeSingle();
       if (rErr) throw rErr;
@@ -278,7 +278,15 @@ function PublicMenuPage() {
   const brandBg = (restaurant as any).brand_color as string | null;
   const brandText = (restaurant as any).brand_text_color as string | null;
   const brandAccent = (restaurant as any).brand_accent_color as string | null;
-  const hasBrand = !!(brandBg || brandText || brandAccent);
+  const brandCard = (restaurant as any).brand_card_color as string | null;
+  const brandHeader = (restaurant as any).brand_header_color as string | null;
+  const brandButton = (restaurant as any).brand_button_color as string | null;
+  const bannerEnabled = (restaurant as any).banner_enabled === true;
+  const bannerTitle = (restaurant as any).banner_title as string | null;
+  const bannerDescription = (restaurant as any).banner_description as string | null;
+  const bannerImage = (restaurant as any).banner_image_url as string | null;
+  const bannerCta = (restaurant as any).banner_cta_label as string | null;
+  const hasBrand = !!(brandBg || brandText || brandAccent || brandCard || brandHeader || brandButton);
 
   // Pick readable foreground for the accent (used as primary-foreground).
   function readableOn(hex: string | null): string {
@@ -292,16 +300,19 @@ function PublicMenuPage() {
     return lum > 0.6 ? "#0b0b0c" : "#ffffff";
   }
 
+  const buttonColor = brandButton || brandAccent;
   const brandStyle = hasBrand
     ? ({
         ...(brandBg ? { ["--background" as any]: brandBg } : {}),
         ...(brandText ? { ["--foreground" as any]: brandText } : {}),
-        ...(brandAccent
+        ...(brandCard ? { ["--card" as any]: brandCard, ["--surface" as any]: brandCard } : {}),
+        ...(buttonColor
           ? {
-              ["--primary" as any]: brandAccent,
-              ["--primary-foreground" as any]: readableOn(brandAccent),
+              ["--primary" as any]: buttonColor,
+              ["--primary-foreground" as any]: readableOn(buttonColor),
             }
           : {}),
+        ...(brandAccent ? { ["--accent" as any]: brandAccent } : {}),
         backgroundColor: brandBg ?? undefined,
         color: brandText ?? undefined,
       } as React.CSSProperties)
@@ -309,7 +320,10 @@ function PublicMenuPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground" style={brandStyle}>
-      <div className="relative overflow-hidden border-b border-border bg-surface">
+      <div
+        className="relative overflow-hidden border-b border-border bg-surface"
+        style={brandHeader ? { backgroundColor: brandHeader } : undefined}
+      >
         <div
           aria-hidden
           className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[680px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.15),transparent)] blur-2xl"
@@ -386,6 +400,42 @@ function PublicMenuPage() {
               </button>
             )}
           </div>
+
+          {bannerEnabled && (bannerTitle || bannerDescription || bannerImage) && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="mt-6 overflow-hidden rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] shadow-[0_8px_32px_-12px_oklch(0.78_0.13_84_/_0.4)]"
+              style={{ backgroundColor: brandAccent || undefined }}
+            >
+              <div className="flex flex-col items-stretch gap-0 sm:flex-row">
+                {bannerImage && (
+                  <img
+                    src={bannerImage}
+                    alt={bannerTitle || "Promoção"}
+                    className="h-32 w-full object-cover sm:h-auto sm:w-40"
+                  />
+                )}
+                <div className="flex flex-1 flex-col justify-center gap-1 p-4" style={{ color: readableOn(brandAccent) }}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Promoção</p>
+                  {bannerTitle && <h3 className="font-display text-xl tracking-tight">{bannerTitle}</h3>}
+                  {bannerDescription && <p className="text-sm opacity-90">{bannerDescription}</p>}
+                  {bannerCta && (
+                    <span
+                      className="mt-2 inline-flex w-fit items-center rounded-full px-3 py-1.5 text-xs font-medium"
+                      style={{
+                        backgroundColor: readableOn(brandAccent),
+                        color: brandAccent || "#0b0b0c",
+                      }}
+                    >
+                      {bannerCta}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
         </motion.div>
 
         <nav className="sticky top-0 z-10 -mx-px overflow-x-auto border-t border-border bg-background/90 backdrop-blur">
@@ -448,10 +498,30 @@ function PublicMenuPage() {
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="truncate text-sm font-medium">{it.name}</h3>
-                            <span className="font-display text-base tracking-tight text-primary">
-                              {formatPrice(Number(it.price), currency)}
-                            </span>
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <h3 className="truncate text-sm font-medium">{it.name}</h3>
+                              {(it as any).is_promo && (
+                                <span
+                                  className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                                  style={{
+                                    backgroundColor: brandAccent || undefined,
+                                    color: readableOn(brandAccent),
+                                  }}
+                                >
+                                  {((it as any).promo_label as string) || "Promo"}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end">
+                              {(it as any).is_promo && (it as any).original_price ? (
+                                <span className="text-[10px] text-muted-foreground line-through">
+                                  {formatPrice(Number((it as any).original_price), currency)}
+                                </span>
+                              ) : null}
+                              <span className="font-display text-base tracking-tight text-primary">
+                                {formatPrice(Number(it.price), currency)}
+                              </span>
+                            </div>
                           </div>
                           {it.description && (
                             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{it.description}</p>

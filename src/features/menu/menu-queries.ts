@@ -119,7 +119,10 @@ export function useUpsertMenuItem(restaurantId: string | undefined) {
         image_url: input.image_url ?? null,
         is_available: input.is_available ?? true,
         dietary_tags: input.dietary_tags ?? [],
-      };
+        ...(input.is_promo !== undefined ? { is_promo: input.is_promo } : {}),
+        ...(input.original_price !== undefined ? { original_price: input.original_price } : {}),
+        ...(input.promo_label !== undefined ? { promo_label: input.promo_label } : {}),
+      } as TablesInsert<"menu_items">;
       const { data, error } = await supabase
         .from("menu_items")
         .insert(payload)
@@ -138,6 +141,34 @@ export function useDeleteMenuItem() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("menu_items").delete().eq("id", id);
       if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["menu_items"] }),
+  });
+}
+
+export function useReorderCategories(restaurantId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ordered: { id: string; position: number }[]) => {
+      await Promise.all(
+        ordered.map((o) =>
+          supabase.from("categories").update({ position: o.position }).eq("id", o.id),
+        ),
+      );
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories", restaurantId] }),
+  });
+}
+
+export function useReorderMenuItems() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ordered: { id: string; position: number }[]) => {
+      await Promise.all(
+        ordered.map((o) =>
+          supabase.from("menu_items").update({ position: o.position }).eq("id", o.id),
+        ),
+      );
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["menu_items"] }),
   });
