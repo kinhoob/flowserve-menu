@@ -264,6 +264,15 @@ function CategoriesPanel({
 }) {
   const create = useCreateCategory(restaurantId);
   const update = useUpdateCategory(restaurantId);
+  const reorder = useReorderCategories(restaurantId);
+
+  const move = (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= categories.length) return;
+    const reordered = [...categories];
+    [reordered[idx], reordered[target]] = [reordered[target], reordered[idx]];
+    reorder.mutate(reordered.map((c, i) => ({ id: c.id, position: i })));
+  };
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [newKind, setNewKind] = useState<"food" | "drink">("food");
