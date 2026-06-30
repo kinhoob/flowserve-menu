@@ -334,7 +334,7 @@ function CategoriesPanel({
         </div>
       ) : (
         <ul className="space-y-0.5">
-          {categories.map((c) => {
+          {categories.map((c, idx) => {
             const active = c.id === activeId;
             const editing = editingId === c.id;
             return (
