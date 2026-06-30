@@ -130,7 +130,10 @@ export function ItemDialog({
         is_available: values.is_available,
         dietary_tags: values.dietary_tags,
         image_url: values.image_url ?? null,
-      });
+        is_promo: values.is_promo,
+        original_price: values.is_promo ? values.original_price ?? null : null,
+        promo_label: values.is_promo ? values.promo_label ?? null : null,
+      } as any);
       toast.success(currentItem ? "Item atualizado" : "Item criado — agora adicione opções se quiser");
       setCurrentItem(saved as MenuItem);
       if (!currentItem) setTab("modifiers");
