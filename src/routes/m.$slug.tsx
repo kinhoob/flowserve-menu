@@ -498,10 +498,30 @@ function PublicMenuPage() {
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col">
                           <div className="flex items-start justify-between gap-2">
-                            <h3 className="truncate text-sm font-medium">{it.name}</h3>
-                            <span className="font-display text-base tracking-tight text-primary">
-                              {formatPrice(Number(it.price), currency)}
-                            </span>
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <h3 className="truncate text-sm font-medium">{it.name}</h3>
+                              {(it as any).is_promo && (
+                                <span
+                                  className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                                  style={{
+                                    backgroundColor: brandAccent || undefined,
+                                    color: readableOn(brandAccent),
+                                  }}
+                                >
+                                  {((it as any).promo_label as string) || "Promo"}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end">
+                              {(it as any).is_promo && (it as any).original_price ? (
+                                <span className="text-[10px] text-muted-foreground line-through">
+                                  {formatPrice(Number((it as any).original_price), currency)}
+                                </span>
+                              ) : null}
+                              <span className="font-display text-base tracking-tight text-primary">
+                                {formatPrice(Number(it.price), currency)}
+                              </span>
+                            </div>
                           </div>
                           {it.description && (
                             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{it.description}</p>
