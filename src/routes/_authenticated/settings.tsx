@@ -364,6 +364,16 @@ function SettingsPage() {
             initialBrandColor={(restaurant as any).brand_color ?? null}
             initialBrandTextColor={(restaurant as any).brand_text_color ?? null}
             initialBrandAccentColor={(restaurant as any).brand_accent_color ?? null}
+            initialBrandCardColor={(restaurant as any).brand_card_color ?? null}
+            initialBrandHeaderColor={(restaurant as any).brand_header_color ?? null}
+            initialBrandButtonColor={(restaurant as any).brand_button_color ?? null}
+            initialBanner={{
+              enabled: (restaurant as any).banner_enabled ?? false,
+              title: (restaurant as any).banner_title ?? "",
+              description: (restaurant as any).banner_description ?? "",
+              image_url: (restaurant as any).banner_image_url ?? null,
+              cta_label: (restaurant as any).banner_cta_label ?? "",
+            }}
           />
         </TabsContent>
 
