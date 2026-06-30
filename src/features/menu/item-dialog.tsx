@@ -29,6 +29,9 @@ const schema = z.object({
   is_available: z.boolean(),
   dietary_tags: z.array(z.string()),
   image_url: z.string().nullable().optional(),
+  is_promo: z.boolean().default(false),
+  original_price: z.coerce.number().min(0).max(99999).optional().nullable(),
+  promo_label: z.string().trim().max(40).optional().nullable(),
 });
 type Vals = z.infer<typeof schema>;
 
