@@ -278,7 +278,15 @@ function PublicMenuPage() {
   const brandBg = (restaurant as any).brand_color as string | null;
   const brandText = (restaurant as any).brand_text_color as string | null;
   const brandAccent = (restaurant as any).brand_accent_color as string | null;
-  const hasBrand = !!(brandBg || brandText || brandAccent);
+  const brandCard = (restaurant as any).brand_card_color as string | null;
+  const brandHeader = (restaurant as any).brand_header_color as string | null;
+  const brandButton = (restaurant as any).brand_button_color as string | null;
+  const bannerEnabled = (restaurant as any).banner_enabled === true;
+  const bannerTitle = (restaurant as any).banner_title as string | null;
+  const bannerDescription = (restaurant as any).banner_description as string | null;
+  const bannerImage = (restaurant as any).banner_image_url as string | null;
+  const bannerCta = (restaurant as any).banner_cta_label as string | null;
+  const hasBrand = !!(brandBg || brandText || brandAccent || brandCard || brandHeader || brandButton);
 
   // Pick readable foreground for the accent (used as primary-foreground).
   function readableOn(hex: string | null): string {
@@ -292,16 +300,19 @@ function PublicMenuPage() {
     return lum > 0.6 ? "#0b0b0c" : "#ffffff";
   }
 
+  const buttonColor = brandButton || brandAccent;
   const brandStyle = hasBrand
     ? ({
         ...(brandBg ? { ["--background" as any]: brandBg } : {}),
         ...(brandText ? { ["--foreground" as any]: brandText } : {}),
-        ...(brandAccent
+        ...(brandCard ? { ["--card" as any]: brandCard, ["--surface" as any]: brandCard } : {}),
+        ...(buttonColor
           ? {
-              ["--primary" as any]: brandAccent,
-              ["--primary-foreground" as any]: readableOn(brandAccent),
+              ["--primary" as any]: buttonColor,
+              ["--primary-foreground" as any]: readableOn(buttonColor),
             }
           : {}),
+        ...(brandAccent ? { ["--accent" as any]: brandAccent } : {}),
         backgroundColor: brandBg ?? undefined,
         color: brandText ?? undefined,
       } as React.CSSProperties)
@@ -309,7 +320,10 @@ function PublicMenuPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground" style={brandStyle}>
-      <div className="relative overflow-hidden border-b border-border bg-surface">
+      <div
+        className="relative overflow-hidden border-b border-border bg-surface"
+        style={brandHeader ? { backgroundColor: brandHeader } : undefined}
+      >
         <div
           aria-hidden
           className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[680px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.15),transparent)] blur-2xl"
