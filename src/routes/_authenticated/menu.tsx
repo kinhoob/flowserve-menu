@@ -165,17 +165,14 @@ function MenuPage() {
               }
             />
           ) : (
-            <ul className="grid gap-3 stagger sm:grid-cols-2">
-              {filtered.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  currency={currency}
-                  onEdit={() => setItemDialog({ open: true, item })}
-                  onDelete={() => setDelItem(item)}
-                />
-              ))}
-            </ul>
+            <ItemsList
+              items={filtered}
+              fullCount={items.length}
+              currency={currency}
+              isFiltered={!!query}
+              onEdit={(item) => setItemDialog({ open: true, item })}
+              onDelete={(item) => setDelItem(item)}
+            />
           )}
         </div>
       </div>
