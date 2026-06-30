@@ -695,16 +695,20 @@ function EstablishmentSection({
     brandHeaderColor !== (initialBrandHeaderColor || DEFAULT_HEADER) ||
     brandButtonColor !== (initialBrandButtonColor || DEFAULT_BUTTON);
 
-  const saveBrandColor = async () => {
+  const saveBrandColor = async (overrides?: Partial<Record<string, string>>) => {
     setSavingColor(true);
     try {
+      const payload: any = {
+        brand_color: overrides?.brand_color ?? brandColor,
+        brand_text_color: overrides?.brand_text_color ?? brandTextColor,
+        brand_accent_color: overrides?.brand_accent_color ?? brandAccentColor,
+        brand_card_color: overrides?.brand_card_color ?? brandCardColor,
+        brand_header_color: overrides?.brand_header_color ?? brandHeaderColor,
+        brand_button_color: overrides?.brand_button_color ?? brandButtonColor,
+      };
       const { error } = await supabase
         .from("restaurants")
-        .update({
-          brand_color: brandColor,
-          brand_text_color: brandTextColor,
-          brand_accent_color: brandAccentColor,
-        } as any)
+        .update(payload)
         .eq("id", restaurantId);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["restaurant"] });
@@ -714,6 +718,71 @@ function EstablishmentSection({
       toast.error(e.message ?? "Erro ao salvar cores");
     } finally {
       setSavingColor(false);
+    }
+  };
+
+  const resetBrandColors = async () => {
+    setBrandColor(DEFAULT_BG);
+    setBrandTextColor(DEFAULT_TEXT);
+    setBrandAccentColor(DEFAULT_ACCENT);
+    setBrandCardColor(DEFAULT_CARD);
+    setBrandHeaderColor(DEFAULT_HEADER);
+    setBrandButtonColor(DEFAULT_BUTTON);
+    await saveBrandColor({
+      brand_color: DEFAULT_BG,
+      brand_text_color: DEFAULT_TEXT,
+      brand_accent_color: DEFAULT_ACCENT,
+      brand_card_color: DEFAULT_CARD,
+      brand_header_color: DEFAULT_HEADER,
+      brand_button_color: DEFAULT_BUTTON,
+    });
+  };
+
+  const uploadBannerImage = async (file: File) => {
+    if (!user) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande (máx 5MB)");
+      return;
+    }
+    setBannerUploading(true);
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${user.id}/${restaurantId}/banner-${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("menu-images")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) throw upErr;
+      const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
+      setBannerImageUrl(data.publicUrl);
+      toast.success("Imagem do banner enviada");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao enviar imagem");
+    } finally {
+      setBannerUploading(false);
+    }
+  };
+
+  const saveBanner = async () => {
+    setSavingBanner(true);
+    try {
+      const { error } = await supabase
+        .from("restaurants")
+        .update({
+          banner_enabled: bannerEnabled,
+          banner_title: bannerTitle || null,
+          banner_description: bannerDescription || null,
+          banner_image_url: bannerImageUrl,
+          banner_cta_label: bannerCtaLabel || null,
+        } as any)
+        .eq("id", restaurantId);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ["restaurant"] });
+      qc.invalidateQueries({ queryKey: ["public-menu"] });
+      toast.success("Banner promocional salvo");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao salvar banner");
+    } finally {
+      setSavingBanner(false);
     }
   };
 
