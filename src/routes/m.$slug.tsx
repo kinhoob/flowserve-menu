@@ -400,6 +400,42 @@ function PublicMenuPage() {
               </button>
             )}
           </div>
+
+          {bannerEnabled && (bannerTitle || bannerDescription || bannerImage) && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="mt-6 overflow-hidden rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] shadow-[0_8px_32px_-12px_oklch(0.78_0.13_84_/_0.4)]"
+              style={{ backgroundColor: brandAccent || undefined }}
+            >
+              <div className="flex flex-col items-stretch gap-0 sm:flex-row">
+                {bannerImage && (
+                  <img
+                    src={bannerImage}
+                    alt={bannerTitle || "Promoção"}
+                    className="h-32 w-full object-cover sm:h-auto sm:w-40"
+                  />
+                )}
+                <div className="flex flex-1 flex-col justify-center gap-1 p-4" style={{ color: readableOn(brandAccent) }}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Promoção</p>
+                  {bannerTitle && <h3 className="font-display text-xl tracking-tight">{bannerTitle}</h3>}
+                  {bannerDescription && <p className="text-sm opacity-90">{bannerDescription}</p>}
+                  {bannerCta && (
+                    <span
+                      className="mt-2 inline-flex w-fit items-center rounded-full px-3 py-1.5 text-xs font-medium"
+                      style={{
+                        backgroundColor: readableOn(brandAccent),
+                        color: brandAccent || "#0b0b0c",
+                      }}
+                    >
+                      {bannerCta}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
         </motion.div>
 
         <nav className="sticky top-0 z-10 -mx-px overflow-x-auto border-t border-border bg-background/90 backdrop-blur">
