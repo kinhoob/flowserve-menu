@@ -64,6 +64,9 @@ export function ItemDialog({
       is_available: true,
       dietary_tags: [],
       image_url: null,
+      is_promo: false,
+      original_price: null,
+      promo_label: null,
     },
   });
 
@@ -78,12 +81,16 @@ export function ItemDialog({
         is_available: item?.is_available ?? true,
         dietary_tags: item?.dietary_tags ?? [],
         image_url: item?.image_url ?? null,
+        is_promo: (item as any)?.is_promo ?? false,
+        original_price: (item as any)?.original_price ? Number((item as any).original_price) : null,
+        promo_label: (item as any)?.promo_label ?? null,
       });
     }
   }, [open, item, form]);
 
   const tags = form.watch("dietary_tags");
   const imageUrl = form.watch("image_url");
+  const isPromo = form.watch("is_promo");
 
   const toggleTag = (t: string) => {
     const next = tags.includes(t) ? tags.filter((x) => x !== t) : [...tags, t];
