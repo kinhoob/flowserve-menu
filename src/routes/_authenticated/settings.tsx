@@ -975,24 +975,12 @@ function EstablishmentSection({
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {[
-                  {
-                    label: "Principal (fundo)",
-                    hint: "Cor de fundo do cardápio",
-                    value: brandColor,
-                    set: setBrandColor,
-                  },
-                  {
-                    label: "Secundária (texto)",
-                    hint: "Cor das letras",
-                    value: brandTextColor,
-                    set: setBrandTextColor,
-                  },
-                  {
-                    label: "Destaque (botões)",
-                    hint: "Preços, botões e detalhes",
-                    value: brandAccentColor,
-                    set: setBrandAccentColor,
-                  },
+                  { label: "Principal (fundo)", hint: "Cor de fundo do cardápio", value: brandColor, set: setBrandColor },
+                  { label: "Secundária (texto)", hint: "Cor das letras", value: brandTextColor, set: setBrandTextColor },
+                  { label: "Destaque", hint: "Preços e detalhes", value: brandAccentColor, set: setBrandAccentColor },
+                  { label: "Cabeçalho", hint: "Topo do cardápio", value: brandHeaderColor, set: setBrandHeaderColor },
+                  { label: "Cards", hint: "Fundo dos itens", value: brandCardColor, set: setBrandCardColor },
+                  { label: "Botões", hint: "Cor dos botões", value: brandButtonColor, set: setBrandButtonColor },
                 ].map((c) => (
                   <div key={c.label} className="rounded-lg border border-border bg-background/60 p-3">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{c.label}</p>
@@ -1017,27 +1005,145 @@ function EstablishmentSection({
                 ))}
               </div>
 
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div
-                  className="flex flex-1 items-center gap-3 rounded-xl border border-border p-4"
+                  className="flex flex-1 flex-col gap-2 rounded-xl border border-border p-4"
                   style={{ backgroundColor: brandColor, color: brandTextColor }}
                 >
-                  <span className="text-sm font-medium">Pré-visualização do cardápio</span>
-                  <span
-                    className="ml-auto inline-flex items-center rounded-full px-3 py-1 text-xs font-medium"
-                    style={{ backgroundColor: brandAccentColor, color: "#fff" }}
+                  <div
+                    className="-mx-2 -mt-2 rounded-lg px-3 py-2 text-xs font-medium"
+                    style={{ backgroundColor: brandHeaderColor, color: brandTextColor }}
                   >
-                    R$ 49,90
-                  </span>
+                    Cabeçalho
+                  </div>
+                  <div
+                    className="flex items-center justify-between rounded-lg p-3"
+                    style={{ backgroundColor: brandCardColor, color: brandTextColor }}
+                  >
+                    <span className="text-sm">Prato exemplo</span>
+                    <span className="text-sm font-medium" style={{ color: brandAccentColor }}>
+                      R$ 49,90
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="self-start rounded-full px-3 py-1.5 text-xs font-medium"
+                    style={{ backgroundColor: brandButtonColor, color: "#fff" }}
+                  >
+                    Botão
+                  </button>
                 </div>
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => saveBrandColor()}
+                    disabled={savingColor || !colorsDirty}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+                  >
+                    {savingColor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Salvar cores
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetBrandColors}
+                    disabled={savingColor}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-medium text-muted-foreground transition hover:text-foreground disabled:opacity-50"
+                  >
+                    Voltar ao padrão
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Promotional banner */}
+            <div className="rounded-xl border border-border bg-background/40 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium">Banner promocional</p>
+                  <p className="text-xs text-muted-foreground">
+                    Exiba um banner em destaque no topo do cardápio público.
+                  </p>
+                </div>
+                <Switch checked={bannerEnabled} onCheckedChange={setBannerEnabled} />
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Título</label>
+                  <input
+                    type="text"
+                    value={bannerTitle}
+                    onChange={(e) => setBannerTitle(e.target.value)}
+                    placeholder="Happy Hour até 19h"
+                    className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Rótulo do botão (opcional)</label>
+                  <input
+                    type="text"
+                    value={bannerCtaLabel}
+                    onChange={(e) => setBannerCtaLabel(e.target.value)}
+                    placeholder="Aproveitar"
+                    className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Descrição</label>
+                  <textarea
+                    value={bannerDescription}
+                    onChange={(e) => setBannerDescription(e.target.value)}
+                    placeholder="Chopp em dobro e petiscos com 20% off."
+                    rows={2}
+                    className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Imagem (opcional)</label>
+                  <div className="mt-1.5 flex items-center gap-3">
+                    {bannerImageUrl ? (
+                      <img src={bannerImageUrl} alt="Banner" className="h-16 w-28 rounded-lg object-cover" />
+                    ) : (
+                      <div className="flex h-16 w-28 items-center justify-center rounded-lg border border-dashed border-border text-[10px] text-muted-foreground">
+                        Sem imagem
+                      </div>
+                    )}
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs hover:text-foreground">
+                      {bannerUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
+                      Enviar imagem
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadBannerImage(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    {bannerImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setBannerImageUrl(null)}
+                        className="text-xs text-muted-foreground hover:text-destructive"
+                      >
+                        Remover
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => saveBrandColor()}
-                  disabled={savingColor || !colorsDirty}
+                  onClick={saveBanner}
+                  disabled={savingBanner}
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
                 >
-                  {savingColor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Salvar cores
+                  {savingBanner ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  Salvar banner
                 </button>
               </div>
             </div>
