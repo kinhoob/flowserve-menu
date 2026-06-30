@@ -396,6 +396,15 @@ function CategoriesPanel({
                       >
                         <Pencil className="h-3.5 w-3.5" /> Renomear
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => move(idx, -1)} disabled={idx === 0}>
+                        <ArrowUp className="h-3.5 w-3.5" /> Mover p/ cima
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => move(idx, 1)}
+                        disabled={idx === categories.length - 1}
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" /> Mover p/ baixo
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => toggleKind(c)}>
                         <UtensilsCrossed className="h-3.5 w-3.5" />
                         {(c as any).kind === "drink" ? "Mover p/ Cozinha" : "Mover p/ Bar"}
