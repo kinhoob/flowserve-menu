@@ -525,15 +525,26 @@ function ItemsList({
 function ItemCard({
   item,
   currency,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
   onEdit,
   onDelete,
 }: {
   item: MenuItem;
   currency: string;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const upsert = useUpsertMenuItem(item.restaurant_id);
+  const isPromo = (item as any).is_promo === true;
+  const originalPrice = (item as any).original_price ? Number((item as any).original_price) : null;
+  const promoLabel = ((item as any).promo_label as string | null) || "PROMO";
   return (
     <li
       className={
@@ -541,6 +552,11 @@ function ItemCard({
         (item.is_available ? "" : "opacity-60")
       }
     >
+      {isPromo && (
+        <span className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary-foreground shadow">
+          <Tag className="h-2.5 w-2.5" /> {promoLabel}
+        </span>
+      )}
       <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-background/60">
         {item.image_url ? (
           <img
@@ -557,8 +573,15 @@ function ItemCard({
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start justify-between gap-2">
           <h3 className="truncate text-sm font-medium">{item.name}</h3>
-          <div className="font-display text-lg tracking-tight text-primary">
-            {formatPrice(Number(item.price), currency)}
+          <div className="flex flex-col items-end">
+            {isPromo && originalPrice ? (
+              <span className="text-[10px] text-muted-foreground line-through">
+                {formatPrice(originalPrice, currency)}
+              </span>
+            ) : null}
+            <div className="font-display text-lg tracking-tight text-primary">
+              {formatPrice(Number(item.price), currency)}
+            </div>
           </div>
         </div>
         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
@@ -581,6 +604,22 @@ function ItemCard({
             )}
           </div>
           <div className="flex items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
+            <button
+              onClick={onMoveUp}
+              disabled={!canMoveUp}
+              title="Mover para cima"
+              className="rounded-md p-1.5 text-muted-foreground transition hover:bg-background hover:text-foreground disabled:opacity-30"
+            >
+              <ArrowUp className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={onMoveDown}
+              disabled={!canMoveDown}
+              title="Mover para baixo"
+              className="rounded-md p-1.5 text-muted-foreground transition hover:bg-background hover:text-foreground disabled:opacity-30"
+            >
+              <ArrowDown className="h-3.5 w-3.5" />
+            </button>
             <button
               onClick={() =>
                 upsert.mutate({
