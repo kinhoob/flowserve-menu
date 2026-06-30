@@ -475,6 +475,53 @@ function CategoriesPanel({
   );
 }
 
+function ItemsList({
+  items,
+  fullCount,
+  currency,
+  isFiltered,
+  onEdit,
+  onDelete,
+}: {
+  items: MenuItem[];
+  fullCount: number;
+  currency: string;
+  isFiltered: boolean;
+  onEdit: (item: MenuItem) => void;
+  onDelete: (item: MenuItem) => void;
+}) {
+  const reorder = useReorderMenuItems();
+  const move = (idx: number, dir: -1 | 1) => {
+    if (isFiltered) {
+      toast.message("Limpe a busca para reordenar");
+      return;
+    }
+    const target = idx + dir;
+    if (target < 0 || target >= items.length) return;
+    const next = [...items];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    reorder.mutate(next.map((it, i) => ({ id: it.id, position: i })));
+  };
+  return (
+    <ul className="grid gap-3 stagger sm:grid-cols-2">
+      {items.map((item, idx) => (
+        <ItemCard
+          key={item.id}
+          item={item}
+          currency={currency}
+          canMoveUp={!isFiltered && idx > 0}
+          canMoveDown={!isFiltered && idx < items.length - 1}
+          onMoveUp={() => move(idx, -1)}
+          onMoveDown={() => move(idx, 1)}
+          onEdit={() => onEdit(item)}
+          onDelete={() => onDelete(item)}
+        />
+      ))}
+      {fullCount === 0 && null}
+    </ul>
+  );
+}
+
 function ItemCard({
   item,
   currency,
