@@ -625,6 +625,10 @@ function EstablishmentSection({
   initialBrandColor,
   initialBrandTextColor,
   initialBrandAccentColor,
+  initialBrandCardColor,
+  initialBrandHeaderColor,
+  initialBrandButtonColor,
+  initialBanner,
 }: {
   restaurantId: string;
   initialName: string;
@@ -635,6 +639,16 @@ function EstablishmentSection({
   initialBrandColor: string | null;
   initialBrandTextColor: string | null;
   initialBrandAccentColor: string | null;
+  initialBrandCardColor: string | null;
+  initialBrandHeaderColor: string | null;
+  initialBrandButtonColor: string | null;
+  initialBanner: {
+    enabled: boolean;
+    title: string;
+    description: string;
+    image_url: string | null;
+    cta_label: string;
+  };
 }) {
   const qc = useQueryClient();
   const { user } = useAuth();
@@ -644,20 +658,42 @@ function EstablishmentSection({
   const DEFAULT_BG = "#0b0b0c";
   const DEFAULT_TEXT = "#f5f5f4";
   const DEFAULT_ACCENT = "#d4a017";
+  const DEFAULT_CARD = "#171716";
+  const DEFAULT_HEADER = "#0b0b0c";
+  const DEFAULT_BUTTON = "#d4a017";
   const [brandColor, setBrandColor] = useState<string>(initialBrandColor || DEFAULT_BG);
   const [brandTextColor, setBrandTextColor] = useState<string>(initialBrandTextColor || DEFAULT_TEXT);
   const [brandAccentColor, setBrandAccentColor] = useState<string>(initialBrandAccentColor || DEFAULT_ACCENT);
+  const [brandCardColor, setBrandCardColor] = useState<string>(initialBrandCardColor || DEFAULT_CARD);
+  const [brandHeaderColor, setBrandHeaderColor] = useState<string>(initialBrandHeaderColor || DEFAULT_HEADER);
+  const [brandButtonColor, setBrandButtonColor] = useState<string>(initialBrandButtonColor || DEFAULT_BUTTON);
   const [savingColor, setSavingColor] = useState(false);
+
+  // Banner state
+  const [bannerEnabled, setBannerEnabled] = useState(initialBanner.enabled);
+  const [bannerTitle, setBannerTitle] = useState(initialBanner.title || "");
+  const [bannerDescription, setBannerDescription] = useState(initialBanner.description || "");
+  const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(initialBanner.image_url);
+  const [bannerCtaLabel, setBannerCtaLabel] = useState(initialBanner.cta_label || "");
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [savingBanner, setSavingBanner] = useState(false);
+
   useEffect(() => setName(initialName), [initialName]);
   useEffect(() => setLogoUrl(initialLogoUrl), [initialLogoUrl]);
   useEffect(() => setBrandColor(initialBrandColor || DEFAULT_BG), [initialBrandColor]);
   useEffect(() => setBrandTextColor(initialBrandTextColor || DEFAULT_TEXT), [initialBrandTextColor]);
   useEffect(() => setBrandAccentColor(initialBrandAccentColor || DEFAULT_ACCENT), [initialBrandAccentColor]);
+  useEffect(() => setBrandCardColor(initialBrandCardColor || DEFAULT_CARD), [initialBrandCardColor]);
+  useEffect(() => setBrandHeaderColor(initialBrandHeaderColor || DEFAULT_HEADER), [initialBrandHeaderColor]);
+  useEffect(() => setBrandButtonColor(initialBrandButtonColor || DEFAULT_BUTTON), [initialBrandButtonColor]);
 
   const colorsDirty =
     brandColor !== (initialBrandColor || DEFAULT_BG) ||
     brandTextColor !== (initialBrandTextColor || DEFAULT_TEXT) ||
-    brandAccentColor !== (initialBrandAccentColor || DEFAULT_ACCENT);
+    brandAccentColor !== (initialBrandAccentColor || DEFAULT_ACCENT) ||
+    brandCardColor !== (initialBrandCardColor || DEFAULT_CARD) ||
+    brandHeaderColor !== (initialBrandHeaderColor || DEFAULT_HEADER) ||
+    brandButtonColor !== (initialBrandButtonColor || DEFAULT_BUTTON);
 
   const saveBrandColor = async () => {
     setSavingColor(true);
