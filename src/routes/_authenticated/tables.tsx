@@ -77,14 +77,6 @@ function TablesPage() {
   const tableLimit = getTableLimit(trial?.plan_type);
   const reachedLimit = tables.length >= tableLimit;
 
-  if (trial && !canAccess(trial, "tables")) {
-    return (
-      <div className="mx-auto max-w-6xl space-y-6">
-        <FeatureLocked feature="tables" />
-      </div>
-    );
-  }
-
   const createOne = useCreateTable(restaurant?.id);
   const createMany = useCreateManyTables(restaurant?.id);
   const del = useDeleteTable(restaurant?.id);
@@ -93,6 +85,7 @@ function TablesPage() {
   const [bulk, setBulk] = useState({ from: 1, to: 10, prefix: "Mesa" });
   const [filter, setFilter] = useState<"all" | "free" | "busy">("all");
   const [historyTable, setHistoryTable] = useState<VenueTable | null>(null);
+
 
   const currency = restaurant?.currency || "BRL";
   const fmt = useMemo(
@@ -139,6 +132,15 @@ function TablesPage() {
       </div>
     );
   }
+
+  if (trial && !canAccess(trial, "tables")) {
+    return (
+      <div className="mx-auto max-w-6xl space-y-6">
+        <FeatureLocked feature="tables" />
+      </div>
+    );
+  }
+
 
   const busyCount = tables.filter((t) => occupancy.has(normalizeLabel(t.label))).length;
   const freeCount = tables.length - busyCount;
