@@ -133,6 +133,15 @@ function TablesPage() {
     );
   }
 
+  if (trial && !canAccess(trial, "tables")) {
+    return (
+      <div className="mx-auto max-w-6xl space-y-6">
+        <FeatureLocked feature="tables" />
+      </div>
+    );
+  }
+
+
   const busyCount = tables.filter((t) => occupancy.has(normalizeLabel(t.label))).length;
   const freeCount = tables.length - busyCount;
 
