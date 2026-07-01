@@ -2,11 +2,15 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+export type StaffRole = "waiter" | "kitchen" | "both";
+
 export type StaffMember = {
   id: string;
   restaurant_id: string;
   name: string;
   active: boolean;
+  pin: string | null;
+  role: StaffRole;
   created_at: string;
   updated_at: string;
 };
@@ -63,7 +67,7 @@ export function useCreateStaff(restaurantId: string | undefined) {
 export function useUpdateStaff(restaurantId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Pick<StaffMember, "name" | "active">> }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Pick<StaffMember, "name" | "active" | "pin" | "role">> }) => {
       const { error } = await supabase.from("staff_members" as any).update(patch as any).eq("id", id);
       if (error) throw error;
     },

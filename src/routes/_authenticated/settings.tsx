@@ -378,7 +378,7 @@ function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="team" className="mt-6">
-          <TeamSection restaurantId={restaurant.id} />
+          <TeamSection restaurantId={restaurant.id} slug={restaurant.slug} />
         </TabsContent>
 
 
@@ -1155,12 +1155,17 @@ function EstablishmentSection({
 }
 
 
-function TeamSection({ restaurantId }: { restaurantId: string }) {
+function TeamSection({ restaurantId, slug }: { restaurantId: string; slug: string }) {
   const { data: staff = [], isLoading } = useStaff(restaurantId);
   const create = useCreateStaff(restaurantId);
   const update = useUpdateStaff(restaurantId);
   const remove = useDeleteStaff(restaurantId);
   const [newName, setNewName] = useState("");
+  const [showQr, setShowQr] = useState(false);
+
+  const staffUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/staff/${slug}`
+    : `/staff/${slug}`;
 
   async function add() {
     const n = newName.trim();
@@ -1174,6 +1179,10 @@ function TeamSection({ restaurantId }: { restaurantId: string }) {
     }
   }
 
+  function randomPin() {
+    return String(Math.floor(1000 + Math.random() * 9000));
+  }
+
   return (
     <section className="rounded-2xl border border-border bg-surface p-6">
       <div className="flex items-start gap-4">
@@ -1183,9 +1192,43 @@ function TeamSection({ restaurantId }: { restaurantId: string }) {
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-xl tracking-tight">Gerenciar equipe</h2>
           <p className="mt-1 max-w-xl text-xs text-muted-foreground">
-            Cadastre os nomes dos garçons e atendentes. Ao lançar um pedido ou marcar como entregue,
-            a equipe escolhe seu nome — assim você vê exatamente quem atendeu cada mesa.
+            Cadastre os funcionários, defina um PIN de 4 dígitos e a função (Garçom, Cozinha ou ambos).
+            Eles acessarão apenas as telas de operação, sem ver dados financeiros.
           </p>
+
+          <div className="mt-4 flex flex-col gap-2 rounded-xl border border-border bg-background/40 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold">Link de acesso da equipe</div>
+              <div className="truncate text-[11px] text-muted-foreground">{staffUrl}</div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(staffUrl);
+                  toast.success("Link copiado");
+                }}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-surface"
+              >
+                Copiar link
+              </button>
+              <button
+                onClick={() => setShowQr((v) => !v)}
+                className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90"
+              >
+                {showQr ? "Ocultar" : "Gerar QR Code"}
+              </button>
+            </div>
+          </div>
+
+          {showQr && (
+            <div className="mt-3 flex justify-center rounded-xl border border-border bg-white p-4">
+              <img
+                alt="QR do acesso da equipe"
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(staffUrl)}`}
+                className="h-56 w-56"
+              />
+            </div>
+          )}
 
           <div className="mt-5 flex flex-col gap-2 sm:flex-row">
             <input
@@ -1194,7 +1237,7 @@ function TeamSection({ restaurantId }: { restaurantId: string }) {
               onKeyDown={(e) => {
                 if (e.key === "Enter") add();
               }}
-              placeholder="Nome do garçom"
+              placeholder="Nome do funcionário"
               className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
             />
             <button
@@ -1219,8 +1262,8 @@ function TeamSection({ restaurantId }: { restaurantId: string }) {
             ) : (
               <ul className="divide-y divide-border rounded-xl border border-border">
                 {(staff as StaffMember[]).map((s) => (
-                  <li key={s.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                    <div className="min-w-0">
+                  <li key={s.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0 flex-1">
                       <div className={cn("truncate text-sm font-medium", !s.active && "text-muted-foreground line-through")}>
                         {s.name}
                       </div>
@@ -1228,7 +1271,34 @@ function TeamSection({ restaurantId }: { restaurantId: string }) {
                         {s.active ? "Ativo" : "Inativo"}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={s.role ?? "waiter"}
+                        onChange={(e) => update.mutate({ id: s.id, patch: { role: e.target.value as any } })}
+                        className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+                      >
+                        <option value="waiter">Garçom</option>
+                        <option value="kitchen">Cozinha</option>
+                        <option value="both">Garçom + Cozinha</option>
+                      </select>
+                      <input
+                        value={s.pin ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                          update.mutate({ id: s.id, patch: { pin: v || null } as any });
+                        }}
+                        placeholder="PIN"
+                        maxLength={4}
+                        inputMode="numeric"
+                        className="w-16 rounded-md border border-border bg-background px-2 py-1 text-center text-xs tracking-widest"
+                      />
+                      <button
+                        onClick={() => update.mutate({ id: s.id, patch: { pin: randomPin() } as any })}
+                        className="rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        title="Gerar PIN"
+                      >
+                        Gerar
+                      </button>
                       <Switch
                         checked={s.active}
                         onCheckedChange={(v) => update.mutate({ id: s.id, patch: { active: v } })}
@@ -1252,4 +1322,5 @@ function TeamSection({ restaurantId }: { restaurantId: string }) {
     </section>
   );
 }
+
 
