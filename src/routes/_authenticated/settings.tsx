@@ -378,7 +378,7 @@ function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="team" className="mt-6">
-          <TeamSection restaurantId={restaurant.id} />
+          <TeamSection restaurantId={restaurant.id} slug={restaurant.slug} />
         </TabsContent>
 
 
