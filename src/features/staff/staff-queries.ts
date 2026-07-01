@@ -67,7 +67,7 @@ export function useCreateStaff(restaurantId: string | undefined) {
 export function useUpdateStaff(restaurantId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Pick<StaffMember, "name" | "active">> }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Pick<StaffMember, "name" | "active" | "pin" | "role">> }) => {
       const { error } = await supabase.from("staff_members" as any).update(patch as any).eq("id", id);
       if (error) throw error;
     },
