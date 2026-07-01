@@ -14,6 +14,7 @@ import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as StaffSlugRouteImport } from './routes/staff.$slug'
 import { Route as MSlugRouteImport } from './routes/m.$slug'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
 import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
@@ -24,6 +25,8 @@ import { Route as AuthenticatedMenuRouteImport } from './routes/_authenticated/m
 import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
+import { Route as StaffSlugWaiterRouteImport } from './routes/staff.$slug.waiter'
+import { Route as StaffSlugKitchenRouteImport } from './routes/staff.$slug.kitchen'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
 const TermosRoute = TermosRouteImport.update({
@@ -48,6 +51,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffSlugRoute = StaffSlugRouteImport.update({
+  id: '/staff/$slug',
+  path: '/staff/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MSlugRoute = MSlugRouteImport.update({
@@ -100,6 +108,16 @@ const AuthenticatedAnalyticsRoute = AuthenticatedAnalyticsRouteImport.update({
   path: '/analytics',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const StaffSlugWaiterRoute = StaffSlugWaiterRouteImport.update({
+  id: '/waiter',
+  path: '/waiter',
+  getParentRoute: () => StaffSlugRoute,
+} as any)
+const StaffSlugKitchenRoute = StaffSlugKitchenRouteImport.update({
+  id: '/kitchen',
+  path: '/kitchen',
+  getParentRoute: () => StaffSlugRoute,
+} as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -122,6 +140,9 @@ export interface FileRoutesByFullPath {
   '/waiter': typeof AuthenticatedWaiterRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/m/$slug': typeof MSlugRoute
+  '/staff/$slug': typeof StaffSlugRouteWithChildren
+  '/staff/$slug/kitchen': typeof StaffSlugKitchenRoute
+  '/staff/$slug/waiter': typeof StaffSlugWaiterRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -139,6 +160,9 @@ export interface FileRoutesByTo {
   '/waiter': typeof AuthenticatedWaiterRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/m/$slug': typeof MSlugRoute
+  '/staff/$slug': typeof StaffSlugRouteWithChildren
+  '/staff/$slug/kitchen': typeof StaffSlugKitchenRoute
+  '/staff/$slug/waiter': typeof StaffSlugWaiterRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
@@ -158,6 +182,9 @@ export interface FileRoutesById {
   '/_authenticated/waiter': typeof AuthenticatedWaiterRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/m/$slug': typeof MSlugRoute
+  '/staff/$slug': typeof StaffSlugRouteWithChildren
+  '/staff/$slug/kitchen': typeof StaffSlugKitchenRoute
+  '/staff/$slug/waiter': typeof StaffSlugWaiterRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
@@ -177,6 +204,9 @@ export interface FileRouteTypes {
     | '/waiter'
     | '/checkout/return'
     | '/m/$slug'
+    | '/staff/$slug'
+    | '/staff/$slug/kitchen'
+    | '/staff/$slug/waiter'
     | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -194,6 +224,9 @@ export interface FileRouteTypes {
     | '/waiter'
     | '/checkout/return'
     | '/m/$slug'
+    | '/staff/$slug'
+    | '/staff/$slug/kitchen'
+    | '/staff/$slug/waiter'
     | '/api/public/payments/webhook'
   id:
     | '__root__'
@@ -212,6 +245,9 @@ export interface FileRouteTypes {
     | '/_authenticated/waiter'
     | '/checkout/return'
     | '/m/$slug'
+    | '/staff/$slug'
+    | '/staff/$slug/kitchen'
+    | '/staff/$slug/waiter'
     | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -223,6 +259,7 @@ export interface RootRouteChildren {
   TermosRoute: typeof TermosRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   MSlugRoute: typeof MSlugRoute
+  StaffSlugRoute: typeof StaffSlugRouteWithChildren
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
@@ -261,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff/$slug': {
+      id: '/staff/$slug'
+      path: '/staff/$slug'
+      fullPath: '/staff/$slug'
+      preLoaderRoute: typeof StaffSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/m/$slug': {
@@ -333,6 +377,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAnalyticsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/staff/$slug/waiter': {
+      id: '/staff/$slug/waiter'
+      path: '/waiter'
+      fullPath: '/staff/$slug/waiter'
+      preLoaderRoute: typeof StaffSlugWaiterRouteImport
+      parentRoute: typeof StaffSlugRoute
+    }
+    '/staff/$slug/kitchen': {
+      id: '/staff/$slug/kitchen'
+      path: '/kitchen'
+      fullPath: '/staff/$slug/kitchen'
+      preLoaderRoute: typeof StaffSlugKitchenRouteImport
+      parentRoute: typeof StaffSlugRoute
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -369,6 +427,20 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface StaffSlugRouteChildren {
+  StaffSlugKitchenRoute: typeof StaffSlugKitchenRoute
+  StaffSlugWaiterRoute: typeof StaffSlugWaiterRoute
+}
+
+const StaffSlugRouteChildren: StaffSlugRouteChildren = {
+  StaffSlugKitchenRoute: StaffSlugKitchenRoute,
+  StaffSlugWaiterRoute: StaffSlugWaiterRoute,
+}
+
+const StaffSlugRouteWithChildren = StaffSlugRoute._addFileChildren(
+  StaffSlugRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
@@ -377,6 +449,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermosRoute: TermosRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
   MSlugRoute: MSlugRoute,
+  StaffSlugRoute: StaffSlugRouteWithChildren,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
