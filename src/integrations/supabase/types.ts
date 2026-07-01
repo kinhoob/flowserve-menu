@@ -455,7 +455,9 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          pin: string | null
           restaurant_id: string
+          role: string
           updated_at: string
         }
         Insert: {
@@ -463,7 +465,9 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          pin?: string | null
           restaurant_id: string
+          role?: string
           updated_at?: string
         }
         Update: {
@@ -471,7 +475,9 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          pin?: string | null
           restaurant_id?: string
+          role?: string
           updated_at?: string
         }
         Relationships: [
@@ -480,6 +486,45 @@ export type Database = {
             columns: ["restaurant_id"]
             isOneToOne: false
             referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          restaurant_id: string
+          staff_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          restaurant_id: string
+          staff_id: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          restaurant_id?: string
+          staff_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_sessions_restaurant_id_fkey"
+            columns: ["restaurant_id"]
+            isOneToOne: false
+            referencedRelation: "restaurants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_sessions_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_members"
             referencedColumns: ["id"]
           },
         ]
@@ -612,6 +657,48 @@ export type Database = {
     }
     Functions: {
       get_restaurant_plan: { Args: { p_slug: string }; Returns: string }
+      staff_archive_orders: {
+        Args: { p_order_ids: string[]; p_token: string }
+        Returns: undefined
+      }
+      staff_list_calls: { Args: { p_token: string }; Returns: Json }
+      staff_list_members: { Args: { p_token: string }; Returns: Json }
+      staff_list_orders: { Args: { p_token: string }; Returns: Json }
+      staff_list_tables: { Args: { p_token: string }; Returns: Json }
+      staff_login: {
+        Args: { p_pin: string; p_slug: string }
+        Returns: {
+          name: string
+          restaurant_name: string
+          restaurant_slug: string
+          role: string
+          staff_id: string
+          token: string
+        }[]
+      }
+      staff_logout: { Args: { p_token: string }; Returns: undefined }
+      staff_resolve_call: {
+        Args: { p_call_id: string; p_token: string }
+        Returns: undefined
+      }
+      staff_session_info: {
+        Args: { p_token: string }
+        Returns: {
+          name: string
+          restaurant_id: string
+          role: string
+          staff_id: string
+        }[]
+      }
+      staff_update_order_status: {
+        Args: {
+          p_order_id: string
+          p_staff_name?: string
+          p_status: string
+          p_token: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       order_status:
