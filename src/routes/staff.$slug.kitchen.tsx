@@ -35,6 +35,19 @@ function StaffKitchen() {
     refetchInterval: 4000,
   });
 
+  useEffect(() => {
+    if (!session) return;
+    const ch = supabase
+      .channel(`staff-kds-${session.token}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" },
+        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" },
+        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [session, qc]);
+
+
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) =>
       staffUpdateOrderStatus(session!.token, id, status, session!.name),
