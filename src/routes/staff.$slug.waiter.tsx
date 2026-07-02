@@ -161,7 +161,7 @@ function TableCard({
   onAdvance: (id: string, status: string) => void;
   onClose: (ids: string[]) => void;
 }) {
-  const total = orders.reduce((sum, o) => sum + Number(o.total_cents ?? 0), 0) / 100;
+  const total = orders.reduce((sum, o) => sum + Number(o.total ?? o.subtotal ?? 0), 0);
   return (
     <div className="rounded-2xl border border-border bg-surface p-4">
       <div className="flex items-center justify-between">
