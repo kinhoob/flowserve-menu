@@ -4,6 +4,8 @@ import { useEffect, useMemo } from "react";
 import { ArrowLeft, Loader2, ChefHat, CheckCircle2 } from "lucide-react";
 import { useStaffSession } from "@/features/staff/staff-session";
 import { staffListOrders, staffUpdateOrderStatus } from "@/features/staff/staff-rpc";
+import { supabase } from "@/integrations/supabase/client";
+
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/staff/$slug/kitchen")({
