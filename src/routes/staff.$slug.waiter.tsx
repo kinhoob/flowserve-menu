@@ -46,18 +46,18 @@ function StaffWaiter() {
 
   useEffect(() => {
     if (!session) return;
-    const orders = ordersQ.data?.[0]?.restaurant_id;
-    const rid = orders as string | undefined;
-    if (!rid) return;
     const ch = supabase
       .channel(`staff-live-${session.token}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${rid}` },
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" },
         () => { qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }); })
-      .on("postgres_changes", { event: "*", schema: "public", table: "waiter_calls", filter: `restaurant_id=eq.${rid}` },
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" },
+        () => { qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "waiter_calls" },
         () => { qc.invalidateQueries({ queryKey: ["staff-calls", session.token] }); })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [session, ordersQ.data, qc]);
+  }, [session, qc]);
+
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) =>
@@ -161,7 +161,7 @@ function TableCard({
   onAdvance: (id: string, status: string) => void;
   onClose: (ids: string[]) => void;
 }) {
-  const total = orders.reduce((sum, o) => sum + Number(o.total_cents ?? 0), 0) / 100;
+  const total = orders.reduce((sum, o) => sum + Number(o.total ?? o.subtotal ?? 0), 0);
   return (
     <div className="rounded-2xl border border-border bg-surface p-4">
       <div className="flex items-center justify-between">

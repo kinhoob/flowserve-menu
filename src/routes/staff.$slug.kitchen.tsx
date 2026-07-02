@@ -4,6 +4,8 @@ import { useEffect, useMemo } from "react";
 import { ArrowLeft, Loader2, ChefHat, CheckCircle2 } from "lucide-react";
 import { useStaffSession } from "@/features/staff/staff-session";
 import { staffListOrders, staffUpdateOrderStatus } from "@/features/staff/staff-rpc";
+import { supabase } from "@/integrations/supabase/client";
+
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/staff/$slug/kitchen")({
@@ -32,6 +34,19 @@ function StaffKitchen() {
     queryFn: () => staffListOrders(session!.token),
     refetchInterval: 4000,
   });
+
+  useEffect(() => {
+    if (!session) return;
+    const ch = supabase
+      .channel(`staff-kds-${session.token}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" },
+        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" },
+        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [session, qc]);
+
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) =>
