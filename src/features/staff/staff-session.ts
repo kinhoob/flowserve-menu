@@ -40,16 +40,13 @@ export function clearStaffSession(slug: string) {
 }
 
 export function useStaffSession(slug: string): StaffSession | null {
-  // Always initialize to null so SSR and first client render match.
-  // Hydrate from localStorage in an effect to avoid SSR/client mismatch that
-  // would otherwise leave the PIN screen "stuck" even when a session exists.
-  const [session, setSession] = useState<StaffSession | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  // Initialize synchronously from localStorage on the client so that a
+  // hard-reload with an existing session doesn't flash the PIN screen.
+  const [session, setSession] = useState<StaffSession | null>(() => readStaffSession(slug));
   useEffect(() => {
-    const s = readStaffSession(slug);
-    console.log("[useStaffSession] hydrate", slug, s);
-    setSession(s);
-    setHydrated(true);
+    // Re-sync after mount (covers SSR/hydration and slug changes) and listen
+    // for cross-tab / same-tab session writes.
+    setSession(readStaffSession(slug));
     const handler = () => setSession(readStaffSession(slug));
     window.addEventListener("flux-staff-session-change", handler);
     window.addEventListener("storage", handler);
@@ -58,8 +55,7 @@ export function useStaffSession(slug: string): StaffSession | null {
       window.removeEventListener("storage", handler);
     };
   }, [slug]);
-  // Suppress unused warning; hydrated flag is exposed via effect timing only.
-  void hydrated;
   return session;
 }
+
 
