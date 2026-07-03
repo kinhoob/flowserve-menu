@@ -40,6 +40,8 @@ export function clearStaffSession(slug: string) {
 }
 
 export function useStaffSession(slug: string): StaffSession | null {
+  // Initialize synchronously from localStorage on the client so that a
+  // hard-reload with an existing session doesn't flash the PIN screen.
   const [session, setSession] = useState<StaffSession | null>(() => readStaffSession(slug));
   useEffect(() => {
     setSession(readStaffSession(slug));
@@ -53,3 +55,5 @@ export function useStaffSession(slug: string): StaffSession | null {
   }, [slug]);
   return session;
 }
+
+

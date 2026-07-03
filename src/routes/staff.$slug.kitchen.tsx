@@ -57,7 +57,9 @@ function StaffKitchen() {
   const grouped = useMemo(() => {
     const map: Record<string, any[]> = { pending: [], preparing: [], ready: [] };
     for (const o of ordersQ.data ?? []) {
-      if (o.status in map) map[o.status].push(o);
+      // Treat 'accepted' (recém-confirmado) as 'pending' na coluna Novos
+      const col = o.status === "accepted" ? "pending" : o.status;
+      if (col in map) map[col].push(o);
     }
     return map;
   }, [ordersQ.data]);
