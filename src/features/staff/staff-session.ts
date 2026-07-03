@@ -44,9 +44,7 @@ export function useStaffSession(slug: string): StaffSession | null {
   // hard-reload with an existing session doesn't flash the PIN screen.
   const [session, setSession] = useState<StaffSession | null>(() => readStaffSession(slug));
   useEffect(() => {
-    const s = readStaffSession(slug);
-    (window as any).__staffDebug = { slug, s, at: Date.now() };
-    setSession(s);
+    setSession(readStaffSession(slug));
     const handler = () => setSession(readStaffSession(slug));
     window.addEventListener("flux-staff-session-change", handler);
     window.addEventListener("storage", handler);
