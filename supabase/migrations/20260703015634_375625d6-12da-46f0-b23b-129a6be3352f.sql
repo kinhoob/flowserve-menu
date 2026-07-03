@@ -1,0 +1,1 @@
+INSERT INTO public.staff_sessions(token, staff_id, restaurant_id, expires_at) VALUES ('test_token_debug_1234', 'f39cbc19-2f75-4e7b-82df-b71b5de5cd8b', '8a234dfe-1acb-4b3f-b6a5-796db0b5afeb', now() + interval '1 hour');
