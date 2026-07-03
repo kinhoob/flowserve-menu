@@ -46,7 +46,9 @@ export function useStaffSession(slug: string): StaffSession | null {
   const [session, setSession] = useState<StaffSession | null>(null);
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
-    setSession(readStaffSession(slug));
+    const s = readStaffSession(slug);
+    console.log("[useStaffSession] hydrate", slug, s);
+    setSession(s);
     setHydrated(true);
     const handler = () => setSession(readStaffSession(slug));
     window.addEventListener("flux-staff-session-change", handler);
