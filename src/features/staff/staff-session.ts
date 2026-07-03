@@ -42,14 +42,10 @@ export function clearStaffSession(slug: string) {
 export function useStaffSession(slug: string): StaffSession | null {
   // Initialize synchronously from localStorage on the client so that a
   // hard-reload with an existing session doesn't flash the PIN screen.
-  const [session, setSession] = useState<StaffSession | null>(() => {
-    const s = readStaffSession(slug);
-    if (typeof window !== "undefined") console.log("[useStaffSession init]", slug, s);
-    return s;
-  });
+  const [session, setSession] = useState<StaffSession | null>(() => readStaffSession(slug));
   useEffect(() => {
     const s = readStaffSession(slug);
-    console.log("[useStaffSession effect]", slug, s);
+    (window as any).__staffDebug = { slug, s, at: Date.now() };
     setSession(s);
     const handler = () => setSession(readStaffSession(slug));
     window.addEventListener("flux-staff-session-change", handler);
