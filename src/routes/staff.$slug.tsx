@@ -17,8 +17,13 @@ function StaffLayout() {
   const session = useStaffSession(slug);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isRoot = pathname === `/staff/${slug}` || pathname === `/staff/${slug}/`;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
+  // Avoid SSR/hydration flash: only decide once mounted on the client.
+  if (!mounted) return null;
   if (!session) return <PinScreen slug={slug} />;
+
 
   return (
     <div className="min-h-screen bg-background text-foreground">
