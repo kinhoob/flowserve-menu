@@ -161,46 +161,115 @@ function TableCard({
   onAdvance: (id: string, status: string) => void;
   onClose: (ids: string[]) => void;
 }) {
-  const total = orders.reduce((sum, o) => sum + Number(o.total ?? o.subtotal ?? 0), 0);
+  const sortedOrders = [...orders].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+  );
+  const total = sortedOrders.reduce(
+    (sum, o) => sum + Number(o.total ?? o.subtotal ?? 0),
+    0,
+  );
+  const fmt = (n: number) =>
+    `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const statusMap: Record<string, { label: string; cls: string }> = {
+    pending: { label: "Aguardando", cls: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
+    accepted: { label: "Aceito", cls: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
+    preparing: { label: "Preparando", cls: "bg-orange-500/15 text-orange-300 border-orange-500/30" },
+    ready: { label: "Pronto", cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+    served: { label: "Entregue", cls: "bg-muted text-muted-foreground border-border" },
+  };
+
   return (
     <div className="rounded-2xl border border-border bg-surface p-4">
       <div className="flex items-center justify-between">
-        <div className="font-display text-lg">{label}</div>
-        <div className="text-sm font-semibold text-primary">R$ {total.toFixed(2)}</div>
+        <div>
+          <div className="font-display text-lg">{label}</div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            {sortedOrders.length} {sortedOrders.length === 1 ? "pedido" : "pedidos"}
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
+          <div className="text-sm font-semibold text-primary">{fmt(total)}</div>
+        </div>
       </div>
-      <ul className="mt-3 space-y-2">
-        {orders.map((o) => (
-          <li key={o.id} className="rounded-lg bg-background/40 p-2 text-xs">
-            <div className="flex items-center justify-between">
-              <span className={cn(
-                "rounded px-1.5 py-0.5 text-[10px] uppercase",
-                o.status === "pending" && "bg-amber-500/20 text-amber-200",
-                o.status === "preparing" && "bg-blue-500/20 text-blue-200",
-                o.status === "ready" && "bg-emerald-500/20 text-emerald-200",
-                o.status === "served" && "bg-muted text-muted-foreground",
-              )}>{o.status}</span>
-              {o.customer_name && <span className="text-muted-foreground">{o.customer_name}</span>}
-            </div>
-            <ul className="mt-1.5 space-y-0.5 text-foreground/80">
-              {(o.items ?? []).map((it: any) => (
-                <li key={it.id} className="flex justify-between">
-                  <span>{it.quantity}× {it.name}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-2 flex gap-1">
+
+      <ul className="mt-3 space-y-3">
+        {sortedOrders.map((o, idx) => {
+          const when = new Date(o.created_at).toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          const orderSubtotal = (o.items ?? []).reduce(
+            (s: number, it: any) => s + Number(it.price ?? 0) * Number(it.quantity ?? 0),
+            0,
+          );
+          const st = statusMap[o.status] ?? statusMap.served;
+          return (
+            <li key={o.id} className="rounded-xl border border-border bg-background/40 p-3">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+                  <span className="font-semibold text-foreground">Pedido #{idx + 1}</span>
+                  <span className="text-muted-foreground">{when}</span>
+                  {o.created_by_name && (
+                    <span className="text-muted-foreground">· por {o.created_by_name}</span>
+                  )}
+                </div>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+                    st.cls,
+                  )}
+                >
+                  {st.label}
+                </span>
+              </div>
+
+              {o.customer_name && (
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                  Cliente: {o.customer_name}
+                </div>
+              )}
+
+              <ul className="divide-y divide-border/60">
+                {(o.items ?? []).map((it: any) => (
+                  <li key={it.id} className="flex flex-col gap-0.5 py-1.5">
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <span>
+                        <span className="font-medium text-primary">{it.quantity}×</span>{" "}
+                        {it.name}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {fmt(Number(it.price ?? 0) * Number(it.quantity ?? 0))}
+                      </span>
+                    </div>
+                    {it.notes && (
+                      <span className="pl-5 text-[11px] italic text-muted-foreground">
+                        obs: {it.notes}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5 text-[11px]">
+                <span className="text-muted-foreground">Subtotal do pedido</span>
+                <span className="font-medium">{fmt(orderSubtotal)}</span>
+              </div>
+
               {o.status !== "served" && (
                 <button
                   onClick={() => onAdvance(o.id, "served")}
-                  className="flex-1 rounded-md border border-border px-2 py-1 text-[11px] hover:bg-surface"
+                  className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-[11px] hover:bg-surface"
                 >
-                  <CheckCircle2 className="mr-1 inline h-3 w-3" /> Entregar
+                  <CheckCircle2 className="mr-1 inline h-3 w-3" /> Marcar como entregue
                 </button>
               )}
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
+
       <button
         onClick={() => {
           if (confirm(`Finalizar e liberar ${label}?`)) onClose(orders.map((o) => o.id));
