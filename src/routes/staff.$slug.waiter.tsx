@@ -1,14 +1,26 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
-import { ArrowLeft, Bell, Loader2, CheckCircle2, Utensils, Receipt } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  ArrowLeft,
+  Bell,
+  Loader2,
+  Minus,
+  Plus,
+  Receipt,
+  Search,
+  Send,
+  X,
+  DollarSign,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useStaffSession } from "@/features/staff/staff-session";
 import {
   staffListOrders,
+  staffListTables,
   staffListCalls,
   staffResolveCall,
-  staffUpdateOrderStatus,
   staffArchiveOrders,
 } from "@/features/staff/staff-rpc";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +29,24 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/staff/$slug/waiter")({
   component: StaffWaiter,
 });
+
+const ACTIVE = ["pending", "accepted", "preparing", "ready", "served"];
+
+const fmt = (n: number, currency = "BRL") =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(n) || 0);
+
+const normalizeLabel = (s: string | null | undefined) =>
+  (s ?? "").replace(/^(?:Mesa\s*)+/i, "").trim();
+
+type WItem = {
+  id: string;
+  name: string;
+  price: number;
+  category_id: string;
+  category_name: string;
+};
+
+type Line = { itemId: string; name: string; price: number; qty: number; notes: string };
 
 function StaffWaiter() {
   const { slug } = Route.useParams();
@@ -28,7 +58,11 @@ function StaffWaiter() {
     if (!session) navigate({ to: "/staff/$slug", params: { slug } });
   }, [session, navigate, slug]);
 
-  const restaurantId = session?.restaurant_id;
+  const tablesQ = useQuery({
+    queryKey: ["staff-tables", session?.token],
+    enabled: !!session?.token,
+    queryFn: () => staffListTables(session!.token),
+  });
 
   const ordersQ = useQuery({
     queryKey: ["staff-orders", session?.token],
@@ -44,26 +78,39 @@ function StaffWaiter() {
     refetchInterval: 5000,
   });
 
+  const restaurantId: string | undefined =
+    (tablesQ.data?.[0] as any)?.restaurant_id ??
+    (ordersQ.data?.[0] as any)?.restaurant_id;
+
+  // Fetch restaurant currency via slug (public)
+  const restaurantQ = useQuery({
+    queryKey: ["staff-restaurant", slug],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("restaurants")
+        .select("id, currency")
+        .eq("slug", slug)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const currency = restaurantQ.data?.currency ?? "BRL";
+  const restId = restaurantId ?? restaurantQ.data?.id;
+
   useEffect(() => {
     if (!session) return;
     const ch = supabase
       .channel(`staff-live-${session.token}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" },
-        () => { qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }); })
+        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "order_items" },
-        () => { qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }); })
+        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
       .on("postgres_changes", { event: "*", schema: "public", table: "waiter_calls" },
-        () => { qc.invalidateQueries({ queryKey: ["staff-calls", session.token] }); })
+        () => qc.invalidateQueries({ queryKey: ["staff-calls", session.token] }))
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [session, qc]);
-
-
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) =>
-      staffUpdateOrderStatus(session!.token, id, status, session!.name),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["staff-orders", session?.token] }),
-  });
 
   const archive = useMutation({
     mutationFn: async (ids: string[]) => staffArchiveOrders(session!.token, ids),
@@ -78,30 +125,66 @@ function StaffWaiter() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff-calls", session?.token] }),
   });
 
-  const orders = ordersQ.data ?? [];
-  const calls = callsQ.data ?? [];
+  const tables = (tablesQ.data ?? []) as any[];
+  const orders = (ordersQ.data ?? []) as any[];
+  const calls = (callsQ.data ?? []) as any[];
 
-  const byTable = useMemo(() => {
-    const map = new Map<string, any[]>();
+  const sorted = useMemo(
+    () => [...tables].sort((a, b) => String(a.label).localeCompare(String(b.label), "pt", { numeric: true })),
+    [tables],
+  );
+
+  const activeByLabel = useMemo(() => {
+    const m = new Map<string, any[]>();
     for (const o of orders) {
-      const key = (o.table_label ?? "Sem mesa").toString();
-      const arr = map.get(key) ?? [];
+      if (!ACTIVE.includes(o.status)) continue;
+      if (o.archived) continue;
+      const key = normalizeLabel(o.table_label);
+      if (!key) continue;
+      const arr = m.get(key) ?? [];
       arr.push(o);
-      map.set(key, arr);
+      m.set(key, arr);
     }
-    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+    return m;
   }, [orders]);
+
+  const callsByLabel = useMemo(() => {
+    const m = new Map<string, { id: string; kind: "bill" | "call" }[]>();
+    for (const c of calls) {
+      const key = normalizeLabel(c.table_label);
+      if (!key) continue;
+      const arr = m.get(key) ?? [];
+      arr.push({ id: c.id, kind: (c.kind === "bill" ? "bill" : "call") as any });
+      m.set(key, arr);
+    }
+    return m;
+  }, [calls]);
+
+  const [openTable, setOpenTable] = useState<{ id: string; label: string } | null>(null);
+  const [billTable, setBillTable] = useState<string | null>(null);
 
   if (!session) return null;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6">
-      <Link to="/staff/$slug" params={{ slug }} className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+    <main className="mx-auto max-w-4xl px-4 py-6">
+      <Link
+        to="/staff/$slug"
+        params={{ slug }}
+        className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-3.5 w-3.5" /> Voltar
       </Link>
 
+      <div>
+        <p className="text-xs uppercase tracking-[0.18em] text-primary">Operação ao vivo</p>
+        <h1 className="mt-1 font-display text-2xl tracking-tight">Painel do garçom</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Toque em uma mesa para lançar pedidos ou ver a conta.
+        </p>
+      </div>
+
       {calls.length > 0 && (
-        <section className="mb-6 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4">
+        <section className="mt-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-amber-200">
             <Bell className="h-4 w-4" /> {calls.length} chamado(s) em aberto
           </div>
@@ -112,7 +195,9 @@ function StaffWaiter() {
                   <div className="font-medium">
                     {c.kind === "bill" ? "Conta" : "Chamado"} · {c.table_label || "Sem mesa"}
                   </div>
-                  {c.customer_name && <div className="text-xs text-muted-foreground">Por {c.customer_name}</div>}
+                  {c.customer_name && (
+                    <div className="text-xs text-muted-foreground">Por {c.customer_name}</div>
+                  )}
                 </div>
                 <button
                   onClick={() => resolveCall.mutate(c.id)}
@@ -126,50 +211,382 @@ function StaffWaiter() {
         </section>
       )}
 
-      <h1 className="font-display text-xl tracking-tight">Mesas ativas</h1>
-      {ordersQ.isLoading ? (
-        <div className="flex h-40 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-      ) : byTable.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-dashed border-border bg-surface/40 px-6 py-12 text-center text-sm text-muted-foreground">
-          Nenhuma mesa com pedido no momento.
-        </div>
-      ) : (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {byTable.map(([label, list]) => (
-            <TableCard
-              key={label}
-              label={label}
-              orders={list}
-              onAdvance={(id, status) => updateStatus.mutate({ id, status })}
-              onClose={(ids) => archive.mutate(ids)}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+        {sorted.map((t: any) => {
+          const stripped = normalizeLabel(t.label);
+          const tableOrders = activeByLabel.get(stripped) ?? [];
+          const isBusy = tableOrders.length > 0;
+          const callList = callsByLabel.get(stripped) ?? [];
+          const billCall = callList.find((c) => c.kind === "bill");
+          const hasAnyCall = callList.length > 0;
+          const total = tableOrders.reduce(
+            (s, o) => s + Number(o.total ?? o.subtotal ?? 0),
+            0,
+          );
+          return (
+            <motion.button
+              key={t.id}
+              whileTap={{ scale: 0.96 }}
+              onClick={() =>
+                isBusy || hasAnyCall
+                  ? setBillTable(t.label)
+                  : setOpenTable({ id: t.id, label: t.label })
+              }
+              className={cn(
+                "relative aspect-square rounded-2xl border p-4 text-left transition",
+                hasAnyCall
+                  ? "border-[oklch(0.78_0.18_84_/_0.7)] bg-[oklch(0.78_0.18_84_/_0.12)] animate-pulse"
+                  : isBusy
+                    ? "border-[oklch(0.62_0.21_25_/_0.55)] bg-[oklch(0.62_0.21_25_/_0.08)]"
+                    : "border-border bg-surface hover:border-[oklch(0.78_0.13_84_/_0.4)]",
+              )}
+            >
+              {hasAnyCall && (
+                <span className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background">
+                  {billCall ? <DollarSign className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
+                </span>
+              )}
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Mesa</div>
+              <div className="mt-1 font-display text-3xl tracking-tight">{stripped}</div>
+              {isBusy && (
+                <div className="mt-1 text-[11px] text-primary">{fmt(total, currency)}</div>
+              )}
+              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px]">
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5",
+                    hasAnyCall
+                      ? "text-primary font-medium"
+                      : isBusy
+                        ? "text-[oklch(0.7_0.18_25)]"
+                        : "text-emerald-400",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      hasAnyCall
+                        ? "bg-primary animate-pulse"
+                        : isBusy
+                          ? "bg-[oklch(0.7_0.18_25)]"
+                          : "bg-emerald-400",
+                    )}
+                  />
+                  {billCall ? "Pedindo conta" : hasAnyCall ? "Chamando" : isBusy ? "Ver conta" : "Livre"}
+                </span>
+                {isBusy || hasAnyCall ? (
+                  <Receipt className="h-3.5 w-3.5" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </div>
+            </motion.button>
+          );
+        })}
+        {sorted.length === 0 && !tablesQ.isLoading && (
+          <div className="col-span-full rounded-2xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+            Nenhuma mesa cadastrada.
+          </div>
+        )}
+        {tablesQ.isLoading && (
+          <div className="col-span-full flex h-32 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {openTable && restId && (
+          <QuickOrderModal
+            tableId={openTable.id}
+            tableLabel={openTable.label}
+            restaurantId={restId}
+            currency={currency}
+            createdByName={session.name}
+            onClose={() => setOpenTable(null)}
+            onDone={() => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] })}
+          />
+        )}
+        {billTable && (() => {
+          const key = normalizeLabel(billTable);
+          const tableOrders = activeByLabel.get(key) ?? [];
+          const t = sorted.find((x: any) => x.label === billTable);
+          return (
+            <BillModal
+              tableLabel={billTable}
+              orders={tableOrders}
+              currency={currency}
+              onClose={() => setBillTable(null)}
+              onFinalize={() => {
+                if (tableOrders.length === 0) {
+                  setBillTable(null);
+                  return;
+                }
+                if (confirm(`Finalizar e liberar ${billTable}?`)) {
+                  archive.mutate(tableOrders.map((o) => o.id));
+                  setBillTable(null);
+                }
+              }}
+              onAddItems={() => {
+                if (t) {
+                  setBillTable(null);
+                  setOpenTable({ id: t.id, label: t.label });
+                }
+              }}
             />
-          ))}
-        </div>
-      )}
+          );
+        })()}
+      </AnimatePresence>
     </main>
   );
 }
 
-function TableCard({
-  label,
-  orders,
-  onAdvance,
+function QuickOrderModal({
+  tableId,
+  tableLabel,
+  restaurantId,
+  currency,
+  createdByName,
   onClose,
+  onDone,
 }: {
-  label: string;
-  orders: any[];
-  onAdvance: (id: string, status: string) => void;
-  onClose: (ids: string[]) => void;
+  tableId: string;
+  tableLabel: string;
+  restaurantId: string;
+  currency: string;
+  createdByName: string;
+  onClose: () => void;
+  onDone: () => void;
 }) {
-  const sortedOrders = [...orders].sort(
+  const [q, setQ] = useState("");
+  const [lines, setLines] = useState<Line[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  const { data: items, isLoading } = useQuery({
+    queryKey: ["staff-waiter-items", restaurantId],
+    queryFn: async (): Promise<WItem[]> => {
+      const { data, error } = await supabase
+        .from("menu_items")
+        .select("id, name, price, category_id, is_available, categories(name)")
+        .eq("restaurant_id", restaurantId)
+        .eq("is_available", true)
+        .order("name");
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        price: Number(r.price),
+        category_id: r.category_id,
+        category_name: r.categories?.name ?? "",
+      }));
+    },
+  });
+
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    if (!term) return items ?? [];
+    return (items ?? []).filter(
+      (i) => i.name.toLowerCase().includes(term) || i.category_name.toLowerCase().includes(term),
+    );
+  }, [items, q]);
+
+  function addItem(it: WItem) {
+    setLines((prev) => {
+      const ex = prev.find((l) => l.itemId === it.id);
+      if (ex) return prev.map((l) => (l.itemId === it.id ? { ...l, qty: l.qty + 1 } : l));
+      return [...prev, { itemId: it.id, name: it.name, price: it.price, qty: 1, notes: "" }];
+    });
+  }
+  function setQty(id: string, qty: number) {
+    if (qty <= 0) return setLines((p) => p.filter((l) => l.itemId !== id));
+    setLines((p) => p.map((l) => (l.itemId === id ? { ...l, qty } : l)));
+  }
+
+  const subtotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
+
+  async function submit() {
+    if (lines.length === 0) return;
+    setSubmitting(true);
+    try {
+      const { data: order, error: oErr } = await supabase
+        .from("orders")
+        .insert({
+          restaurant_id: restaurantId,
+          table_id: tableId,
+          table_label: tableLabel,
+          subtotal,
+          currency,
+          status: "pending",
+          created_by_name: createdByName,
+        } as any)
+        .select()
+        .single();
+      if (oErr) throw oErr;
+      const rows = lines.map((l) => ({
+        order_id: order.id,
+        menu_item_id: l.itemId,
+        name_snapshot: l.name,
+        price_snapshot: l.price,
+        quantity: l.qty,
+        notes: l.notes || null,
+      }));
+      const { error: iErr } = await supabase.from("order_items").insert(rows);
+      if (iErr) throw iErr;
+      toast.success(`Pedido enviado · ${tableLabel}`, {
+        description: `${lines.reduce((s, l) => s + l.qty, 0)} item(s) · ${fmt(subtotal, currency)}`,
+      });
+      onDone();
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao enviar pedido");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="flex h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-border bg-background sm:rounded-3xl"
+      >
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Lançamento rápido</div>
+            <h2 className="font-display text-xl tracking-tight">{tableLabel}</h2>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="px-5 py-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              autoFocus value={q} onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar item ou categoria…"
+              className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5">
+          {isLoading ? (
+            <div className="flex h-32 items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <ul className="space-y-1.5 pb-2">
+              {filtered.map((it) => {
+                const ex = lines.find((l) => l.itemId === it.id);
+                return (
+                  <li key={it.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2.5">
+                    <button onClick={() => addItem(it)} className="min-w-0 flex-1 text-left">
+                      <div className="truncate text-sm font-medium">{it.name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {it.category_name} · {fmt(it.price, currency)}
+                      </div>
+                    </button>
+                    {ex ? (
+                      <div className="flex items-center gap-1.5">
+                        <button onClick={() => setQty(it.id, ex.qty - 1)} className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground">
+                          <Minus className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="min-w-[1.5rem] text-center text-sm font-medium">{ex.qty}</span>
+                        <button onClick={() => setQty(it.id, ex.qty + 1)} className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground">
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => addItem(it)} className="rounded-lg bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground">
+                        Adicionar
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+              {filtered.length === 0 && (
+                <li className="py-8 text-center text-sm text-muted-foreground">Nenhum item encontrado.</li>
+              )}
+            </ul>
+          )}
+        </div>
+
+        <div className="border-t border-border bg-surface/50 px-5 py-3">
+          {lines.length > 0 && (
+            <div className="mb-3 max-h-32 space-y-1.5 overflow-y-auto">
+              {lines.map((l) => (
+                <div key={l.itemId} className="flex items-center gap-2 text-xs">
+                  <span className="font-medium text-primary">{l.qty}×</span>
+                  <span className="flex-1 truncate">{l.name}</span>
+                  <input
+                    value={l.notes}
+                    onChange={(e) => setLines((p) => p.map((x) => (x.itemId === l.itemId ? { ...x, notes: e.target.value } : x)))}
+                    placeholder="obs"
+                    className="w-24 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Subtotal</div>
+              <div className="font-display text-xl tracking-tight">{fmt(subtotal, currency)}</div>
+            </div>
+            <button
+              onClick={submit}
+              disabled={lines.length === 0 || submitting}
+              className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-95 disabled:opacity-50"
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : (<><Send className="h-4 w-4" /> Enviar pedido</>)}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function BillModal({
+  tableLabel,
+  orders,
+  currency,
+  onClose,
+  onAddItems,
+  onFinalize,
+}: {
+  tableLabel: string;
+  orders: any[];
+  currency: string;
+  onClose: () => void;
+  onAddItems: () => void;
+  onFinalize: () => void;
+}) {
+  const sorted = [...orders].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
-  const total = sortedOrders.reduce(
-    (sum, o) => sum + Number(o.total ?? o.subtotal ?? 0),
+  const subtotal = sorted.reduce(
+    (s, o) =>
+      s +
+      (o.items ?? []).reduce(
+        (ss: number, it: any) => ss + Number(it.price ?? 0) * Number(it.quantity ?? 0),
+        0,
+      ),
     0,
   );
-  const fmt = (n: number) =>
-    `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const extras = sorted.reduce(
+    (s, o) => s + Number(o.service_fee ?? 0) + Number(o.cover_charge ?? 0),
+    0,
+  );
+  const total = subtotal + extras;
 
   const statusMap: Record<string, { label: string; cls: string }> = {
     pending: { label: "Aguardando", cls: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
@@ -180,104 +597,125 @@ function TableCard({
   };
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="font-display text-lg">{label}</div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-            {sortedOrders.length} {sortedOrders.length === 1 ? "pedido" : "pedidos"}
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-border bg-background sm:rounded-3xl"
+      >
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Conta da mesa</div>
+            <h2 className="font-display text-xl tracking-tight">{tableLabel}</h2>
           </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
         </div>
-        <div className="text-right">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Total</div>
-          <div className="text-sm font-semibold text-primary">{fmt(total)}</div>
-        </div>
-      </div>
 
-      <ul className="mt-3 space-y-3">
-        {sortedOrders.map((o, idx) => {
-          const when = new Date(o.created_at).toLocaleTimeString("pt-BR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          });
-          const orderSubtotal = (o.items ?? []).reduce(
-            (s: number, it: any) => s + Number(it.price ?? 0) * Number(it.quantity ?? 0),
-            0,
-          );
-          const st = statusMap[o.status] ?? statusMap.served;
-          return (
-            <li key={o.id} className="rounded-xl border border-border bg-background/40 p-3">
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
-                  <span className="font-semibold text-foreground">Pedido #{idx + 1}</span>
-                  <span className="text-muted-foreground">{when}</span>
-                  {o.created_by_name && (
-                    <span className="text-muted-foreground">· por {o.created_by_name}</span>
-                  )}
-                </div>
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
-                    st.cls,
-                  )}
-                >
-                  {st.label}
-                </span>
+        <div className="flex-1 overflow-y-auto px-5 py-3">
+          {sorted.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              Sem itens ativos nesta mesa.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+                <span>Histórico da mesa</span>
+                <span>{sorted.length} {sorted.length === 1 ? "pedido" : "pedidos"}</span>
               </div>
-
-              {o.customer_name && (
-                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-                  Cliente: {o.customer_name}
-                </div>
-              )}
-
-              <ul className="divide-y divide-border/60">
-                {(o.items ?? []).map((it: any) => (
-                  <li key={it.id} className="flex flex-col gap-0.5 py-1.5">
-                    <div className="flex items-center justify-between gap-2 text-sm">
-                      <span>
-                        <span className="font-medium text-primary">{it.quantity}×</span>{" "}
-                        {it.name}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {fmt(Number(it.price ?? 0) * Number(it.quantity ?? 0))}
+              {sorted.map((o, idx) => {
+                const when = new Date(o.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                const orderSubtotal = (o.items ?? []).reduce(
+                  (s: number, it: any) => s + Number(it.price ?? 0) * Number(it.quantity ?? 0),
+                  0,
+                );
+                const st = statusMap[o.status] ?? statusMap.served;
+                return (
+                  <div key={o.id} className="rounded-xl border border-border bg-background/40 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                        <span className="font-semibold text-foreground">Pedido #{idx + 1}</span>
+                        <span className="text-muted-foreground">{when}</span>
+                        {o.created_by_name && (
+                          <span className="text-muted-foreground">· por {o.created_by_name}</span>
+                        )}
+                      </div>
+                      <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider", st.cls)}>
+                        {st.label}
                       </span>
                     </div>
-                    {it.notes && (
-                      <span className="pl-5 text-[11px] italic text-muted-foreground">
-                        obs: {it.notes}
-                      </span>
+                    {o.customer_name && (
+                      <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                        Cliente: {o.customer_name}
+                      </div>
                     )}
-                  </li>
-                ))}
-              </ul>
+                    <ul className="divide-y divide-border/60">
+                      {(o.items ?? []).map((it: any) => (
+                        <li key={it.id} className="flex flex-col gap-0.5 py-1.5">
+                          <div className="flex items-center justify-between gap-2 text-sm">
+                            <span>
+                              <span className="font-medium text-primary">{it.quantity}×</span> {it.name}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {fmt(Number(it.price ?? 0) * Number(it.quantity ?? 0), currency)}
+                            </span>
+                          </div>
+                          {it.notes && (
+                            <span className="pl-5 text-[11px] italic text-muted-foreground">obs: {it.notes}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5 text-[11px]">
+                      <span className="text-muted-foreground">Subtotal do pedido</span>
+                      <span className="font-medium">{fmt(orderSubtotal, currency)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-              <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5 text-[11px]">
-                <span className="text-muted-foreground">Subtotal do pedido</span>
-                <span className="font-medium">{fmt(orderSubtotal)}</span>
+        <div className="border-t border-border bg-surface/50 px-5 py-4">
+          <div className="mb-3 space-y-1">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>{fmt(subtotal, currency)}</span>
+            </div>
+            {extras > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Taxas / Couvert</span>
+                <span>{fmt(extras, currency)}</span>
               </div>
-
-              {o.status !== "served" && (
-                <button
-                  onClick={() => onAdvance(o.id, "served")}
-                  className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-[11px] hover:bg-surface"
-                >
-                  <CheckCircle2 className="mr-1 inline h-3 w-3" /> Marcar como entregue
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-
-      <button
-        onClick={() => {
-          if (confirm(`Finalizar e liberar ${label}?`)) onClose(orders.map((o) => o.id));
-        }}
-        className="mt-3 w-full rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90"
-      >
-        <Receipt className="mr-1 inline h-3.5 w-3.5" /> Finalizar e Liberar
-      </button>
-    </div>
+            )}
+            <div className="flex items-center justify-between border-t border-border pt-2">
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">Total</span>
+              <span className="font-display text-2xl tracking-tight text-primary">{fmt(total, currency)}</span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={onAddItems}
+              className="inline-flex min-h-12 flex-1 items-center justify-center rounded-xl border border-border bg-background text-sm font-semibold transition hover:border-[oklch(0.78_0.13_84_/_0.4)]"
+            >
+              + Itens
+            </button>
+            <button
+              onClick={onFinalize}
+              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-95"
+            >
+              <Receipt className="h-4 w-4" /> Finalizar e liberar
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
