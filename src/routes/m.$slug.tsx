@@ -202,6 +202,11 @@ function PublicMenuPage() {
       toast.error("Informe seu nome para enviar o pedido");
       return;
     }
+    const phoneDigits = customerPhone.replace(/\D/g, "");
+    if (phoneDigits.length < 10 || phoneDigits.length > 13) {
+      toast.error("Informe um telefone válido com DDD");
+      return;
+    }
     setSubmitting(true);
     try {
       const { data: order, error } = await supabase
@@ -210,10 +215,11 @@ function PublicMenuPage() {
           restaurant_id: data.restaurant.id,
           table_label: table ? `Mesa ${table}` : null,
           customer_name: customerName.trim(),
+          customer_phone: phoneDigits,
           subtotal: total,
           currency: data.restaurant.currency,
           status: "pending",
-        })
+        } as any)
         .select()
         .single();
       if (error) throw error;
