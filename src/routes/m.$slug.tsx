@@ -628,6 +628,7 @@ function PublicMenuPage() {
                     setSent(false);
                     setPlacedOrder(null);
                     setCustomerName("");
+                    setCustomerPhone("");
                     setOpenCart(false);
                   }}
                 />
