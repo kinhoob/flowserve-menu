@@ -93,6 +93,7 @@ function PublicMenuPage() {
   const [sent, setSent] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<{ id: string; status: string } | null>(null);
   const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [pickerItem, setPickerItem] = useState<PublicItem | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
   const [bump, setBump] = useState(0);
