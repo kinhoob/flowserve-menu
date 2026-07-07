@@ -271,6 +271,7 @@ export type Database = {
           created_by_name: string | null
           currency: string
           customer_name: string | null
+          customer_phone: string | null
           delivered_at: string | null
           delivered_by_name: string | null
           id: string
@@ -290,6 +291,7 @@ export type Database = {
           created_by_name?: string | null
           currency?: string
           customer_name?: string | null
+          customer_phone?: string | null
           delivered_at?: string | null
           delivered_by_name?: string | null
           id?: string
@@ -309,6 +311,7 @@ export type Database = {
           created_by_name?: string | null
           currency?: string
           customer_name?: string | null
+          customer_phone?: string | null
           delivered_at?: string | null
           delivered_by_name?: string | null
           id?: string
