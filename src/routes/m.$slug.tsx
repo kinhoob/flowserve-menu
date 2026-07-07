@@ -699,6 +699,20 @@ function PublicMenuPage() {
                         className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-[oklch(0.78_0.13_84_/_0.5)]"
                       />
                     </label>
+                    <label className="mb-3 block">
+                      <span className="mb-1.5 block text-xs uppercase tracking-wider text-muted-foreground">
+                        Telefone (WhatsApp)
+                      </span>
+                      <input
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value.replace(/[^\d\s()+-]/g, "").slice(0, 20))}
+                        placeholder="(11) 99999-9999"
+                        inputMode="tel"
+                        type="tel"
+                        autoComplete="tel"
+                        className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                      />
+                    </label>
                     <div className="flex items-center justify-between pb-3">
                       <span className="text-sm text-muted-foreground">Subtotal</span>
                       <span className="font-display text-2xl tracking-tight">
@@ -707,7 +721,7 @@ function PublicMenuPage() {
                     </div>
                     <button
                       onClick={placeOrder}
-                      disabled={submitting || cart.length === 0 || !customerName.trim()}
+                      disabled={submitting || cart.length === 0 || !customerName.trim() || customerPhone.replace(/\D/g, "").length < 10}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
                     >
                       {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
