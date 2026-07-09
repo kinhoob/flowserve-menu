@@ -241,7 +241,15 @@ function PublicMenuPage() {
       setPlacedOrder({ id: orderId as string, status: "pending" });
       setCart([]);
     } catch (e: any) {
-      toast.error(e.message ?? "Não foi possível enviar o pedido");
+      let details: any = null;
+      try { details = e?.details ? JSON.parse(e.details) : null; } catch { /* ignore */ }
+      const message = e?.message ?? "Não foi possível enviar o pedido";
+      const hint = e?.hint as string | undefined;
+      const retry = details?.retry_after_seconds as number | undefined;
+      const description = retry
+        ? `Tente novamente em ${retry}s.${hint ? ` ${hint}` : ""}`
+        : hint;
+      toast.error(message, description ? { description } : undefined);
     } finally {
       setSubmitting(false);
     }
