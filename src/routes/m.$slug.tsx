@@ -221,34 +221,24 @@ function PublicMenuPage() {
     }
     setSubmitting(true);
     try {
-      const { data: order, error } = await supabase
-        .from("orders")
-        .insert({
-          restaurant_id: data.restaurant.id,
-          table_label: table ? `Mesa ${table}` : null,
-          customer_name: customerName.trim(),
-          customer_phone: phoneDigits,
-          subtotal: total,
-          currency: data.restaurant.currency,
-          status: "pending",
-        } as any)
-        .select()
-        .single();
-      if (error) throw error;
-      const { error: iErr } = await supabase.from("order_items").insert(
-        cart.map((c) => ({
-          order_id: order.id,
+      const { data: orderId, error } = await (supabase as any).rpc("place_order", {
+        p_restaurant_id: data.restaurant.id,
+        p_table_label: table ? `Mesa ${table}` : null,
+        p_customer_name: customerName.trim(),
+        p_customer_phone: phoneDigits,
+        p_currency: data.restaurant.currency,
+        p_items: cart.map((c) => ({
           menu_item_id: c.itemId,
           name_snapshot: c.name,
           price_snapshot: c.unitPrice,
           quantity: c.qty,
           notes: c.note || null,
-          modifiers_snapshot: c.modifiers,
+          modifiers_snapshot: c.modifiers ?? [],
         })),
-      );
-      if (iErr) throw iErr;
+      });
+      if (error) throw error;
       setSent(true);
-      setPlacedOrder({ id: order.id, status: "pending" });
+      setPlacedOrder({ id: orderId as string, status: "pending" });
       setCart([]);
     } catch (e: any) {
       toast.error(e.message ?? "Não foi possível enviar o pedido");
@@ -256,6 +246,7 @@ function PublicMenuPage() {
       setSubmitting(false);
     }
   };
+
 
   const handleCallWaiter = async () => {
     if (!data) return;
