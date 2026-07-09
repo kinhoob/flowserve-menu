@@ -660,6 +660,17 @@ export type Database = {
     }
     Functions: {
       get_restaurant_plan: { Args: { p_slug: string }; Returns: string }
+      place_order: {
+        Args: {
+          p_currency: string
+          p_customer_name: string
+          p_customer_phone: string
+          p_items: Json
+          p_restaurant_id: string
+          p_table_label: string
+        }
+        Returns: string
+      }
       staff_archive_orders: {
         Args: { p_order_ids: string[]; p_token: string }
         Returns: undefined
