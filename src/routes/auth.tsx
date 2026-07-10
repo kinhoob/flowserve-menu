@@ -373,6 +373,21 @@ function AuthPage() {
                   </button>
                 </form>
 
+                <div className="mt-4 text-center">
+                  {mode === "login" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotEmail(email);
+                        setForgotOpen(true);
+                      }}
+                      className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      Esqueceu a senha?
+                    </button>
+                  )}
+                </div>
+
                 <p className="mt-6 text-center text-sm text-muted-foreground">
                   {mode === "signup" ? "Já tem uma conta?" : "Novo no Flux?"}{" "}
                   <button
@@ -386,6 +401,54 @@ function AuthPage() {
             )}
           </AnimatePresence>
         </div>
+
+        {forgotOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
+            onClick={() => !forgotLoading && setForgotOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 12, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 shadow-2xl"
+            >
+              <h2 className="font-display text-xl tracking-tight">Recuperar senha</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Enviaremos um link para você definir uma nova senha.
+              </p>
+              <form onSubmit={handleForgotPassword} className="mt-5 space-y-4">
+                <Field
+                  label="Email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={forgotEmail}
+                  onChange={setForgotEmail}
+                  placeholder="voce@estabelecimento.com"
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForgotOpen(false)}
+                    disabled={forgotLoading}
+                    className="rounded-xl px-4 py-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+                  >
+                    {forgotLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Enviar link
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Ao continuar você aceita os Termos e a Política de Privacidade do Flux.
