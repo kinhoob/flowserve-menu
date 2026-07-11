@@ -5,6 +5,18 @@ import { ArrowLeft, Loader2, KeyRound, AlertTriangle, MailCheck } from "lucide-r
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { FluxLogo } from "@/components/brand/logo";
+import {
+  RESEND_COOLDOWN_SECONDS,
+  VALIDATION_TIMEOUT_MS,
+  classifyHashError,
+  classifyResendError,
+  classifyUpdateUserError,
+  isValidEmail,
+  parseHashParams as parseHashParamsPure,
+  tickCooldown,
+  validateNewPassword,
+  type LinkStatus,
+} from "./reset-password.helpers";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
@@ -16,17 +28,9 @@ export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
 });
 
-type LinkStatus = "validating" | "ready" | "invalid" | "expired";
-
-const RESEND_COOLDOWN_SECONDS = 60;
-const VALIDATION_TIMEOUT_MS = 4000;
-
 function parseHashParams(): URLSearchParams {
   if (typeof window === "undefined") return new URLSearchParams();
-  const hash = window.location.hash.startsWith("#")
-    ? window.location.hash.slice(1)
-    : window.location.hash;
-  return new URLSearchParams(hash);
+  return parseHashParamsPure(window.location.hash);
 }
 
 function ResetPasswordPage() {
