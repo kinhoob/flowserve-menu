@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2, KeyRound } from "lucide-react";
+import { ArrowLeft, Loader2, KeyRound, AlertTriangle, MailCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { FluxLogo } from "@/components/brand/logo";
@@ -16,26 +16,113 @@ export const Route = createFileRoute("/reset-password")({
   component: ResetPasswordPage,
 });
 
+type LinkStatus = "validating" | "ready" | "invalid" | "expired";
+
+const RESEND_COOLDOWN_SECONDS = 60;
+const VALIDATION_TIMEOUT_MS = 4000;
+
+function parseHashParams(): URLSearchParams {
+  if (typeof window === "undefined") return new URLSearchParams();
+  const hash = window.location.hash.startsWith("#")
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+  return new URLSearchParams(hash);
+}
+
 function ResetPasswordPage() {
   const navigate = useNavigate();
-  const [ready, setReady] = useState(false);
+  const [status, setStatus] = useState<LinkStatus>("validating");
+  const [errorMsg, setErrorMsg] = useState<string>("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Resend flow
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendLoading, setResendLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const cooldownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const hashParams = useMemo(() => parseHashParams(), []);
+
+  // Detect explicit error in URL hash (Supabase returns error_code=otp_expired, etc.)
   useEffect(() => {
-    // Supabase parses the recovery hash and fires PASSWORD_RECOVERY / SIGNED_IN.
-    // The link contains a #access_token and type=recovery.
+    const errorCode = hashParams.get("error_code");
+    const errorDescription = hashParams.get("error_description");
+    const error = hashParams.get("error");
+    if (errorCode === "otp_expired" || errorDescription?.toLowerCase().includes("expired")) {
+      setStatus("expired");
+      setErrorMsg("Este link de recuperação expirou. Solicite um novo abaixo.");
+      return;
+    }
+    if (error || errorCode) {
+      setStatus("invalid");
+      setErrorMsg(
+        errorDescription
+          ? decodeURIComponent(errorDescription.replace(/\+/g, " "))
+          : "Link de recuperação inválido. Solicite um novo abaixo.",
+      );
+      return;
+    }
+
+    let resolved = false;
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setReady(true);
+        resolved = true;
+        setStatus("ready");
       }
     });
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
+
+    supabase.auth.getSession().then(({ data, error: sessErr }) => {
+      if (sessErr) {
+        resolved = true;
+        setStatus("invalid");
+        setErrorMsg("Não foi possível validar o link. Solicite um novo abaixo.");
+        return;
+      }
+      if (data.session) {
+        resolved = true;
+        setStatus("ready");
+      }
     });
-    return () => subscription.unsubscribe();
-  }, []);
+
+    // Safety timeout: if no PASSWORD_RECOVERY event nor session appeared, the link is stale/invalid.
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        setStatus("invalid");
+        setErrorMsg(
+          "Não encontramos um link de recuperação válido. Ele pode ter expirado ou já sido usado.",
+        );
+      }
+    }, VALIDATION_TIMEOUT_MS);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
+  }, [hashParams]);
+
+  // Cooldown ticker
+  useEffect(() => {
+    if (cooldown <= 0) {
+      if (cooldownTimer.current) {
+        clearInterval(cooldownTimer.current);
+        cooldownTimer.current = null;
+      }
+      return;
+    }
+    if (!cooldownTimer.current) {
+      cooldownTimer.current = setInterval(() => {
+        setCooldown((s) => (s <= 1 ? 0 : s - 1));
+      }, 1000);
+    }
+    return () => {
+      if (cooldownTimer.current && cooldown <= 1) {
+        clearInterval(cooldownTimer.current);
+        cooldownTimer.current = null;
+      }
+    };
+  }, [cooldown]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,16 +142,54 @@ function ResetPasswordPage() {
       toast.success("Senha redefinida. Bem-vindo de volta!");
       navigate({ to: "/dashboard" });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      toast.error(
-        msg.toLowerCase().includes("session")
-          ? "Link inválido ou expirado. Solicite um novo email de recuperação."
-          : "Não foi possível redefinir. Tente novamente.",
-      );
+      const msg = err instanceof Error ? err.message.toLowerCase() : "";
+      if (msg.includes("session") || msg.includes("expired") || msg.includes("jwt")) {
+        setStatus("expired");
+        setErrorMsg("Sua sessão de recuperação expirou. Solicite um novo link abaixo.");
+        toast.error("Link expirado. Solicite um novo email de recuperação.");
+      } else if (msg.includes("same") || msg.includes("different")) {
+        toast.error("A nova senha precisa ser diferente da atual.");
+      } else if (msg.includes("weak") || msg.includes("password")) {
+        toast.error("Senha muito fraca. Use pelo menos 6 caracteres com letras e números.");
+      } else {
+        toast.error("Não foi possível redefinir. Tente novamente.");
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  const handleResend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resendLoading || cooldown > 0) return;
+    const email = resendEmail.trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("Informe um email válido.");
+      return;
+    }
+    setResendLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success("Se existir uma conta com esse email, enviamos um novo link.");
+      setCooldown(RESEND_COOLDOWN_SECONDS);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message.toLowerCase() : "";
+      if (msg.includes("rate") || msg.includes("limit") || msg.includes("too many")) {
+        toast.error("Muitas tentativas. Aguarde alguns minutos antes de tentar de novo.");
+        setCooldown(RESEND_COOLDOWN_SECONDS);
+      } else {
+        toast.error("Não foi possível enviar. Tente novamente em instantes.");
+      }
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const showRecoveryForm = status === "ready";
+  const showResendPanel = status === "invalid" || status === "expired";
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12">
@@ -92,49 +217,102 @@ function ResetPasswordPage() {
 
         <div className="rounded-3xl border border-border bg-surface/80 p-8 shadow-[0_60px_120px_-40px_oklch(0_0_0_/_0.8)] backdrop-blur">
           <div className="flex justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
-              <KeyRound className="h-5 w-5" />
+            <div
+              className={`flex h-12 w-12 items-center justify-center rounded-2xl ring-1 ${
+                showResendPanel
+                  ? "bg-destructive/10 text-destructive ring-destructive/30"
+                  : "bg-gold-soft text-primary ring-[oklch(0.78_0.13_84_/_0.3)]"
+              }`}
+            >
+              {showResendPanel ? (
+                <AlertTriangle className="h-5 w-5" />
+              ) : (
+                <KeyRound className="h-5 w-5" />
+              )}
             </div>
           </div>
           <h1 className="mt-5 text-center font-display text-3xl tracking-tight">
-            Redefinir senha
+            {status === "expired"
+              ? "Link expirado"
+              : status === "invalid"
+                ? "Link inválido"
+                : "Redefinir senha"}
           </h1>
           <p className="mt-2 text-center text-sm text-muted-foreground">
-            {ready
-              ? "Escolha uma nova senha para sua conta."
-              : "Validando link de recuperação…"}
+            {status === "validating" && "Validando link de recuperação…"}
+            {status === "ready" && "Escolha uma nova senha para sua conta."}
+            {showResendPanel && (errorMsg || "Solicite um novo link para continuar.")}
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-            <Field
-              label="Nova senha"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              value={password}
-              onChange={setPassword}
-              placeholder="••••••••"
-            />
-            <Field
-              label="Confirmar senha"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              value={confirm}
-              onChange={setConfirm}
-              placeholder="••••••••"
-            />
-            <button
-              type="submit"
-              disabled={loading || !ready}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-[0_18px_40px_-15px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-60"
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Salvar nova senha
-            </button>
-          </form>
+          {status === "validating" && (
+            <div className="mt-8 flex justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          {showRecoveryForm && (
+            <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+              <Field
+                label="Nova senha"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={6}
+                value={password}
+                onChange={setPassword}
+                placeholder="••••••••"
+              />
+              <Field
+                label="Confirmar senha"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={6}
+                value={confirm}
+                onChange={setConfirm}
+                placeholder="••••••••"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-[0_18px_40px_-15px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-60"
+              >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                Salvar nova senha
+              </button>
+            </form>
+          )}
+
+          {showResendPanel && (
+            <form onSubmit={handleResend} className="mt-8 space-y-4">
+              <Field
+                label="Seu email"
+                type="email"
+                autoComplete="email"
+                required
+                value={resendEmail}
+                onChange={setResendEmail}
+                placeholder="voce@exemplo.com"
+              />
+              <button
+                type="submit"
+                disabled={resendLoading || cooldown > 0}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground shadow-[0_18px_40px_-15px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
+              >
+                {resendLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MailCheck className="h-4 w-4" />
+                )}
+                {cooldown > 0
+                  ? `Aguarde ${cooldown}s para reenviar`
+                  : "Enviar novo link de recuperação"}
+              </button>
+              <p className="text-center text-xs text-muted-foreground">
+                Por segurança, você pode solicitar um novo link a cada {RESEND_COOLDOWN_SECONDS} segundos.
+              </p>
+            </form>
+          )}
         </div>
       </motion.div>
     </div>
