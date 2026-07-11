@@ -16,7 +16,7 @@ import {
   tickCooldown,
   validateNewPassword,
   type LinkStatus,
-} from "./reset-password.helpers";
+} from "@/lib/reset-password.helpers";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
