@@ -146,10 +146,16 @@ describe("isValidEmail", () => {
     ["no-at-sign", false],
     ["missing@tld", false],
     ["spaces in@email.com", false],
+  it.each<[string, boolean]>([
+    ["ok@example.com", true],
+    ["user.name+tag@example.co.uk", true],
+    ["", false],
+    ["no-at-sign", false],
+    ["missing@tld", false],
+    ["spaces in@email.com", false],
   ])("%s → %s", (email, expected) => {
     expect(isValidEmail(email)).toBe(expected);
   });
-});
 
 describe("tickCooldown", () => {
   it("decrements normally", () => {
