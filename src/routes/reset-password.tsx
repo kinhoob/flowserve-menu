@@ -107,7 +107,7 @@ function ResetPasswordPage() {
     }
     if (!cooldownTimer.current) {
       cooldownTimer.current = setInterval(() => {
-        setCooldown((s) => (s <= 1 ? 0 : s - 1));
+        setCooldown((s) => tickCooldown(s));
       }, 1000);
     }
     return () => {
@@ -121,12 +121,9 @@ function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    if (password.length < 6) {
-      toast.error("A senha precisa ter pelo menos 6 caracteres.");
-      return;
-    }
-    if (password !== confirm) {
-      toast.error("As senhas não coincidem.");
+    const check = validateNewPassword(password, confirm);
+    if (!check.ok) {
+      toast.error(check.message!);
       return;
     }
     setLoading(true);
@@ -136,18 +133,12 @@ function ResetPasswordPage() {
       toast.success("Senha redefinida. Bem-vindo de volta!");
       navigate({ to: "/dashboard" });
     } catch (err) {
-      const msg = err instanceof Error ? err.message.toLowerCase() : "";
-      if (msg.includes("session") || msg.includes("expired") || msg.includes("jwt")) {
-        setStatus("expired");
-        setErrorMsg("Sua sessão de recuperação expirou. Solicite um novo link abaixo.");
-        toast.error("Link expirado. Solicite um novo email de recuperação.");
-      } else if (msg.includes("same") || msg.includes("different")) {
-        toast.error("A nova senha precisa ser diferente da atual.");
-      } else if (msg.includes("weak") || msg.includes("password")) {
-        toast.error("Senha muito fraca. Use pelo menos 6 caracteres com letras e números.");
-      } else {
-        toast.error("Não foi possível redefinir. Tente novamente.");
-      }
+      const result = classifyUpdateUserError(
+        err instanceof Error ? err.message : "",
+      );
+      if (result.status) setStatus(result.status);
+      if (result.banner) setErrorMsg(result.banner);
+      toast.error(result.toast);
     } finally {
       setLoading(false);
     }
@@ -157,7 +148,7 @@ function ResetPasswordPage() {
     e.preventDefault();
     if (resendLoading || cooldown > 0) return;
     const email = resendEmail.trim().toLowerCase();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email || !isValidEmail(email)) {
       toast.error("Informe um email válido.");
       return;
     }
@@ -170,17 +161,16 @@ function ResetPasswordPage() {
       toast.success("Se existir uma conta com esse email, enviamos um novo link.");
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
-      const msg = err instanceof Error ? err.message.toLowerCase() : "";
-      if (msg.includes("rate") || msg.includes("limit") || msg.includes("too many")) {
-        toast.error("Muitas tentativas. Aguarde alguns minutos antes de tentar de novo.");
-        setCooldown(RESEND_COOLDOWN_SECONDS);
-      } else {
-        toast.error("Não foi possível enviar. Tente novamente em instantes.");
-      }
+      const result = classifyResendError(
+        err instanceof Error ? err.message : "",
+      );
+      toast.error(result.toast);
+      if (result.engageCooldown) setCooldown(RESEND_COOLDOWN_SECONDS);
     } finally {
       setResendLoading(false);
     }
   };
+
 
   const showRecoveryForm = status === "ready";
   const showResendPanel = status === "invalid" || status === "expired";
