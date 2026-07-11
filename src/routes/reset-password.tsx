@@ -51,21 +51,10 @@ function ResetPasswordPage() {
 
   // Detect explicit error in URL hash (Supabase returns error_code=otp_expired, etc.)
   useEffect(() => {
-    const errorCode = hashParams.get("error_code");
-    const errorDescription = hashParams.get("error_description");
-    const error = hashParams.get("error");
-    if (errorCode === "otp_expired" || errorDescription?.toLowerCase().includes("expired")) {
-      setStatus("expired");
-      setErrorMsg("Este link de recuperação expirou. Solicite um novo abaixo.");
-      return;
-    }
-    if (error || errorCode) {
-      setStatus("invalid");
-      setErrorMsg(
-        errorDescription
-          ? decodeURIComponent(errorDescription.replace(/\+/g, " "))
-          : "Link de recuperação inválido. Solicite um novo abaixo.",
-      );
+    const hashError = classifyHashError(hashParams);
+    if (hashError) {
+      setStatus(hashError.status);
+      setErrorMsg(hashError.message);
       return;
     }
 
@@ -105,6 +94,7 @@ function ResetPasswordPage() {
       clearTimeout(timeout);
     };
   }, [hashParams]);
+
 
   // Cooldown ticker
   useEffect(() => {
