@@ -139,13 +139,6 @@ describe("classifyResendError (cooldown protection)", () => {
 });
 
 describe("isValidEmail", () => {
-  it.each([
-    ["ok@example.com", true],
-    ["user.name+tag@example.co.uk", true],
-    ["", false],
-    ["no-at-sign", false],
-    ["missing@tld", false],
-    ["spaces in@email.com", false],
   it.each<[string, boolean]>([
     ["ok@example.com", true],
     ["user.name+tag@example.co.uk", true],
@@ -156,6 +149,8 @@ describe("isValidEmail", () => {
   ])("%s → %s", (email, expected) => {
     expect(isValidEmail(email)).toBe(expected);
   });
+});
+
 
 describe("tickCooldown", () => {
   it("decrements normally", () => {
