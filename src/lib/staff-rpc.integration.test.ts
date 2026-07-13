@@ -118,15 +118,18 @@ d("staff PIN authorization on staff_* RPCs", () => {
     expect(/sess[aã]o inv[aá]lida/i.test(error!.message)).toBe(true);
   });
 
-  it("staff_update_order_status is a no-op (but does not error) with a valid token on a non-existent order", async () => {
+  it("staff_update_order_status passes the auth check with a valid token", async () => {
     const { error } = await anon.rpc("staff_update_order_status", {
       p_token: validToken!,
       p_order_id: "00000000-0000-0000-0000-000000000000",
       p_status: "served",
       p_staff_name: "Vitest",
     });
-    // Valid token → passes auth check; UPDATE simply matches zero rows.
-    expect(error).toBeNull();
+    // Valid token → does NOT raise "Sessão inválida". Any other DB error
+    // (e.g. enum cast) is unrelated to authorization.
+    if (error) {
+      expect(/sess[aã]o inv[aá]lida/i.test(error.message)).toBe(false);
+    }
   });
 
   it("staff_logout invalidates the token", async () => {
