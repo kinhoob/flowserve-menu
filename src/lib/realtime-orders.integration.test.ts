@@ -146,18 +146,15 @@ d("realtime broadcasts new orders to KDS-style subscribers", () => {
 d("waiter calls: anon can create; realtime broadcast is owner-only by design", () => {
   it("INSERT on public.waiter_calls succeeds as anon", async () => {
     const client = created.client;
-    const { data, error } = await client
-      .from("waiter_calls")
-      .insert({
-        restaurant_id: restaurantId,
-        table_label: `RT-CALL-${Date.now()}`,
-        kind: "bill",
-      })
-      .select()
-      .single();
+    // No .select() — anon has INSERT but not SELECT on waiter_calls.
+    const { error } = await client.from("waiter_calls").insert({
+      restaurant_id: restaurantId,
+      table_label: `RT-CALL-${Date.now()}`,
+      kind: "bill",
+    });
     expect(error).toBeNull();
-    expect(data?.id).toBeTruthy();
   });
+
 
   it("anon subscriber does NOT receive waiter_calls INSERT (RLS-blocked)", async () => {
     // Same design as order_items: staff dashboards refresh calls via the
