@@ -104,11 +104,20 @@ function StaffWaiter() {
     const ch = supabase
       .channel(`staff-live-${session.token}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" },
-        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
+        (payload) => {
+          recordRealtimeEvent("waiter", payload);
+          qc.invalidateQueries({ queryKey: ["staff-orders", session.token] });
+        })
       .on("postgres_changes", { event: "*", schema: "public", table: "order_items" },
-        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
+        (payload) => {
+          recordRealtimeEvent("waiter", payload);
+          qc.invalidateQueries({ queryKey: ["staff-orders", session.token] });
+        })
       .on("postgres_changes", { event: "*", schema: "public", table: "waiter_calls" },
-        () => qc.invalidateQueries({ queryKey: ["staff-calls", session.token] }))
+        (payload) => {
+          recordRealtimeEvent("calls", payload);
+          qc.invalidateQueries({ queryKey: ["staff-calls", session.token] });
+        })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [session, qc]);
