@@ -24,6 +24,7 @@ import {
   staffArchiveOrders,
 } from "@/features/staff/staff-rpc";
 import { supabase } from "@/integrations/supabase/client";
+import { recordRealtimeEvent } from "@/lib/realtime-telemetry";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/staff/$slug/waiter")({
