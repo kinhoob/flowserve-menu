@@ -41,9 +41,15 @@ function StaffKitchen() {
     const ch = supabase
       .channel(`staff-kds-${session.token}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" },
-        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
+        (payload) => {
+          recordRealtimeEvent("kds", payload);
+          qc.invalidateQueries({ queryKey: ["staff-orders", session.token] });
+        })
       .on("postgres_changes", { event: "*", schema: "public", table: "order_items" },
-        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
+        (payload) => {
+          recordRealtimeEvent("kds", payload);
+          qc.invalidateQueries({ queryKey: ["staff-orders", session.token] });
+        })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [session, qc]);
