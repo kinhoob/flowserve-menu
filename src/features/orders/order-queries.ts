@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { recordRealtimeEvent } from "@/lib/realtime-telemetry";
 import type { Database, Tables } from "@/integrations/supabase/types";
 
 export type OrderStatus = Database["public"]["Enums"]["order_status"];
@@ -33,12 +34,18 @@ export function useOrders(restaurantId: string | undefined) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `restaurant_id=eq.${restaurantId}` },
-        () => qc.invalidateQueries({ queryKey: ["orders", restaurantId] }),
+        (payload) => {
+          recordRealtimeEvent("orders", payload);
+          qc.invalidateQueries({ queryKey: ["orders", restaurantId] });
+        },
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "order_items" },
-        () => qc.invalidateQueries({ queryKey: ["orders", restaurantId] }),
+        (payload) => {
+          recordRealtimeEvent("orders", payload);
+          qc.invalidateQueries({ queryKey: ["orders", restaurantId] });
+        },
       )
       .subscribe();
     return () => {

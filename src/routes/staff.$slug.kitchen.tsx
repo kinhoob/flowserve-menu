@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2, ChefHat, CheckCircle2 } from "lucide-react";
 import { useStaffSession } from "@/features/staff/staff-session";
 import { staffListOrders, staffUpdateOrderStatus } from "@/features/staff/staff-rpc";
 import { supabase } from "@/integrations/supabase/client";
+import { recordRealtimeEvent } from "@/lib/realtime-telemetry";
 
 import { cn } from "@/lib/utils";
 
@@ -40,9 +41,15 @@ function StaffKitchen() {
     const ch = supabase
       .channel(`staff-kds-${session.token}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" },
-        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
+        (payload) => {
+          recordRealtimeEvent("kds", payload);
+          qc.invalidateQueries({ queryKey: ["staff-orders", session.token] });
+        })
       .on("postgres_changes", { event: "*", schema: "public", table: "order_items" },
-        () => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] }))
+        (payload) => {
+          recordRealtimeEvent("kds", payload);
+          qc.invalidateQueries({ queryKey: ["staff-orders", session.token] });
+        })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [session, qc]);
