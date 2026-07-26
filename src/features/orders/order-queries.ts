@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { recordRealtimeEvent } from "@/lib/realtime-telemetry";
 import type { Database, Tables } from "@/integrations/supabase/types";
 
 export type OrderStatus = Database["public"]["Enums"]["order_status"];
