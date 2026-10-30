@@ -26,7 +26,15 @@ import { UpgradeProModal } from "@/features/billing/upgrade-modal";
 
 type NavItem = {
   label: string;
-  to: "/dashboard" | "/menu" | "/qrcodes" | "/kitchen" | "/analytics" | "/waiter" | "/settings" | "/tables";
+  to:
+    | "/dashboard"
+    | "/menu"
+    | "/qrcodes"
+    | "/kitchen"
+    | "/analytics"
+    | "/waiter"
+    | "/settings"
+    | "/tables";
   icon: typeof LayoutDashboard;
   soon?: boolean;
   id?: string;
@@ -40,14 +48,20 @@ const NAV: NavItem[] = [
   { label: "Cardápio", to: "/menu", icon: UtensilsCrossed, id: "nav-menu", feature: "menu" },
   { label: "Mesas", to: "/tables", icon: Armchair, id: "nav-tables", feature: "tables" },
   { label: "QR Codes", to: "/qrcodes", icon: QrCode, id: "nav-qrcodes" },
-  { label: "Análises", to: "/analytics", icon: BarChart3, id: "nav-analytics", feature: "analytics" },
+  {
+    label: "Análises",
+    to: "/analytics",
+    icon: BarChart3,
+    id: "nav-analytics",
+    feature: "analytics",
+  },
   { label: "Configurações", to: "/settings", icon: Settings, id: "nav-settings" },
 ];
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { data: trial } = useTrialStatus();
+  const { data: trial, isPending: planLoading, refetch: refetchPlan } = useTrialStatus();
   const [lockedLabel, setLockedLabel] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const initials = (user?.user_metadata?.display_name || user?.email || "U")
@@ -167,9 +181,13 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <button className="rounded-xl border border-border bg-surface p-2.5 text-muted-foreground transition hover:text-foreground hover:-translate-y-0.5">
+            <Link
+              to="/dashboard"
+              aria-label="Ver chamados e notificações"
+              className="rounded-xl border border-border bg-surface p-2.5 text-muted-foreground transition hover:text-foreground hover:-translate-y-0.5"
+            >
               <Bell className="h-4 w-4" />
-            </button>
+            </Link>
           </div>
         </header>
         <main className="flex-1 px-4 py-6 md:px-6 md:py-8">
@@ -179,7 +197,28 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           >
-            {children}
+            {!trial && pathname !== "/settings" ? (
+              <div
+                role="status"
+                className="mx-auto max-w-lg rounded-2xl border border-border p-6 text-center"
+              >
+                <p>
+                  {planLoading
+                    ? "Verificando seu plano…"
+                    : "Não foi possível verificar seu plano. Tente novamente."}
+                </p>
+                {!planLoading && (
+                  <button
+                    onClick={() => void refetchPlan()}
+                    className="mt-4 rounded-xl bg-primary px-4 py-2 text-primary-foreground"
+                  >
+                    Tentar novamente
+                  </button>
+                )}
+              </div>
+            ) : (
+              children
+            )}
           </motion.div>
         </main>
       </div>

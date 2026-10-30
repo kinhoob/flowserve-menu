@@ -6,7 +6,7 @@ import { useAuth } from "@/features/auth/auth-provider";
 import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
 
 export const Route = createFileRoute("/checkout/return")({
-  head: () => ({ meta: [{ title: "Pagamento confirmado — Flux" }] }),
+  head: () => ({ meta: [{ title: "Pagamento confirmado — Flux Menu" }] }),
   validateSearch: (search: Record<string, unknown>): { session_id?: string } => ({
     session_id: typeof search.session_id === "string" ? search.session_id : undefined,
   }),

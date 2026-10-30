@@ -52,10 +52,14 @@ export function UpgradeProModal({
                 {featureLabel ? (
                   <>
                     <strong className="font-medium text-foreground">{featureLabel}</strong> não está
-                    incluído no seu plano atual. Faça upgrade para o Pro e libere todo o potencial do Flux.
+                    incluído no seu plano atual. Faça upgrade para o Pro e libere todo o potencial
+                    do Flux Menu.
                   </>
                 ) : (
-                  <>Este recurso não está incluído no seu plano atual. Faça upgrade para o Pro e libere todo o potencial do Flux.</>
+                  <>
+                    Este recurso não está incluído no seu plano atual. Faça upgrade para o Pro e
+                    libere todo o potencial do Flux Menu.
+                  </>
                 )}
               </p>
               <button

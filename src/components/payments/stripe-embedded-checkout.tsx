@@ -22,8 +22,6 @@ export function StripeEmbeddedCheckout({
       data: {
         priceId,
         quantity,
-        customerEmail,
-        userId,
         returnUrl: returnUrl || window.location.href,
         environment: getStripeEnvironment(),
       },

@@ -1,3 +1,4 @@
+import { isOpenOrder, normalizeTableLabel, fetchAllPages } from "@/lib/operations";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -38,15 +39,12 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_authenticated/tables")({
-  head: () => ({ meta: [{ title: "Mesas — Flux" }] }),
+  head: () => ({ meta: [{ title: "Mesas — Flux Menu" }] }),
   component: TablesPage,
 });
 
-const OCCUPIED_STATUSES = ["pending", "accepted", "preparing", "ready"] as const;
-
 // Normaliza "Mesa 1", "Mesa Mesa 1", "  Mesa   1  " → "1"
-const normalizeLabel = (s: string | null | undefined) =>
-  (s ?? "").replace(/^(?:Mesa\s*)+/i, "").trim();
+const normalizeLabel = normalizeTableLabel;
 
 type HistoryOrder = Tables<"orders"> & { order_items: Tables<"order_items">[] };
 
@@ -55,15 +53,17 @@ function useTableHistory(restaurantId: string | undefined) {
     queryKey: ["table-history", restaurantId],
     enabled: !!restaurantId,
     queryFn: async (): Promise<HistoryOrder[]> => {
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*, order_items(*)")
-        .eq("restaurant_id", restaurantId!)
-        .neq("status", "cancelled")
-        .order("created_at", { ascending: false })
-        .limit(2000);
-      if (error) throw error;
-      return (data ?? []) as HistoryOrder[];
+      return fetchAllPages<HistoryOrder>(
+        (from, to) =>
+          supabase
+            .from("orders")
+            .select("*, order_items(*)")
+            .eq("restaurant_id", restaurantId!)
+            .neq("status", "cancelled")
+            .order("created_at", { ascending: false })
+            .order("id")
+            .range(from, to) as any,
+      );
     },
   });
 }
@@ -86,22 +86,24 @@ function TablesPage() {
   const [filter, setFilter] = useState<"all" | "free" | "busy">("all");
   const [historyTable, setHistoryTable] = useState<VenueTable | null>(null);
 
-
   const currency = restaurant?.currency || "BRL";
   const fmt = useMemo(
     () => new Intl.NumberFormat("pt-BR", { style: "currency", currency }),
     [currency],
   );
 
-  const orderTotal = (o: { subtotal: number | null; service_fee: number | null; cover_charge: number | null }) =>
-    Number(o.subtotal ?? 0) + Number(o.service_fee ?? 0) + Number(o.cover_charge ?? 0);
+  const orderTotal = (o: {
+    subtotal: number | null;
+    service_fee: number | null;
+    cover_charge: number | null;
+  }) => Number(o.subtotal ?? 0) + Number(o.service_fee ?? 0) + Number(o.cover_charge ?? 0);
 
   // Ocupação atual (por label normalizado)
   const occupancy = useMemo(() => {
     const map = new Map<string, { count: number; total: number }>();
     for (const o of orders) {
       if (!o.table_label) continue;
-      if (!(OCCUPIED_STATUSES as readonly string[]).includes(o.status)) continue;
+      if (!isOpenOrder(o)) continue;
       const key = normalizeLabel(o.table_label);
       const cur = map.get(key) ?? { count: 0, total: 0 };
       cur.count += 1;
@@ -140,7 +142,6 @@ function TablesPage() {
       </div>
     );
   }
-
 
   const busyCount = tables.filter((t) => occupancy.has(normalizeLabel(t.label))).length;
   const freeCount = tables.length - busyCount;
@@ -246,7 +247,9 @@ function TablesPage() {
       <section className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-border bg-surface p-5">
           <h2 className="text-sm font-semibold">Adicionar mesa</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Crie uma mesa individual com nome personalizado.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Crie uma mesa individual com nome personalizado.
+          </p>
           <div className="mt-4 flex gap-2">
             <Input
               placeholder="Ex.: Mesa 12, Varanda 3"
@@ -262,7 +265,9 @@ function TablesPage() {
 
         <div className="rounded-2xl border border-border bg-surface p-5">
           <h2 className="text-sm font-semibold">Criar em lote</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Gere várias mesas numeradas de uma só vez.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Gere várias mesas numeradas de uma só vez.
+          </p>
           <div className="mt-4 grid grid-cols-[1fr_80px_80px_auto] gap-2">
             <Input
               placeholder="Prefixo"
@@ -281,7 +286,11 @@ function TablesPage() {
               value={bulk.to}
               onChange={(e) => setBulk((b) => ({ ...b, to: Number(e.target.value) }))}
             />
-            <Button onClick={handleBulk} disabled={createMany.isPending || reachedLimit} variant="secondary">
+            <Button
+              onClick={handleBulk}
+              disabled={createMany.isPending || reachedLimit}
+              variant="secondary"
+            >
               <Plus className="h-4 w-4" /> Criar
             </Button>
           </div>
@@ -298,7 +307,9 @@ function TablesPage() {
                 onClick={() => setFilter(f)}
                 className={cn(
                   "rounded-md px-3 py-1.5 transition",
-                  filter === f ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                  filter === f
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {f === "all" ? "Todas" : f === "free" ? "Livres" : `Ocupadas (${busyCount})`}
@@ -351,9 +362,12 @@ function TablesPage() {
                     {busy ? (
                       <div className="space-y-0.5">
                         <div className="text-foreground">
-                          {occ!.count} pedido{occ!.count > 1 ? "s" : ""} ativo{occ!.count > 1 ? "s" : ""}
+                          {occ!.count} pedido{occ!.count > 1 ? "s" : ""} ativo
+                          {occ!.count > 1 ? "s" : ""}
                         </div>
-                        <div className="text-muted-foreground">Conta atual: {fmt.format(occ!.total)}</div>
+                        <div className="text-muted-foreground">
+                          Conta atual: {fmt.format(occ!.total)}
+                        </div>
                       </div>
                     ) : (
                       <div className="text-muted-foreground">Aguardando clientes</div>
@@ -362,7 +376,9 @@ function TablesPage() {
 
                   <div className="mt-3 flex items-center justify-between rounded-lg border border-border bg-background/60 px-3 py-2 text-xs">
                     <span className="text-muted-foreground">Faturamento total</span>
-                    <span className="font-semibold tabular-nums">{fmt.format(rev?.total ?? 0)}</span>
+                    <span className="font-semibold tabular-nums">
+                      {fmt.format(rev?.total ?? 0)}
+                    </span>
                   </div>
 
                   <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
@@ -419,7 +435,11 @@ function HistoryModal({
   onClose: () => void;
   history: HistoryOrder[];
   fmt: Intl.NumberFormat;
-  orderTotal: (o: { subtotal: number | null; service_fee: number | null; cover_charge: number | null }) => number;
+  orderTotal: (o: {
+    subtotal: number | null;
+    service_fee: number | null;
+    cover_charge: number | null;
+  }) => number;
 }) {
   const key = table ? normalizeLabel(table.label) : "";
   const tableOrders = useMemo(
@@ -457,7 +477,10 @@ function HistoryModal({
               <div className="text-xs text-muted-foreground">Faturamento total</div>
               <div className="text-xl font-semibold tabular-nums">{fmt.format(total)}</div>
             </div>
-            <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:text-foreground">
+            <button
+              onClick={onClose}
+              className="rounded-md p-1 text-muted-foreground hover:text-foreground"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -480,7 +503,10 @@ function HistoryModal({
                     </div>
                     <div className="space-y-3">
                       {orders.map((o) => (
-                        <article key={o.id} className="rounded-xl border border-border bg-surface p-4">
+                        <article
+                          key={o.id}
+                          className="rounded-xl border border-border bg-surface p-4"
+                        >
                           <header className="flex items-start justify-between gap-3">
                             <div>
                               <div className="text-sm font-medium">
@@ -504,7 +530,10 @@ function HistoryModal({
                           </header>
                           <ul className="mt-3 space-y-1 text-sm">
                             {o.order_items.map((it) => (
-                              <li key={it.id} className="flex justify-between gap-3 text-muted-foreground">
+                              <li
+                                key={it.id}
+                                className="flex justify-between gap-3 text-muted-foreground"
+                              >
                                 <span>
                                   <span className="text-foreground">{it.quantity}×</span>{" "}
                                   {it.name_snapshot}

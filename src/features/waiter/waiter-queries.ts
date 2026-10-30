@@ -14,7 +14,12 @@ export function useWaiterCalls(restaurantId: string | undefined) {
       .channel(`waiter-${restaurantId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "waiter_calls", filter: `restaurant_id=eq.${restaurantId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "waiter_calls",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
         () => qc.invalidateQueries({ queryKey: ["waiter_calls", restaurantId] }),
       )
       .subscribe();
@@ -31,6 +36,7 @@ export function useWaiterCalls(restaurantId: string | undefined) {
         .from("waiter_calls")
         .select("*")
         .eq("restaurant_id", restaurantId!)
+        .eq("is_test" as any, false)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -46,7 +52,8 @@ export function useResolveWaiterCall(restaurantId: string | undefined) {
       const { error } = await supabase
         .from("waiter_calls")
         .update({ resolved: true, resolved_at: new Date().toISOString() })
-        .eq("id", id);
+        .eq("id", id)
+        .eq("restaurant_id", restaurantId!);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["waiter_calls", restaurantId] }),

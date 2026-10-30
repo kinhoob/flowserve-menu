@@ -1,10 +1,8 @@
+import { getRequest } from "@tanstack/react-start/server";
+import { validateEnvironment, validatePlanPrice, validateReturnUrl } from "./payment-policy";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import {
-  type StripeEnv,
-  createStripeClient,
-  getStripeErrorMessage,
-} from "@/lib/stripe.server";
+import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
 type PortalSessionResult = { url: string } | { error: string };
@@ -24,40 +22,28 @@ async function resolveOrCreateCustomer(
     });
     if (found.data.length) return found.data[0].id;
   }
-  if (options.email) {
-    const existing = await stripe.customers.list({ email: options.email, limit: 1 });
-    if (existing.data.length) {
-      const customer = existing.data[0];
-      if (options.userId && customer.metadata?.userId !== options.userId) {
-        await stripe.customers.update(customer.id, {
-          metadata: { ...customer.metadata, userId: options.userId },
-        });
-      }
-      return customer.id;
-    }
-  }
-  const created = await stripe.customers.create({
-    ...(options.email && { email: options.email }),
-    ...(options.userId && { metadata: { userId: options.userId } }),
-  });
+  const created = await stripe.customers.create(
+    {
+      ...(options.email && { email: options.email }),
+      ...(options.userId && { metadata: { userId: options.userId } }),
+    },
+    { idempotencyKey: `flux-customer-${options.userId}` },
+  );
   return created.id;
 }
 
 export const createCheckoutSession = createServerFn({ method: "POST" })
-  .inputValidator(
-    (data: {
-      priceId: string;
-      quantity?: number;
-      customerEmail?: string;
-      userId?: string;
-      returnUrl: string;
-      environment: StripeEnv;
-    }) => {
-      if (!/^[a-zA-Z0-9_-]+$/.test(data.priceId)) throw new Error("Invalid priceId");
+  .middleware([requireSupabaseAuth])
+  .validator(
+    (data: { priceId: string; quantity?: number; returnUrl: string; environment: StripeEnv }) => {
+      validatePlanPrice(data.priceId);
+      validateEnvironment(data.environment);
+      if (data.quantity !== undefined && data.quantity !== 1)
+        throw new Error("Quantidade inválida");
       return data;
     },
   )
-  .handler(async ({ data }): Promise<CheckoutSessionResult> => {
+  .handler(async ({ data, context }): Promise<CheckoutSessionResult> => {
     try {
       const stripe = createStripeClient(data.environment);
 
@@ -71,34 +57,32 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       }
       const isRecurring = stripePrice.type === "recurring";
 
-      const customerId =
-        data.customerEmail || data.userId
-          ? await resolveOrCreateCustomer(stripe, {
-              email: data.customerEmail,
-              userId: data.userId,
-            })
-          : undefined;
-
-      let productDescription: string | undefined;
-      if (!isRecurring) {
-        const productId =
-          typeof stripePrice.product === "string"
-            ? stripePrice.product
-            : stripePrice.product.id;
-        const product = await stripe.products.retrieve(productId);
-        productDescription = product.name;
-      }
+      const { userId, claims, supabase } = context;
+      const { data: active, error: activeError } = await supabase
+        .from("subscriptions")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("environment", data.environment)
+        .in("status", ["active", "trialing", "past_due"])
+        .limit(1);
+      if (activeError) throw activeError;
+      if (active?.length) throw new Error("Você já tem uma assinatura. Use a troca de plano.");
+      const customerId = await resolveOrCreateCustomer(stripe, {
+        userId,
+        email: typeof claims.email === "string" ? claims.email : undefined,
+      });
+      if (!stripePrice.active || !isRecurring || stripePrice.currency !== "brl")
+        throw new Error("Preço indisponível");
 
       const session = await stripe.checkout.sessions.create({
-        line_items: [{ price: stripePrice.id, quantity: data.quantity || 1 }],
-        mode: isRecurring ? "subscription" : "payment",
+        line_items: [{ price: stripePrice.id, quantity: 1 }],
+        mode: "subscription",
         ui_mode: "embedded_page",
-        return_url: data.returnUrl,
+        return_url: validateReturnUrl(data.returnUrl, getRequest().url),
         ...(customerId && { customer: customerId }),
-        ...(!isRecurring && { payment_intent_data: { description: productDescription } }),
-        ...(data.userId && {
-          metadata: { userId: data.userId },
-          ...(isRecurring && { subscription_data: { metadata: { userId: data.userId } } }),
+        ...(userId && {
+          metadata: { userId },
+          ...(isRecurring && { subscription_data: { metadata: { userId } } }),
         }),
       });
 
@@ -110,7 +94,10 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
 
 export const createPortalSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { returnUrl?: string; environment: StripeEnv }) => data)
+  .validator((data: { returnUrl?: string; environment: StripeEnv }) => {
+    validateEnvironment(data.environment);
+    return data;
+  })
   .handler(async ({ data, context }): Promise<PortalSessionResult> => {
     const { supabase, userId } = context;
 
@@ -130,7 +117,7 @@ export const createPortalSession = createServerFn({ method: "POST" })
       const stripe = createStripeClient(data.environment);
       const portal = await stripe.billingPortal.sessions.create({
         customer: sub.stripe_customer_id as string,
-        ...(data.returnUrl && { return_url: data.returnUrl }),
+        ...(data.returnUrl && { return_url: validateReturnUrl(data.returnUrl, getRequest().url) }),
       });
       return { url: portal.url };
     } catch (error) {
@@ -143,8 +130,9 @@ export const createPortalSession = createServerFn({ method: "POST" })
 // another plan card while already subscribed.
 export const updateSubscriptionPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { newPriceId: string; environment: StripeEnv }) => {
-    if (!/^[a-zA-Z0-9_-]+$/.test(data.newPriceId)) throw new Error("Invalid priceId");
+  .validator((data: { newPriceId: string; environment: StripeEnv }) => {
+    validatePlanPrice(data.newPriceId);
+    validateEnvironment(data.environment);
     return data;
   })
   .handler(async ({ data, context }): Promise<UpdatePlanResult> => {
@@ -175,6 +163,9 @@ export const updateSubscriptionPlan = createServerFn({ method: "POST" })
         if (!prices.data.length) throw new Error("Price not found");
         newPrice = prices.data[0];
       }
+
+      if (!newPrice.active || newPrice.type !== "recurring" || newPrice.currency !== "brl")
+        throw new Error("Preço indisponível");
 
       // Need the current subscription item id to swap its price.
       const current = await stripe.subscriptions.retrieve(sub.stripe_subscription_id as string);

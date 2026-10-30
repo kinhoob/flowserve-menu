@@ -27,8 +27,8 @@ export const Route = createFileRoute("/auth")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Entrar — Flux" },
-      { name: "description", content: "Acesse sua conta Flux." },
+      { title: "Entrar — Flux Menu" },
+      { name: "description", content: "Acesse sua conta Flux Menu." },
     ],
   }),
   component: AuthPage,
@@ -38,8 +38,7 @@ function friendlyError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes("invalid login") || m.includes("invalid credentials"))
     return "Email ou senha incorretos.";
-  if (m.includes("email not confirmed"))
-    return "Confirme seu email antes de entrar.";
+  if (m.includes("email not confirmed")) return "Confirme seu email antes de entrar.";
   if (m.includes("user already") || m.includes("already registered"))
     return "Este email já está cadastrado. Faça login.";
   if (m.includes("password") && m.includes("6"))
@@ -50,8 +49,7 @@ function friendlyError(message: string): string {
     return "Email inválido. Verifique e tente novamente.";
   if (m.includes("token") && (m.includes("invalid") || m.includes("expired")))
     return "Código inválido ou expirado. Solicite um novo.";
-  if (m.includes("otp") && m.includes("expired"))
-    return "Código expirado. Solicite um novo.";
+  if (m.includes("otp") && m.includes("expired")) return "Código expirado. Solicite um novo.";
   if (m.includes("network") || m.includes("failed to fetch"))
     return "Falha de conexão. Verifique sua internet.";
   return "Não foi possível concluir. Tente novamente em alguns instantes.";
@@ -311,7 +309,7 @@ function AuthPage() {
                   <p className="mt-2 text-sm text-muted-foreground">
                     {mode === "signup"
                       ? "Comece a servir cardápios digitais em minutos."
-                      : "Acesse seu painel Flux."}
+                      : "Acesse seu painel Flux Menu."}
                   </p>
                 </div>
 
@@ -389,7 +387,7 @@ function AuthPage() {
                 </div>
 
                 <p className="mt-6 text-center text-sm text-muted-foreground">
-                  {mode === "signup" ? "Já tem uma conta?" : "Novo no Flux?"}{" "}
+                  {mode === "signup" ? "Já tem uma conta?" : "Novo no Flux Menu?"}{" "}
                   <button
                     onClick={() => setMode(mode === "signup" ? "login" : "signup")}
                     className="text-foreground underline-offset-4 hover:underline"
@@ -451,7 +449,7 @@ function AuthPage() {
         )}
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          Ao continuar você aceita os Termos e a Política de Privacidade do Flux.
+          Ao continuar você aceita os Termos e a Política de Privacidade do Flux Menu.
         </p>
       </motion.div>
     </div>
@@ -499,7 +497,10 @@ function Field({
 function GoogleMark() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden>
-      <path fill="#EA4335" d="M12 11v3.2h4.5c-.2 1.2-1.6 3.6-4.5 3.6-2.7 0-4.9-2.2-4.9-5s2.2-5 4.9-5c1.6 0 2.6.7 3.2 1.2l2.2-2.1C15.9 5.6 14.1 4.8 12 4.8 7.8 4.8 4.4 8.2 4.4 12.4S7.8 20 12 20c6.9 0 7.6-6.4 7-9z" />
+      <path
+        fill="#EA4335"
+        d="M12 11v3.2h4.5c-.2 1.2-1.6 3.6-4.5 3.6-2.7 0-4.9-2.2-4.9-5s2.2-5 4.9-5c1.6 0 2.6.7 3.2 1.2l2.2-2.1C15.9 5.6 14.1 4.8 12 4.8 7.8 4.8 4.4 8.2 4.4 12.4S7.8 20 12 20c6.9 0 7.6-6.4 7-9z"
+      />
     </svg>
   );
 }

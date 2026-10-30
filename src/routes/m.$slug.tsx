@@ -1,3 +1,4 @@
+import { ModifierPicker } from "@/features/menu/modifier-picker";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/m/$slug")({
   head: ({ params }) => ({
     meta: [
       { title: `Cardápio — ${params.slug}` },
-      { name: "description", content: "Faça seu pedido pelo Flux." },
+      { name: "description", content: "Faça seu pedido pelo Flux Menu." },
     ],
   }),
   component: PublicMenuPage,
@@ -37,7 +38,7 @@ type CartLine = {
   unitPrice: number; // base + modifier deltas
   qty: number;
   note: string;
-  modifiers: { group: string; name: string; price_delta: number }[];
+  modifiers: { id: string; group: string; name: string; price_delta: number }[];
 };
 
 type PublicItem = {
@@ -55,67 +56,91 @@ function PublicMenuPage() {
   // Normaliza: se o QR vier com "Mesa 1" no parâmetro, evita virar "Mesa Mesa 1"
   const table = rawTable ? rawTable.replace(/^Mesa\s*/i, "").trim() : undefined;
 
-
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["public-menu", slug],
     retry: false,
     queryFn: async () => {
       const { data: r, error: rErr } = await supabase
         .from("restaurants")
-        .select("id,name,description,currency,brand_color,brand_text_color,brand_accent_color,brand_card_color,brand_header_color,brand_button_color,banner_enabled,banner_title,banner_description,banner_image_url,banner_cta_label,slug,kitchen_open,logo_url")
+        .select(
+          "id,name,description,currency,brand_color,brand_text_color,brand_accent_color,brand_card_color,brand_header_color,brand_button_color,banner_enabled,banner_title,banner_description,banner_image_url,banner_cta_label,slug,kitchen_open,logo_url",
+        )
         .eq("slug", slug)
         .maybeSingle();
       if (rErr) throw rErr;
       if (!r) throw notFound();
       const [cats, items, modifiersMap, planRes] = await Promise.all([
-        supabase.from("categories").select("*").eq("restaurant_id", r.id).eq("is_active", true).order("position"),
-        supabase.from("menu_items").select("*, categories(kind)").eq("restaurant_id", r.id).eq("is_available", true).order("position"),
+        supabase
+          .from("categories")
+          .select("*")
+          .eq("restaurant_id", r.id)
+          .eq("is_active", true)
+          .order("position"),
+        supabase
+          .from("menu_items")
+          .select("*, categories(kind)")
+          .eq("restaurant_id", r.id)
+          .eq("is_available", true)
+          .order("position"),
         fetchModifiersForRestaurant(r.id),
         supabase.rpc("get_restaurant_plan" as any, { p_slug: slug }),
       ]);
       if (cats.error) throw cats.error;
       if (items.error) throw items.error;
+      if (planRes.error) throw planRes.error;
       const kitchenOpen = (r as any).kitchen_open !== false;
       const filteredItems = kitchenOpen
         ? (items.data ?? [])
         : (items.data ?? []).filter((i: any) => i.categories?.kind === "drink");
-      const plan = ((planRes.data as unknown as string) ?? "essential").toLowerCase();
+      const plan = ((planRes.data as unknown as string) ?? "basic").toLowerCase();
       const viewOnly = plan === "basic";
-      return { restaurant: r, categories: cats.data ?? [], items: filteredItems as PublicItem[], modifiers: modifiersMap, kitchenOpen, viewOnly };
+      return {
+        restaurant: r,
+        categories: cats.data ?? [],
+        items: filteredItems as PublicItem[],
+        modifiers: modifiersMap,
+        kitchenOpen,
+        viewOnly,
+      };
     },
   });
-
 
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [openCart, setOpenCart] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
-  const [placedOrder, setPlacedOrder] = useState<{ id: string; status: string } | null>(null);
+  const [placedOrder, setPlacedOrder] = useState<{
+    id: string;
+    status: string;
+    token: string;
+  } | null>(null);
+  const orderAttempt = useRef<string | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [pickerItem, setPickerItem] = useState<PublicItem | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
   const [bump, setBump] = useState(0);
 
-  // Realtime subscription to the placed order's status
+  // Only expose the status belonging to this private tracking token.
   useEffect(() => {
     if (!placedOrder?.id) return;
-    const channel = supabase
-      .channel(`order-${placedOrder.id}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "orders", filter: `id=eq.${placedOrder.id}` },
-        (payload) => {
-          const next = (payload.new as any)?.status as string | undefined;
-          if (next) setPlacedOrder((p) => (p ? { ...p, status: next } : p));
-        },
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
+    let stopped = false;
+    const refresh = async () => {
+      const { data: status, error } = await (supabase as any).rpc("get_order_status", {
+        p_order_id: placedOrder.id,
+        p_token: placedOrder.token,
+      });
+      if (!stopped && !error && typeof status === "string")
+        setPlacedOrder((p) => (p ? { ...p, status } : p));
     };
-  }, [placedOrder?.id]);
+    void refresh();
+    const timer = window.setInterval(refresh, 5000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [placedOrder?.id, placedOrder?.token]);
 
   useEffect(() => {
     if (data?.categories.length && !activeCat) setActiveCat(data.categories[0].id);
@@ -148,7 +173,8 @@ function PublicMenuPage() {
     setCart((c) => {
       // merge with identical line without modifiers and no note
       const existing = c.find((x) => x.itemId === it.id && x.modifiers.length === 0 && !x.note);
-      if (existing) return c.map((x) => (x === existing ? { ...x, qty: x.qty + 1 } : x));
+      if (existing)
+        return c.map((x) => (x === existing ? { ...x, qty: Math.min(99, x.qty + 1) } : x));
       return [...c, line];
     });
     setBump((b) => b + 1);
@@ -166,7 +192,7 @@ function PublicMenuPage() {
 
   const addConfigured = (
     it: PublicItem,
-    selected: { group: string; name: string; price_delta: number }[],
+    selected: { id: string; group: string; name: string; price_delta: number }[],
   ) => {
     const delta = selected.reduce((s, x) => s + x.price_delta, 0);
     setCart((c) => [
@@ -188,7 +214,9 @@ function PublicMenuPage() {
 
   const setQty = (lineId: string, qty: number) => {
     setCart((c) =>
-      qty <= 0 ? c.filter((x) => x.lineId !== lineId) : c.map((x) => (x.lineId === lineId ? { ...x, qty } : x)),
+      qty <= 0
+        ? c.filter((x) => x.lineId !== lineId)
+        : c.map((x) => (x.lineId === lineId ? { ...x, qty: Math.min(99, qty) } : x)),
     );
   };
 
@@ -208,9 +236,9 @@ function PublicMenuPage() {
       phoneDigits = phoneDigits.slice(2);
     }
     const VALID_DDDS = new Set([
-      11,12,13,14,15,16,17,18,19,21,22,24,27,28,31,32,33,34,35,37,38,
-      41,42,43,44,45,46,47,48,49,51,53,54,55,61,62,63,64,65,66,67,68,69,
-      71,73,74,75,77,79,81,82,83,84,85,86,87,88,89,91,92,93,94,95,96,97,98,99,
+      11, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 24, 27, 28, 31, 32, 33, 34, 35, 37, 38, 41, 42,
+      43, 44, 45, 46, 47, 48, 49, 51, 53, 54, 55, 61, 62, 63, 64, 65, 66, 67, 68, 69, 71, 73, 74,
+      75, 77, 79, 81, 82, 83, 84, 85, 86, 87, 88, 89, 91, 92, 93, 94, 95, 96, 97, 98, 99,
     ]);
     const ddd = Number(phoneDigits.slice(0, 2));
     const isValidLen = phoneDigits.length === 10 || phoneDigits.length === 11;
@@ -221,8 +249,11 @@ function PublicMenuPage() {
     }
     setSubmitting(true);
     try {
+      orderAttempt.current ??= crypto.randomUUID();
+      const trackingToken = orderAttempt.current;
       const { data: orderId, error } = await (supabase as any).rpc("place_order", {
         p_restaurant_id: data.restaurant.id,
+        p_tracking_token: trackingToken,
         p_table_label: table ? `Mesa ${table}` : null,
         p_customer_name: customerName.trim(),
         p_customer_phone: phoneDigits,
@@ -233,28 +264,31 @@ function PublicMenuPage() {
           price_snapshot: c.unitPrice,
           quantity: c.qty,
           notes: c.note || null,
-          modifiers_snapshot: c.modifiers ?? [],
+          modifier_option_ids: c.modifiers.map((m) => m.id),
         })),
       });
       if (error) throw error;
       setSent(true);
-      setPlacedOrder({ id: orderId as string, status: "pending" });
+      setPlacedOrder({ id: orderId as string, status: "pending", token: trackingToken });
+      orderAttempt.current = null;
       setCart([]);
     } catch (e: any) {
       let details: any = null;
-      try { details = e?.details ? JSON.parse(e.details) : null; } catch { /* ignore */ }
+      try {
+        details = e?.details ? JSON.parse(e.details) : null;
+      } catch {
+        /* ignore */
+      }
+      if (e?.code) orderAttempt.current = null;
       const message = e?.message ?? "Não foi possível enviar o pedido";
       const hint = e?.hint as string | undefined;
       const retry = details?.retry_after_seconds as number | undefined;
-      const description = retry
-        ? `Tente novamente em ${retry}s.${hint ? ` ${hint}` : ""}`
-        : hint;
+      const description = retry ? `Tente novamente em ${retry}s.${hint ? ` ${hint}` : ""}` : hint;
       toast.error(message, description ? { description } : undefined);
     } finally {
       setSubmitting(false);
     }
   };
-
 
   const handleCallWaiter = async () => {
     if (!data) return;
@@ -284,8 +318,14 @@ function PublicMenuPage() {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 text-center">
         <FluxLogo />
-        <p className="mt-6 font-display text-2xl">Cardápio não encontrado</p>
-        <p className="mt-2 text-sm text-muted-foreground">O link pode estar incorreto.</p>
+        <p className="mt-6 font-display text-2xl">Não foi possível carregar o cardápio</p>
+        <p className="mt-2 text-sm text-muted-foreground">Confira sua conexão e o link da mesa.</p>
+        <button
+          onClick={() => void refetch()}
+          className="mt-5 rounded-xl bg-primary px-4 py-3 text-primary-foreground"
+        >
+          Tentar novamente
+        </button>
       </div>
     );
   }
@@ -304,7 +344,14 @@ function PublicMenuPage() {
   const bannerDescription = (restaurant as any).banner_description as string | null;
   const bannerImage = (restaurant as any).banner_image_url as string | null;
   const bannerCta = (restaurant as any).banner_cta_label as string | null;
-  const hasBrand = !!(brandBg || brandText || brandAccent || brandCard || brandHeader || brandButton);
+  const hasBrand = !!(
+    brandBg ||
+    brandText ||
+    brandAccent ||
+    brandCard ||
+    brandHeader ||
+    brandButton
+  );
 
   // Pick readable foreground for the accent (used as primary-foreground).
   function readableOn(hex: string | null): string {
@@ -392,7 +439,11 @@ function PublicMenuPage() {
                 disabled={callingWaiter}
                 className="inline-flex items-center gap-1.5 rounded-full border border-[oklch(0.78_0.13_84_/_0.3)] bg-gold-soft px-3 py-1 text-xs text-primary transition hover:bg-[oklch(0.78_0.13_84_/_0.18)]"
               >
-                {callingWaiter ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bell className="h-3 w-3" />}
+                {callingWaiter ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Bell className="h-3 w-3" />
+                )}
                 Chamar garçom
               </button>
             )}
@@ -435,9 +486,16 @@ function PublicMenuPage() {
                     className="h-32 w-full object-cover sm:h-auto sm:w-40"
                   />
                 )}
-                <div className="flex flex-1 flex-col justify-center gap-1 p-4" style={{ color: readableOn(brandAccent) }}>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Promoção</p>
-                  {bannerTitle && <h3 className="font-display text-xl tracking-tight">{bannerTitle}</h3>}
+                <div
+                  className="flex flex-1 flex-col justify-center gap-1 p-4"
+                  style={{ color: readableOn(brandAccent) }}
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">
+                    Promoção
+                  </p>
+                  {bannerTitle && (
+                    <h3 className="font-display text-xl tracking-tight">{bannerTitle}</h3>
+                  )}
                   {bannerDescription && <p className="text-sm opacity-90">{bannerDescription}</p>}
                   {bannerCta && (
                     <span
@@ -465,7 +523,9 @@ function PublicMenuPage() {
                   key={c.id}
                   onClick={() => {
                     setActiveCat(c.id);
-                    document.getElementById(`cat-${c.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    document
+                      .getElementById(`cat-${c.id}`)
+                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
                   className={
                     "whitespace-nowrap rounded-full px-4 py-1.5 text-xs transition " +
@@ -491,7 +551,9 @@ function PublicMenuPage() {
             return (
               <section key={cat.id} id={`cat-${cat.id}`} className="mb-10 scroll-mt-20">
                 <h2 className="font-display text-2xl tracking-tight">{cat.name}</h2>
-                {cat.description && <p className="mt-1 text-xs text-muted-foreground">{cat.description}</p>}
+                {cat.description && (
+                  <p className="mt-1 text-xs text-muted-foreground">{cat.description}</p>
+                )}
                 <ul className="mt-4 space-y-3 stagger">
                   {items.map((it) => {
                     const hasMods = (data.modifiers.get(it.id)?.length ?? 0) > 0;
@@ -542,7 +604,9 @@ function PublicMenuPage() {
                             </div>
                           </div>
                           {it.description && (
-                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{it.description}</p>
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                              {it.description}
+                            </p>
                           )}
                           <div className="mt-auto flex items-center justify-end pt-2">
                             {!data.viewOnly && (
@@ -550,7 +614,8 @@ function PublicMenuPage() {
                                 onClick={() => handleAdd(it)}
                                 className="inline-flex items-center gap-1 rounded-lg bg-primary/90 px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary"
                               >
-                                <Plus className="h-3.5 w-3.5" /> {hasMods ? "Personalizar" : "Adicionar"}
+                                <Plus className="h-3.5 w-3.5" />{" "}
+                                {hasMods ? "Personalizar" : "Adicionar"}
                               </button>
                             )}
                           </div>
@@ -622,7 +687,9 @@ function PublicMenuPage() {
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
                 <div>
                   <h3 className="font-display text-2xl tracking-tight">Revisar pedido</h3>
-                  <p className="text-xs text-muted-foreground">Ajuste as quantidades antes de enviar para a cozinha</p>
+                  <p className="text-xs text-muted-foreground">
+                    Ajuste as quantidades antes de enviar para a cozinha
+                  </p>
                 </div>
                 <button
                   onClick={() => !submitting && setOpenCart(false)}
@@ -679,7 +746,9 @@ function PublicMenuPage() {
                               >
                                 <Minus className="h-3.5 w-3.5" />
                               </button>
-                              <span className="w-6 text-center text-sm font-medium tabular-nums">{c.qty}</span>
+                              <span className="w-6 text-center text-sm font-medium tabular-nums">
+                                {c.qty}
+                              </span>
                               <button
                                 onClick={() => setQty(c.lineId, c.qty + 1)}
                                 className="rounded-md p-1.5 text-muted-foreground transition hover:bg-surface hover:text-foreground"
@@ -716,7 +785,9 @@ function PublicMenuPage() {
                       </span>
                       <input
                         value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value.replace(/[^\d\s()+-]/g, "").slice(0, 20))}
+                        onChange={(e) =>
+                          setCustomerPhone(e.target.value.replace(/[^\d\s()+-]/g, "").slice(0, 20))
+                        }
                         placeholder="(11) 99999-9999"
                         inputMode="tel"
                         type="tel"
@@ -732,7 +803,12 @@ function PublicMenuPage() {
                     </div>
                     <button
                       onClick={placeOrder}
-                      disabled={submitting || cart.length === 0 || !customerName.trim() || customerPhone.replace(/\D/g, "").length < 10}
+                      disabled={
+                        submitting ||
+                        cart.length === 0 ||
+                        !customerName.trim() ||
+                        customerPhone.replace(/\D/g, "").length < 10
+                      }
                       className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
                     >
                       {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -749,7 +825,7 @@ function PublicMenuPage() {
       {/* Modifier picker */}
       <ModifierPicker
         item={pickerItem}
-        groups={pickerItem ? data.modifiers.get(pickerItem.id) ?? [] : []}
+        groups={pickerItem ? (data.modifiers.get(pickerItem.id) ?? []) : []}
         currency={currency}
         onClose={() => setPickerItem(null)}
         onConfirm={(selected) => {
@@ -762,158 +838,9 @@ function PublicMenuPage() {
       <footer className="mt-10 flex items-center justify-center gap-1.5 pb-6 text-[11px] text-muted-foreground/70">
         <span>Feito no</span>
         <FluxMark />
-        <span className="font-medium">FluxQr</span>
+        <span className="font-medium">Flux Menu</span>
       </footer>
     </div>
-  );
-}
-
-function ModifierPicker({
-  item,
-  groups,
-  currency,
-  onClose,
-  onConfirm,
-}: {
-  item: PublicItem | null;
-  groups: ModifierGroupWithOptions[];
-  currency: string;
-  onClose: () => void;
-  onConfirm: (selected: { group: string; name: string; price_delta: number }[]) => void;
-}) {
-  const [picks, setPicks] = useState<Record<string, string[]>>({});
-
-  useEffect(() => {
-    if (item) setPicks({});
-  }, [item]);
-
-  if (!item) return null;
-
-  const toggle = (g: ModifierGroupWithOptions, optId: string) => {
-    setPicks((p) => {
-      const cur = p[g.id] ?? [];
-      const has = cur.includes(optId);
-      let next: string[];
-      if (g.max_select <= 1) next = has ? [] : [optId];
-      else if (has) next = cur.filter((x) => x !== optId);
-      else next = cur.length >= g.max_select ? cur : [...cur, optId];
-      return { ...p, [g.id]: next };
-    });
-  };
-
-  const canConfirm = groups.every((g) => {
-    const cur = picks[g.id] ?? [];
-    if (g.is_required && cur.length < Math.max(1, g.min_select)) return false;
-    return true;
-  });
-
-  const delta = groups.reduce((s, g) => {
-    const ids = picks[g.id] ?? [];
-    return s + g.modifier_options.filter((o) => ids.includes(o.id)).reduce((a, o) => a + Number(o.price_delta), 0);
-  }, 0);
-
-  const confirm = () => {
-    const selected: { group: string; name: string; price_delta: number }[] = [];
-    groups.forEach((g) => {
-      (picks[g.id] ?? []).forEach((id) => {
-        const opt = g.modifier_options.find((o) => o.id === id);
-        if (opt) selected.push({ group: g.name, name: opt.name, price_delta: Number(opt.price_delta) });
-      });
-    });
-    onConfirm(selected);
-  };
-
-  return (
-    <AnimatePresence>
-      {item && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-          />
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-3xl border-t border-border bg-surface"
-          >
-            <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
-              <div>
-                <h3 className="font-display text-2xl tracking-tight">{item.name}</h3>
-                <p className="text-xs text-muted-foreground">Personalize antes de adicionar</p>
-              </div>
-              <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground transition hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="space-y-5 px-5 py-5">
-              {groups.map((g) => (
-                <div key={g.id}>
-                  <div className="flex items-baseline justify-between">
-                    <h4 className="text-sm font-medium">
-                      {g.name}{" "}
-                      {g.is_required && <span className="text-xs text-primary">· obrigatório</span>}
-                    </h4>
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                      {g.max_select > 1 ? `Até ${g.max_select}` : "Escolha 1"}
-                    </span>
-                  </div>
-                  <ul className="mt-2 space-y-1.5">
-                    {g.modifier_options.map((o) => {
-                      const selected = (picks[g.id] ?? []).includes(o.id);
-                      return (
-                        <li key={o.id}>
-                          <button
-                            onClick={() => toggle(g, o.id)}
-                            className={
-                              "flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition " +
-                              (selected
-                                ? "border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft text-foreground"
-                                : "border-border bg-background/40 text-muted-foreground hover:border-foreground/30 hover:text-foreground")
-                            }
-                          >
-                            <span className="flex items-center gap-2">
-                              <span
-                                className={
-                                  "flex h-4 w-4 items-center justify-center rounded-full border " +
-                                  (selected ? "border-primary bg-primary text-primary-foreground" : "border-border")
-                                }
-                              >
-                                {selected && <Check className="h-2.5 w-2.5" />}
-                              </span>
-                              {o.name}
-                            </span>
-                            {Number(o.price_delta) !== 0 && (
-                              <span className="text-xs text-primary">
-                                {Number(o.price_delta) > 0 ? "+" : ""}
-                                {formatPrice(Number(o.price_delta), currency)}
-                              </span>
-                            )}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </div>
-            <div className="sticky bottom-0 border-t border-border bg-surface px-5 py-4">
-              <button
-                onClick={confirm}
-                disabled={!canConfirm}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
-              >
-                <Plus className="h-4 w-4" /> Adicionar · {formatPrice(Number(item.price) + delta, currency)}
-              </button>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
   );
 }
 
@@ -923,7 +850,9 @@ function EmptyMenu() {
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
         <UtensilsCrossed className="h-6 w-6 text-primary" />
       </div>
-      <p className="mt-5 font-display text-2xl tracking-tight">O cardápio está sendo preparado 👨‍🍳</p>
+      <p className="mt-5 font-display text-2xl tracking-tight">
+        O cardápio está sendo preparado 👨‍🍳
+      </p>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
         Volte em instantes para conferir nossas delícias!
       </p>
@@ -953,7 +882,9 @@ function OrderStatusPanel({ status, onClose }: { status: string; onClose: () => 
             <X className="h-7 w-7" />
           </div>
           <p className="mt-5 font-display text-2xl">Pedido cancelado</p>
-          <p className="mt-1 text-sm text-muted-foreground">Procure um atendente se precisar de ajuda.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Procure um atendente se precisar de ajuda.
+          </p>
         </div>
       ) : (
         <>
@@ -968,7 +899,10 @@ function OrderStatusPanel({ status, onClose }: { status: string; onClose: () => 
               transition={
                 isDone
                   ? { duration: 0.5 }
-                  : { scale: { duration: 1.6, repeat: Infinity, ease: "easeInOut" }, opacity: { duration: 0.4 } }
+                  : {
+                      scale: { duration: 1.6, repeat: Infinity, ease: "easeInOut" },
+                      opacity: { duration: 0.4 },
+                    }
               }
               className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.5)]"
             >

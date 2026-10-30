@@ -55,7 +55,7 @@ export function ItemDialog({
   const [currentItem, setCurrentItem] = useState<MenuItem | null>(item);
   const [tab, setTab] = useState("details");
 
-  const form = useForm<Vals>({
+  const form = useForm<z.input<typeof schema>, unknown, Vals>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: "",
@@ -131,10 +131,12 @@ export function ItemDialog({
         dietary_tags: values.dietary_tags,
         image_url: values.image_url ?? null,
         is_promo: values.is_promo,
-        original_price: values.is_promo ? values.original_price ?? null : null,
-        promo_label: values.is_promo ? values.promo_label ?? null : null,
+        original_price: values.is_promo ? (values.original_price ?? null) : null,
+        promo_label: values.is_promo ? (values.promo_label ?? null) : null,
       } as any);
-      toast.success(currentItem ? "Item atualizado" : "Item criado — agora adicione opções se quiser");
+      toast.success(
+        currentItem ? "Item atualizado" : "Item criado — agora adicione opções se quiser",
+      );
       setCurrentItem(saved as MenuItem);
       if (!currentItem) setTab("modifiers");
       else onOpenChange(false);
@@ -168,7 +170,11 @@ export function ItemDialog({
                 </span>
                 {imageUrl ? (
                   <div className="group relative aspect-[3/2] overflow-hidden rounded-xl border border-border">
-                    <img src={imageUrl} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                    <img
+                      src={imageUrl}
+                      alt=""
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
                     <button
                       type="button"
                       onClick={() => form.setValue("image_url", null, { shouldDirty: true })}
@@ -214,7 +220,9 @@ export function ItemDialog({
                   </label>
                   <input {...form.register("name")} className="input-field mt-1.5" autoFocus />
                   {form.formState.errors.name && (
-                    <p className="mt-1 text-xs text-destructive">{form.formState.errors.name.message}</p>
+                    <p className="mt-1 text-xs text-destructive">
+                      {form.formState.errors.name.message}
+                    </p>
                   )}
                 </div>
                 <div>
@@ -272,7 +280,9 @@ export function ItemDialog({
               <div className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-4 py-3">
                 <div>
                   <div className="text-sm font-medium">Disponível</div>
-                  <div className="text-xs text-muted-foreground">Visível para os clientes no cardápio</div>
+                  <div className="text-xs text-muted-foreground">
+                    Visível para os clientes no cardápio
+                  </div>
                 </div>
                 <Switch
                   checked={form.watch("is_available")}
@@ -284,7 +294,9 @@ export function ItemDialog({
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-medium">Em promoção</div>
-                    <div className="text-xs text-muted-foreground">Destaca o item com selo no cardápio</div>
+                    <div className="text-xs text-muted-foreground">
+                      Destaca o item com selo no cardápio
+                    </div>
                   </div>
                   <Switch
                     checked={isPromo}
@@ -320,7 +332,6 @@ export function ItemDialog({
                   </div>
                 )}
               </div>
-
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

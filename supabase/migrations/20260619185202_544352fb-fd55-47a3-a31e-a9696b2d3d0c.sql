@@ -1,23 +1,3 @@
-
--- 1) Wipe all test data (cascades from auth.users into profiles, restaurants, menus, orders, etc.)
-DELETE FROM auth.users;
-
--- Safety: also clear any orphans in case foreign keys weren't cascading
-TRUNCATE TABLE
-  public.order_items,
-  public.orders,
-  public.waiter_calls,
-  public.modifier_options,
-  public.modifier_groups,
-  public.menu_items,
-  public.categories,
-  public.venue_tables,
-  public.staff_members,
-  public.subscriptions,
-  public.restaurants,
-  public.profiles
-RESTART IDENTITY CASCADE;
-
 -- 2) Replace handle_new_user to auto-create a default restaurant
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger

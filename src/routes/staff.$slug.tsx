@@ -3,12 +3,16 @@ import { useEffect, useState } from "react";
 import { Delete, Loader2, LogOut, ChefHat, Users } from "lucide-react";
 import { toast } from "sonner";
 import { FluxLogo } from "@/components/brand/logo";
-import { useStaffSession, writeStaffSession, clearStaffSession } from "@/features/staff/staff-session";
+import {
+  useStaffSession,
+  writeStaffSession,
+  clearStaffSession,
+} from "@/features/staff/staff-session";
 import { staffLogin, staffLogout } from "@/features/staff/staff-rpc";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/staff/$slug")({
-  head: () => ({ meta: [{ title: "Acesso da Equipe — Flux" }] }),
+  head: () => ({ meta: [{ title: "Acesso da Equipe — Flux Menu" }] }),
   component: StaffLayout,
 });
 
@@ -18,12 +22,13 @@ function StaffLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isRoot = pathname === `/staff/${slug}` || pathname === `/staff/${slug}/`;
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Avoid SSR/hydration flash: only decide once mounted on the client.
   if (!mounted) return null;
   if (!session) return <PinScreen slug={slug} />;
-
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -31,7 +36,9 @@ function StaffLayout() {
         <Link to="/staff/$slug" params={{ slug }} className="flex items-center gap-2">
           <FluxLogo />
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">{session.restaurant_name || "Flux"}</div>
+            <div className="truncate text-sm font-semibold">
+              {session.restaurant_name || "Flux Menu"}
+            </div>
             <div className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
               {session.name} · {roleLabel(session.role)}
             </div>
@@ -39,7 +46,11 @@ function StaffLayout() {
         </Link>
         <button
           onClick={async () => {
-            try { await staffLogout(session.token); } catch { /* noop */ }
+            try {
+              await staffLogout(session.token);
+            } catch {
+              /* noop */
+            }
             clearStaffSession(slug);
             toast.success("Sessão encerrada");
           }}
@@ -77,7 +88,9 @@ function StaffHome() {
             <Users className="h-8 w-8 text-primary" />
             <div>
               <div className="font-display text-xl">Painel do Garçom</div>
-              <div className="text-xs text-muted-foreground">Pedidos, chamados e fechamento de mesas</div>
+              <div className="text-xs text-muted-foreground">
+                Pedidos, chamados e fechamento de mesas
+              </div>
             </div>
           </Link>
         )}
@@ -134,7 +147,9 @@ function PinScreen({ slug }: { slug: string }) {
       <div className="w-full max-w-xs">
         <div className="mb-6 flex flex-col items-center gap-3 text-center">
           <FluxLogo />
-          <h1 className="font-display text-xl tracking-tight">Digite seu PIN para acessar o Flux</h1>
+          <h1 className="font-display text-xl tracking-tight">
+            Digite seu PIN para acessar o Flux Menu
+          </h1>
           <p className="text-xs text-muted-foreground">Peça o código de 4 dígitos ao gerente.</p>
         </div>
 
@@ -144,9 +159,7 @@ function PinScreen({ slug }: { slug: string }) {
               key={i}
               className={cn(
                 "h-12 w-12 rounded-xl border-2 transition",
-                pin.length > i
-                  ? "border-primary bg-primary/10"
-                  : "border-border bg-surface",
+                pin.length > i ? "border-primary bg-primary/10" : "border-border bg-surface",
               )}
             >
               <div className="flex h-full items-center justify-center text-lg font-semibold">
@@ -157,13 +170,17 @@ function PinScreen({ slug }: { slug: string }) {
         </div>
 
         <div className="grid grid-cols-3 gap-2">
-          {["1","2","3","4","5","6","7","8","9"].map((d) => (
-            <NumpadBtn key={d} onClick={() => press(d)} disabled={loading}>{d}</NumpadBtn>
+          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
+            <NumpadBtn key={d} onClick={() => press(d)} disabled={loading}>
+              {d}
+            </NumpadBtn>
           ))}
           <NumpadBtn onClick={() => setPin("")} disabled={loading} variant="ghost">
             <span className="text-xs">Limpar</span>
           </NumpadBtn>
-          <NumpadBtn onClick={() => press("0")} disabled={loading}>0</NumpadBtn>
+          <NumpadBtn onClick={() => press("0")} disabled={loading}>
+            0
+          </NumpadBtn>
           <NumpadBtn
             onClick={() => setPin((p) => p.slice(0, -1))}
             disabled={loading}

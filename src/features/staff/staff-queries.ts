@@ -24,7 +24,12 @@ export function useStaff(restaurantId: string | undefined) {
       .channel(`staff-${restaurantId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "staff_members", filter: `restaurant_id=eq.${restaurantId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "staff_members",
+          filter: `restaurant_id=eq.${restaurantId}`,
+        },
         () => qc.invalidateQueries({ queryKey: ["staff", restaurantId] }),
       )
       .subscribe();
@@ -39,7 +44,7 @@ export function useStaff(restaurantId: string | undefined) {
     queryFn: async (): Promise<StaffMember[]> => {
       const { data, error } = await supabase
         .from("staff_members" as any)
-        .select("*")
+        .select("id,restaurant_id,name,active,pin,role,created_at,updated_at")
         .eq("restaurant_id", restaurantId!)
         .order("name", { ascending: true });
       if (error) throw error;
@@ -67,8 +72,17 @@ export function useCreateStaff(restaurantId: string | undefined) {
 export function useUpdateStaff(restaurantId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Pick<StaffMember, "name" | "active" | "pin" | "role">> }) => {
-      const { error } = await supabase.from("staff_members" as any).update(patch as any).eq("id", id);
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: Partial<Pick<StaffMember, "name" | "active" | "pin" | "role">>;
+    }) => {
+      const { error } = await supabase
+        .from("staff_members" as any)
+        .update(patch as any)
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff", restaurantId] }),
@@ -79,7 +93,10 @@ export function useDeleteStaff(restaurantId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("staff_members" as any).delete().eq("id", id);
+      const { error } = await supabase
+        .from("staff_members" as any)
+        .delete()
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff", restaurantId] }),

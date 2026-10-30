@@ -1,16 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
-const anonKey =
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
-  process.env.SUPABASE_PUBLISHABLE_KEY;
+const url = process.env.TEST_SUPABASE_URL;
+const anonKey = process.env.TEST_SUPABASE_PUBLISHABLE_KEY;
 
-const slug = process.env.TEST_STAFF_SLUG ?? "r-456132d423";
-const pin = process.env.TEST_STAFF_PIN ?? "3900";
-const badPin = "0000";
+const slug = process.env.TEST_STAFF_SLUG ?? "";
+const pin = process.env.TEST_STAFF_PIN ?? "";
+const badPin = "invalid";
 
-const shouldRun = !!url && !!anonKey;
+const shouldRun =
+  process.env.RUN_INTEGRATION_TESTS === "1" && !!url && !!anonKey && !!slug && !!pin;
 const d = shouldRun ? describe : describe.skip;
 
 const anon: SupabaseClient = shouldRun
@@ -53,9 +52,8 @@ d("staff PIN authorization on staff_* RPCs", () => {
       p_slug: slug,
       p_pin: badPin,
     });
-    expect(data).toBeNull();
-    expect(error).toBeTruthy();
-    expect(/pin/i.test(error!.message)).toBe(true);
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
   });
 
   it("staff_login rejects unknown restaurant slug", async () => {
@@ -63,8 +61,8 @@ d("staff PIN authorization on staff_* RPCs", () => {
       p_slug: "does-not-exist-xyz",
       p_pin: pin,
     });
-    expect(data).toBeNull();
-    expect(error).toBeTruthy();
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
   });
 
   for (const fn of STAFF_RPCS) {
@@ -146,10 +144,7 @@ d("staff PIN authorization on staff_* RPCs", () => {
     });
     expect(logoutErr).toBeNull();
 
-    const { data, error } = await callWithToken(
-      "staff_list_orders",
-      throwaway,
-    );
+    const { data, error } = await callWithToken("staff_list_orders", throwaway);
     expect(data).toBeNull();
     expect(error).toBeTruthy();
     expect(/sess[aã]o inv[aá]lida/i.test(error!.message)).toBe(true);

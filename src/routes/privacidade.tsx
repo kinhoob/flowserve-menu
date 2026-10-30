@@ -6,11 +6,11 @@ import { ScrollToTop } from "@/components/ui/scroll-to-top";
 export const Route = createFileRoute("/privacidade")({
   head: () => ({
     meta: [
-      { title: "Política de Privacidade — Flux" },
+      { title: "Política de Privacidade — Flux Menu" },
       {
         name: "description",
         content:
-          "Como o Flux coleta, usa, armazena e protege os dados de estabelecimentos e clientes finais.",
+          "Como o Flux Menu coleta, usa, armazena e protege os dados de estabelecimentos e clientes finais.",
       },
     ],
   }),
@@ -46,10 +46,10 @@ function PrivacyPage() {
           <section className="space-y-3">
             <h2 className="font-display text-2xl tracking-tight">1. Quem somos</h2>
             <p>
-              O Flux é uma plataforma de cardápio digital e operação de salão para
-              bares e restaurantes. Esta política descreve como tratamos dados
-              pessoais coletados de estabelecimentos contratantes e dos clientes
-              finais que interagem com o cardápio digital.
+              O Flux Menu é uma plataforma de cardápio digital e operação de salão para bares e
+              restaurantes. Esta política descreve como tratamos dados pessoais coletados de
+              estabelecimentos contratantes e dos clientes finais que interagem com o cardápio
+              digital.
             </p>
           </section>
 
@@ -57,21 +57,21 @@ function PrivacyPage() {
             <h2 className="font-display text-2xl tracking-tight">2. Dados que coletamos</h2>
             <ul className="list-disc space-y-2 pl-5">
               <li>
-                <strong>Conta do estabelecimento:</strong> nome, email, telefone,
-                endereço e dados de pagamento da assinatura.
+                <strong>Conta do estabelecimento:</strong> nome, email, telefone, endereço e dados
+                de pagamento da assinatura.
               </li>
               <li>
-                <strong>Operação:</strong> cardápio, pedidos, mesas, equipe,
-                horários e métricas de uso.
+                <strong>Operação:</strong> cardápio, pedidos, mesas, equipe, horários e métricas de
+                uso.
               </li>
               <li>
-                <strong>Cliente final:</strong> apenas o necessário para o pedido
-                (nome opcional, número da mesa e itens escolhidos). Não coletamos
-                CPF nem dados sensíveis no fluxo de QR Code.
+                <strong>Cliente final:</strong> apenas o necessário para o pedido (nome opcional,
+                número da mesa e itens escolhidos). Não coletamos CPF nem dados sensíveis no fluxo
+                de QR Code.
               </li>
               <li>
-                <strong>Dados técnicos:</strong> logs de acesso, IP, dispositivo e
-                cookies essenciais para o funcionamento da plataforma.
+                <strong>Dados técnicos:</strong> logs de acesso, IP, dispositivo e cookies
+                essenciais para o funcionamento da plataforma.
               </li>
             </ul>
           </section>
@@ -79,26 +79,25 @@ function PrivacyPage() {
           <section className="mt-8 space-y-3">
             <h2 className="font-display text-2xl tracking-tight">3. Como usamos</h2>
             <p>
-              Usamos os dados para operar a plataforma, processar pedidos, emitir
-              relatórios para o estabelecimento, melhorar o produto, prevenir
-              fraudes e cumprir obrigações legais. Não vendemos seus dados.
+              Usamos os dados para operar a plataforma, processar pedidos, emitir relatórios para o
+              estabelecimento, melhorar o produto, prevenir fraudes e cumprir obrigações legais. Não
+              vendemos seus dados.
             </p>
           </section>
 
           <section className="mt-8 space-y-3">
             <h2 className="font-display text-2xl tracking-tight">4. Compartilhamento</h2>
             <p>
-              Compartilhamos dados apenas com fornecedores essenciais (hospedagem,
-              processamento de pagamento e envio de email), sempre sob contrato e
-              obrigação de confidencialidade.
+              Compartilhamos dados apenas com fornecedores essenciais (hospedagem, processamento de
+              pagamento e envio de email), sempre sob contrato e obrigação de confidencialidade.
             </p>
           </section>
 
           <section className="mt-8 space-y-3">
             <h2 className="font-display text-2xl tracking-tight">5. Seus direitos (LGPD)</h2>
             <p>
-              Você pode solicitar acesso, correção, portabilidade, anonimização ou
-              exclusão dos seus dados pelo email{" "}
+              Você pode solicitar acesso, correção, portabilidade, anonimização ou exclusão dos seus
+              dados pelo email{" "}
               <a className="text-primary" href="mailto:privacidade@flux.app">
                 privacidade@flux.app
               </a>
@@ -109,19 +108,18 @@ function PrivacyPage() {
           <section className="mt-8 space-y-3">
             <h2 className="font-display text-2xl tracking-tight">6. Segurança</h2>
             <p>
-              Adotamos criptografia em trânsito, isolamento multi-tenant por
-              estabelecimento, controle de acesso por função e auditoria contínua.
-              Nenhum sistema é 100% seguro — em caso de incidente, comunicaremos
-              os titulares e a ANPD na forma da lei.
+              Adotamos criptografia em trânsito, isolamento multi-tenant por estabelecimento,
+              controle de acesso por função e auditoria contínua. Nenhum sistema é 100% seguro — em
+              caso de incidente, comunicaremos os titulares e a ANPD na forma da lei.
             </p>
           </section>
 
           <section className="mt-8 space-y-3">
             <h2 className="font-display text-2xl tracking-tight">7. Retenção</h2>
             <p>
-              Mantemos os dados enquanto a conta estiver ativa. Após o cancelamento,
-              os dados operacionais ficam disponíveis por 90 dias para exportação e
-              são então eliminados, salvo obrigação legal de guarda.
+              Mantemos os dados enquanto a conta estiver ativa. Após o cancelamento, os dados
+              operacionais ficam disponíveis por 90 dias para exportação e são então eliminados,
+              salvo obrigação legal de guarda.
             </p>
           </section>
 

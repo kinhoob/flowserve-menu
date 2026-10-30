@@ -27,7 +27,7 @@ function NotFoundComponent() {
             to="/"
             className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
           >
-            Back to Flux
+            Back to Flux Menu
           </Link>
         </div>
       </div>
@@ -35,14 +35,14 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error }: { error: Error }) {
+function ErrorComponent({ error }: { error: unknown }) {
   console.error(error);
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-medium tracking-tight">Something broke</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {error.message || "An unexpected error occurred."}
+          Não foi possível carregar esta tela. Tente novamente.
         </p>
         <a
           href="/"
@@ -60,14 +60,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Flux — Digital Menus for Bars & Restaurants" },
+      { title: "Flux Menu — Digital Menus for Bars & Restaurants" },
       {
         name: "description",
         content:
-          "Flux is the digital menu platform for modern bars and restaurants. QR ordering, kitchen display, and real-time operations.",
+          "Flux Menu is the digital menu platform for modern bars and restaurants. QR ordering, kitchen display, and real-time operations.",
       },
       { name: "theme-color", content: "#111111" },
-      { property: "og:title", content: "Flux — Digital Menus for Bars & Restaurants" },
+      { property: "og:title", content: "Flux Menu — Digital Menus for Bars & Restaurants" },
       {
         property: "og:description",
         content:
@@ -97,7 +97,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="pt-BR" className="dark">
       <head>
         <HeadContent />
       </head>

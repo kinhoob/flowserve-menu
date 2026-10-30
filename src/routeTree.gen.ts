@@ -9,40 +9,34 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TermosRouteImport } from './routes/termos'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as PrivacidadeRouteImport } from './routes/privacidade'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as StaffSlugRouteImport } from './routes/staff.$slug'
-import { Route as MSlugRouteImport } from './routes/m.$slug'
-import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
-import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
-import { Route as AuthenticatedTablesRouteImport } from './routes/_authenticated/tables'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedQrcodesRouteImport } from './routes/_authenticated/qrcodes'
-import { Route as AuthenticatedMenuRouteImport } from './routes/_authenticated/menu'
-import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as TermosRouteImport } from './routes/termos'
 import { Route as AuthenticatedAnalyticsRouteImport } from './routes/_authenticated/analytics'
-import { Route as StaffSlugWaiterRouteImport } from './routes/staff.$slug.waiter'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedKitchenRouteImport } from './routes/_authenticated/kitchen'
+import { Route as AuthenticatedMenuRouteImport } from './routes/_authenticated/menu'
+import { Route as AuthenticatedQrcodesRouteImport } from './routes/_authenticated/qrcodes'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedTablesRouteImport } from './routes/_authenticated/tables'
+import { Route as AuthenticatedWaiterRouteImport } from './routes/_authenticated/waiter'
+import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
+import { Route as MSlugRouteImport } from './routes/m.$slug'
+import { Route as StaffSlugRouteImport } from './routes/staff.$slug'
 import { Route as StaffSlugKitchenRouteImport } from './routes/staff.$slug.kitchen'
+import { Route as StaffSlugWaiterRouteImport } from './routes/staff.$slug.waiter'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
-const TermosRoute = TermosRouteImport.update({
-  id: '/termos',
-  path: '/termos',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacidadeRoute = PrivacidadeRouteImport.update({
-  id: '/privacidade',
-  path: '/privacidade',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -50,58 +44,24 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRoute = AuthenticatedRouteImport.update({
-  id: '/_authenticated',
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StaffSlugRoute = StaffSlugRouteImport.update({
-  id: '/staff/$slug',
-  path: '/staff/$slug',
+const TermosRoute = TermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MSlugRoute = MSlugRouteImport.update({
-  id: '/m/$slug',
-  path: '/m/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
-  id: '/checkout/return',
-  path: '/checkout/return',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedWaiterRoute = AuthenticatedWaiterRouteImport.update({
-  id: '/waiter',
-  path: '/waiter',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedTablesRoute = AuthenticatedTablesRouteImport.update({
-  id: '/tables',
-  path: '/tables',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedQrcodesRoute = AuthenticatedQrcodesRouteImport.update({
-  id: '/qrcodes',
-  path: '/qrcodes',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedMenuRoute = AuthenticatedMenuRouteImport.update({
-  id: '/menu',
-  path: '/menu',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedKitchenRoute = AuthenticatedKitchenRouteImport.update({
-  id: '/kitchen',
-  path: '/kitchen',
+const AuthenticatedAnalyticsRoute = AuthenticatedAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -109,19 +69,59 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedAnalyticsRoute = AuthenticatedAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
+const AuthenticatedKitchenRoute = AuthenticatedKitchenRouteImport.update({
+  id: '/kitchen',
+  path: '/kitchen',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const StaffSlugWaiterRoute = StaffSlugWaiterRouteImport.update({
+const AuthenticatedMenuRoute = AuthenticatedMenuRouteImport.update({
+  id: '/menu',
+  path: '/menu',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedQrcodesRoute = AuthenticatedQrcodesRouteImport.update({
+  id: '/qrcodes',
+  path: '/qrcodes',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTablesRoute = AuthenticatedTablesRouteImport.update({
+  id: '/tables',
+  path: '/tables',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedWaiterRoute = AuthenticatedWaiterRouteImport.update({
   id: '/waiter',
   path: '/waiter',
-  getParentRoute: () => StaffSlugRoute,
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
+  id: '/checkout/return',
+  path: '/checkout/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MSlugRoute = MSlugRouteImport.update({
+  id: '/m/$slug',
+  path: '/m/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StaffSlugRoute = StaffSlugRouteImport.update({
+  id: '/staff/$slug',
+  path: '/staff/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const StaffSlugKitchenRoute = StaffSlugKitchenRouteImport.update({
   id: '/kitchen',
   path: '/kitchen',
+  getParentRoute: () => StaffSlugRoute,
+} as any)
+const StaffSlugWaiterRoute = StaffSlugWaiterRouteImport.update({
+  id: '/waiter',
+  path: '/waiter',
   getParentRoute: () => StaffSlugRoute,
 } as any)
 const ApiPublicPaymentsWebhookRoute =
@@ -278,32 +278,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/termos': {
-      id: '/termos'
-      path: '/termos'
-      fullPath: '/termos'
-      preLoaderRoute: typeof TermosRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacidade': {
-      id: '/privacidade'
-      path: '/privacidade'
-      fullPath: '/privacidade'
-      preLoaderRoute: typeof PrivacidadeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -313,74 +292,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/staff/$slug': {
-      id: '/staff/$slug'
-      path: '/staff/$slug'
-      fullPath: '/staff/$slug'
-      preLoaderRoute: typeof StaffSlugRouteImport
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/m/$slug': {
-      id: '/m/$slug'
-      path: '/m/$slug'
-      fullPath: '/m/$slug'
-      preLoaderRoute: typeof MSlugRouteImport
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/checkout/return': {
-      id: '/checkout/return'
-      path: '/checkout/return'
-      fullPath: '/checkout/return'
-      preLoaderRoute: typeof CheckoutReturnRouteImport
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermosRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/waiter': {
-      id: '/_authenticated/waiter'
-      path: '/waiter'
-      fullPath: '/waiter'
-      preLoaderRoute: typeof AuthenticatedWaiterRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/tables': {
-      id: '/_authenticated/tables'
-      path: '/tables'
-      fullPath: '/tables'
-      preLoaderRoute: typeof AuthenticatedTablesRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/qrcodes': {
-      id: '/_authenticated/qrcodes'
-      path: '/qrcodes'
-      fullPath: '/qrcodes'
-      preLoaderRoute: typeof AuthenticatedQrcodesRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/menu': {
-      id: '/_authenticated/menu'
-      path: '/menu'
-      fullPath: '/menu'
-      preLoaderRoute: typeof AuthenticatedMenuRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/kitchen': {
-      id: '/_authenticated/kitchen'
-      path: '/kitchen'
-      fullPath: '/kitchen'
-      preLoaderRoute: typeof AuthenticatedKitchenRouteImport
+    '/_authenticated/analytics': {
+      id: '/_authenticated/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof AuthenticatedAnalyticsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/dashboard': {
@@ -390,25 +334,81 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/analytics': {
-      id: '/_authenticated/analytics'
-      path: '/analytics'
-      fullPath: '/analytics'
-      preLoaderRoute: typeof AuthenticatedAnalyticsRouteImport
+    '/_authenticated/kitchen': {
+      id: '/_authenticated/kitchen'
+      path: '/kitchen'
+      fullPath: '/kitchen'
+      preLoaderRoute: typeof AuthenticatedKitchenRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/staff/$slug/waiter': {
-      id: '/staff/$slug/waiter'
+    '/_authenticated/menu': {
+      id: '/_authenticated/menu'
+      path: '/menu'
+      fullPath: '/menu'
+      preLoaderRoute: typeof AuthenticatedMenuRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/qrcodes': {
+      id: '/_authenticated/qrcodes'
+      path: '/qrcodes'
+      fullPath: '/qrcodes'
+      preLoaderRoute: typeof AuthenticatedQrcodesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/tables': {
+      id: '/_authenticated/tables'
+      path: '/tables'
+      fullPath: '/tables'
+      preLoaderRoute: typeof AuthenticatedTablesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/waiter': {
+      id: '/_authenticated/waiter'
       path: '/waiter'
-      fullPath: '/staff/$slug/waiter'
-      preLoaderRoute: typeof StaffSlugWaiterRouteImport
-      parentRoute: typeof StaffSlugRoute
+      fullPath: '/waiter'
+      preLoaderRoute: typeof AuthenticatedWaiterRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/checkout/return': {
+      id: '/checkout/return'
+      path: '/checkout/return'
+      fullPath: '/checkout/return'
+      preLoaderRoute: typeof CheckoutReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/m/$slug': {
+      id: '/m/$slug'
+      path: '/m/$slug'
+      fullPath: '/m/$slug'
+      preLoaderRoute: typeof MSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/staff/$slug': {
+      id: '/staff/$slug'
+      path: '/staff/$slug'
+      fullPath: '/staff/$slug'
+      preLoaderRoute: typeof StaffSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/staff/$slug/kitchen': {
       id: '/staff/$slug/kitchen'
       path: '/kitchen'
       fullPath: '/staff/$slug/kitchen'
       preLoaderRoute: typeof StaffSlugKitchenRouteImport
+      parentRoute: typeof StaffSlugRoute
+    }
+    '/staff/$slug/waiter': {
+      id: '/staff/$slug/waiter'
+      path: '/waiter'
+      fullPath: '/staff/$slug/waiter'
+      preLoaderRoute: typeof StaffSlugWaiterRouteImport
       parentRoute: typeof StaffSlugRoute
     }
     '/api/public/payments/webhook': {
@@ -476,3 +476,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

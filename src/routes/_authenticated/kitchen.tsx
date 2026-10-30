@@ -1,6 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, ChefHat, CheckCircle2, XCircle, ArrowRight, Loader2, Volume2, VolumeX, Archive } from "lucide-react";
+import {
+  Clock,
+  ChefHat,
+  CheckCircle2,
+  XCircle,
+  ArrowRight,
+  Loader2,
+  Volume2,
+  VolumeX,
+  Archive,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
@@ -22,7 +32,7 @@ import { StaffPicker } from "@/features/staff/staff-picker";
 import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
 
 export const Route = createFileRoute("/_authenticated/kitchen")({
-  head: () => ({ meta: [{ title: "Cozinha — Flux" }] }),
+  head: () => ({ meta: [{ title: "Cozinha — Flux Menu" }] }),
   component: KitchenPage,
 });
 
@@ -135,20 +145,21 @@ function KitchenPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-primary">Operação ao vivo</p>
-          <h1 className="mt-2 font-display text-4xl tracking-tight">
+          <h1 className="mt-2 font-sans font-semibold text-4xl tracking-tight">
             Painel da <span className="text-gradient-gold italic">cozinha</span>
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {totalActive} {totalActive === 1 ? "pedido ativo" : "pedidos ativos"} · atualizado em tempo real
+            {totalActive} {totalActive === 1 ? "pedido ativo" : "pedidos ativos"} · atualizado em
+            tempo real
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-xl border border-border bg-surface p-0.5 text-xs">
-            {([
+            {[
               { k: "all" as const, l: "Tudo" },
               { k: "food" as const, l: "Cozinha" },
               { k: "drink" as const, l: "Bar" },
-            ]).map(({ k, l }) => (
+            ].map(({ k, l }) => (
               <button
                 key={k}
                 onClick={() => setScope(k)}
@@ -265,7 +276,7 @@ function KitchenColumn({
       )}
     >
       <div className="mb-3 flex items-center justify-between px-2 pt-1">
-        <h3 className="font-display text-lg tracking-tight">{STATUS_LABELS[status]}</h3>
+        <h3 className="font-sans font-semibold text-lg tracking-tight">{STATUS_LABELS[status]}</h3>
         <span className="rounded-full bg-background/60 px-2.5 py-0.5 text-xs text-muted-foreground ring-1 ring-border">
           {orders.length}
         </span>
@@ -295,7 +306,7 @@ function KitchenColumn({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="font-display text-base tracking-tight">
+                    <div className="font-sans font-semibold text-base tracking-tight">
                       {o.table_label ? `Mesa ${o.table_label}` : "Balcão"}
                     </div>
                     {o.customer_name && (
@@ -310,7 +321,14 @@ function KitchenColumn({
                       <div className="mt-0.5 text-[10px] uppercase tracking-wider text-emerald-400/90">
                         Entregue por: {(o as any).delivered_by_name}
                         {(o as any).delivered_at && (
-                          <> · {new Date((o as any).delivered_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</>
+                          <>
+                            {" "}
+                            ·{" "}
+                            {new Date((o as any).delivered_at).toLocaleTimeString("pt-BR", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </>
                         )}
                       </div>
                     )}
@@ -334,7 +352,9 @@ function KitchenColumn({
                       </div>
                       {it.notes && (
                         <div className="rounded-md border border-[oklch(0.78_0.16_84_/_0.45)] bg-[oklch(0.92_0.12_92_/_0.18)] px-2.5 py-1.5 text-[12px] font-semibold text-[oklch(0.88_0.16_88)]">
-                          <span className="mr-1 text-[10px] uppercase tracking-wider text-[oklch(0.78_0.14_84)]">Obs:</span>
+                          <span className="mr-1 text-[10px] uppercase tracking-wider text-[oklch(0.78_0.14_84)]">
+                            Obs:
+                          </span>
                           {it.notes}
                         </div>
                       )}
@@ -349,7 +369,7 @@ function KitchenColumn({
                 )}
 
                 <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
-                  <span className="font-display text-lg tracking-tight">
+                  <span className="font-sans font-semibold text-lg tracking-tight">
                     {formatPrice(Number(o.subtotal), currency)}
                   </span>
                   <div className="flex flex-wrap gap-2">

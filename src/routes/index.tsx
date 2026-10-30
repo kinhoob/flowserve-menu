@@ -23,7 +23,7 @@ import { ScrollToTop } from "@/components/ui/scroll-to-top";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Flux — A evolução do atendimento" },
+      { title: "Flux Menu — A evolução do atendimento" },
       {
         name: "description",
         content:
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-const partners = ["ATELIER", "MARÉ", "VINHO & SAL", "OBRA PRIMA", "CASA DOURADA", "BAR NOIR"];
+const partners = ["BARES", "RESTAURANTES", "CAFÉS", "BISTRÔS", "PUBS", "LANCHONETES"];
 
 type Plan = {
   name: string;
@@ -121,12 +121,6 @@ const plans: Plan[] = [
   },
 ];
 
-const STRIPE_PAYMENT_LINKS: Record<"basic" | "essential" | "pro", string> = {
-  basic: "https://buy.stripe.com/test_14A28tbqigv26e97ajdjO02",
-  essential: "https://buy.stripe.com/test_cNi5kFamegv27idbqzdjO01",
-  pro: "https://buy.stripe.com/test_5kQ14pbqiceM461bqzdjO00",
-};
-
 function LandingPage() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   return (
@@ -166,7 +160,7 @@ function LandingPage() {
             Produto
           </a>
           <a href="#why" className="transition hover:text-foreground">
-            Por que Flux?
+            Por que Flux Menu?
           </a>
           <a href="#pricing" className="transition hover:text-foreground">
             Planos
@@ -211,7 +205,7 @@ function LandingPage() {
               <nav className="mt-8 flex flex-col gap-1 text-sm">
                 {[
                   { href: "#features", label: "Produto" },
-                  { href: "#why", label: "Por que Flux?" },
+                  { href: "#why", label: "Por que Flux Menu?" },
                   { href: "#pricing", label: "Planos" },
                   { href: "#faq", label: "FAQ" },
                 ].map((l) => (
@@ -264,7 +258,7 @@ function LandingPage() {
 
       <main className="relative z-10 mx-auto w-full max-w-7xl px-6">
         {/* HERO */}
-        <section className="pb-28 pt-20 md:pb-40 md:pt-28">
+        <section className="pb-12 pt-8 md:pb-24 md:pt-20">
           <motion.div
             initial="hidden"
             animate="show"
@@ -279,23 +273,24 @@ function LandingPage() {
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
               className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 text-xs text-muted-foreground backdrop-blur"
             >
-              <Sparkles className="h-3.5 w-3.5 text-primary" />A plataforma escolhida pela hospitalidade moderna
+              <Sparkles className="h-3.5 w-3.5 text-primary" />A plataforma escolhida pela
+              hospitalidade moderna
             </motion.span>
             <motion.h1
               variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-6 font-display text-5xl leading-[1.02] tracking-tight md:text-7xl"
+              className="mt-6 font-display text-4xl leading-[1.12] tracking-tight md:text-7xl"
             >
-              A evolução do atendimento. <br className="hidden md:block" />
-              Onde a <span className="text-gradient-gold italic">agilidade encontra</span> a hospitalidade.
+              Cardápio digital e pedidos por QR Code{" "}
+              <span className="text-gradient-gold italic">para bares e restaurantes.</span>
             </motion.h1>
             <motion.p
               variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
               className="mx-auto mt-6 max-w-xl text-balance text-base text-muted-foreground md:text-lg"
             >
-              Reduza o tempo de espera em até 40% e transforme seu salão em uma engrenagem perfeita. Pedidos por QR,
-              comandas em tempo real e analytics à altura da sua marca.
+              Do celular do cliente à cozinha: organize pedidos, acompanhe mesas e gerencie seu
+              cardápio em um só lugar.
             </motion.p>
             <motion.div
               variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
@@ -320,11 +315,41 @@ function LandingPage() {
           </motion.div>
         </section>
 
-        {/* SOCIAL PROOF */}
+        <section
+          aria-label="Como funciona o Flux Menu"
+          className="mb-12 rounded-2xl border border-border bg-surface p-5 md:p-8"
+        >
+          <p className="text-xs uppercase tracking-wider text-primary">
+            Exemplo ilustrativo do fluxo
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-border p-4">
+              <h2 className="font-semibold">Cardápio no celular</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Batata frita · 1 unidade
+                <br />
+                Observação: sem sal
+              </p>
+            </div>
+            <div className="rounded-xl border border-border p-4">
+              <h2 className="font-semibold">Pedido na cozinha</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Mesa 1 · Novo → Preparando → Pronto
+              </p>
+            </div>
+            <div className="rounded-xl border border-border p-4">
+              <h2 className="font-semibold">Atendimento no salão</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Equipe acompanha a entrega e o fechamento da conta.
+              </p>
+            </div>
+          </div>
+        </section>
+        {/* TYPES OF ESTABLISHMENT */}
         <section className="border-y border-border/60 py-12">
           <FadeIn>
             <p className="text-center text-xs uppercase tracking-[0.22em] text-muted-foreground">
-              Operando salões em mais de 80 cidades
+              Feito para diferentes tipos de estabelecimento
             </p>
             <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-6">
               {partners.map((name) => (
@@ -343,7 +368,9 @@ function LandingPage() {
         <section id="features" className="py-24">
           <FadeIn>
             <div className="mx-auto max-w-2xl text-center">
-              <p className="text-xs uppercase tracking-[0.18em] text-primary">Feito para o serviço</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-primary">
+                Feito para o serviço
+              </p>
               <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
                 Cada bloco. Uma vantagem competitiva.
               </h2>
@@ -368,7 +395,7 @@ function LandingPage() {
             <FadeIn delay={0.05}>
               <BentoCard
                 icon={Clock}
-                title="Reduza a espera em 40%"
+                title="Agilize o atendimento"
                 body="Pedidos vão direto à cozinha. O garçom volta a ser anfitrião."
               />
             </FadeIn>
@@ -377,7 +404,7 @@ function LandingPage() {
               <BentoCard
                 icon={ChefHat}
                 title="KDS em tempo real"
-                body="Kanban ao vivo para bar e cozinha. Zero pedido perdido."
+                body="Kanban ao vivo para bar e cozinha. Pedidos organizados por etapa."
               />
             </FadeIn>
 
@@ -385,7 +412,7 @@ function LandingPage() {
               <BentoCard
                 icon={Radio}
                 title="Sincronia instantânea"
-                body="Atualizações chegam à equipe em milissegundos. Sem refresh, sem polling."
+                body="Acompanhe atualizações de pedidos e mantenha a equipe informada."
               />
             </FadeIn>
 
@@ -420,18 +447,21 @@ function LandingPage() {
           <div className="grid items-center gap-12 md:grid-cols-2">
             <FadeIn>
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-primary">Por que Flux?</p>
+                <p className="text-xs uppercase tracking-[0.18em] text-primary">
+                  Por que Flux Menu?
+                </p>
                 <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
                   A hospitalidade merece um software à sua altura.
                 </h2>
                 <p className="mt-5 text-muted-foreground">
-                  Construímos o Flux como se fosse parte do seu salão — silencioso, rápido, bem-acabado. Não é uma
-                  ferramenta corporativa adaptada. É um produto pensado para a mesa.
+                  Construímos o Flux Menu como se fosse parte do seu salão — silencioso, rápido,
+                  bem-acabado. Não é uma ferramenta corporativa adaptada. É um produto pensado para
+                  a mesa.
                 </p>
                 <ul className="mt-8 space-y-3 text-sm text-muted-foreground">
                   {[
                     "Arquitetura dedicada por estabelecimento",
-                    "Sincronização realtime sem pedido perdido",
+                    "Acompanhamento de pedidos em tempo real",
                     "Otimizado para tablets, celulares e desktop",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-3">
@@ -448,17 +478,20 @@ function LandingPage() {
                   aria-hidden
                   className="pointer-events-none absolute inset-0 rounded-3xl bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.08),transparent_70%)]"
                 />
-                <blockquote className="relative font-display text-2xl leading-snug tracking-tight">
-                  "Substituímos três ferramentas pelo Flux. O serviço ficou 22% mais rápido e o cardápio finalmente
-                  combina com o salão."
-                </blockquote>
-                <div className="relative mt-6 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-gradient-to-br from-[oklch(0.86_0.12_84)] to-[oklch(0.4_0.05_60)]" />
-                  <div>
-                    <div className="text-sm font-medium">Mara Vance</div>
-                    <div className="text-xs text-muted-foreground">GM, Atelier Bar — Lisboa</div>
-                  </div>
-                </div>
+                <p className="relative text-xs uppercase tracking-wider text-primary">
+                  Do QR Code ao atendimento
+                </p>
+                <ol className="relative mt-5 space-y-4 text-sm">
+                  <li>
+                    <strong>1. Cliente</strong> — navega pelo cardápio e monta o pedido.
+                  </li>
+                  <li>
+                    <strong>2. Cozinha e bar</strong> — acompanham e preparam os itens.
+                  </li>
+                  <li>
+                    <strong>3. Equipe</strong> — entrega, confere a conta e libera a mesa.
+                  </li>
+                </ol>
               </div>
             </FadeIn>
           </div>
@@ -469,8 +502,12 @@ function LandingPage() {
           <FadeIn>
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-xs uppercase tracking-[0.18em] text-primary">Planos</p>
-              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">Escolha o tamanho do seu salão.</h2>
-              <p className="mt-4 text-muted-foreground">Sem fidelidade, sem taxa de setup. Cancele quando quiser.</p>
+              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
+                Escolha o tamanho do seu salão.
+              </h2>
+              <p className="mt-4 text-muted-foreground">
+                Sem fidelidade, sem taxa de setup. Cancele quando quiser.
+              </p>
             </div>
           </FadeIn>
 
@@ -520,7 +557,9 @@ function LandingPage() {
 
                     <div className="mt-6 flex items-baseline gap-1">
                       <span className="font-display text-4xl tracking-tight">{plan.price}</span>
-                      {plan.period && <span className="text-sm text-muted-foreground">{plan.period}</span>}
+                      {plan.period && (
+                        <span className="text-sm text-muted-foreground">{plan.period}</span>
+                      )}
                     </div>
 
                     <ul className="mt-8 space-y-3 text-sm">
@@ -552,9 +591,7 @@ function LandingPage() {
                         </button>
                       ) : (
                         <a
-                          href={plan.slug ? STRIPE_PAYMENT_LINKS[plan.slug] : "#"}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href="/auth?mode=signup"
                           className={`group/btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
                             plan.featured
                               ? "bg-primary text-primary-foreground shadow-[0_15px_35px_-12px_oklch(0.78_0.13_84_/_0.6)] hover:shadow-[0_22px_45px_-15px_oklch(0.78_0.13_84_/_0.75)]"
@@ -578,7 +615,9 @@ function LandingPage() {
           <FadeIn>
             <div className="mx-auto max-w-2xl text-center">
               <p className="text-xs uppercase tracking-[0.18em] text-primary">FAQ</p>
-              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">Perguntas frequentes.</h2>
+              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
+                Perguntas frequentes.
+              </h2>
               <p className="mt-4 text-muted-foreground">
                 Tudo o que você precisa saber antes de começar. Não achou sua dúvida?{" "}
                 <a href="mailto:contato@flux.app" className="text-primary hover:underline">
@@ -593,7 +632,7 @@ function LandingPage() {
             {[
               {
                 q: "Preciso instalar algum aplicativo?",
-                a: "Não. O Flux roda 100% no navegador, tanto para o cliente final (via QR Code) quanto para o salão, cozinha e administração. Funciona em celular, tablet e desktop.",
+                a: "Não. O Flux Menu roda 100% no navegador, tanto para o cliente final (via QR Code) quanto para o salão, cozinha e administração. Funciona em celular, tablet e desktop.",
               },
               {
                 q: "Quanto tempo leva para colocar no ar?",
@@ -616,8 +655,8 @@ function LandingPage() {
                 a: "Sim. Todos os planos pagos começam com período de teste grátis. Você só é cobrado se decidir continuar.",
               },
               {
-                q: "O Flux emite nota fiscal?",
-                a: "A emissão de NFC-e/SAT está no roadmap. Hoje o Flux opera como sistema de comanda, pedidos e KDS — e exporta os dados para o seu sistema fiscal.",
+                q: "O Flux Menu emite nota fiscal?",
+                a: "A emissão de NFC-e/SAT está no roadmap. Hoje o Flux Menu opera como sistema de comanda, pedidos e KDS — e exporta os dados para o seu sistema fiscal.",
               },
               {
                 q: "Como funciona o suporte?",
@@ -664,8 +703,8 @@ function LandingPage() {
                   Onde a agilidade encontra a hospitalidade.
                 </h2>
                 <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-                  Comece com um teste grátis. Traga seu cardápio, sua equipe e suas mesas e o resto deixa que a gente
-                  cuida.
+                  Comece com um teste grátis. Traga seu cardápio, sua equipe e suas mesas e o resto
+                  deixa que a gente cuida.
                 </p>
                 <div className="mt-8">
                   <Link
@@ -700,7 +739,7 @@ function LandingPage() {
               Contato
             </a>
           </nav>
-          <p>© {new Date().getFullYear()} Flux Labs. Feito para a hospitalidade.</p>
+          <p>© {new Date().getFullYear()} Flux Menu. Feito para a hospitalidade.</p>
         </div>
       </footer>
 
@@ -738,10 +777,14 @@ function BentoCard({
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
           <Icon className="h-5 w-5" />
         </div>
-        <h3 className={`mt-5 font-display tracking-tight ${size === "lg" ? "text-3xl md:text-4xl" : "text-xl"}`}>
+        <h3
+          className={`mt-5 font-display tracking-tight ${size === "lg" ? "text-3xl md:text-4xl" : "text-xl"}`}
+        >
           {title}
         </h3>
-        <p className={`mt-2 leading-relaxed text-muted-foreground ${size === "lg" ? "text-base max-w-md" : "text-sm"}`}>
+        <p
+          className={`mt-2 leading-relaxed text-muted-foreground ${size === "lg" ? "text-base max-w-md" : "text-sm"}`}
+        >
           {body}
         </p>
       </div>

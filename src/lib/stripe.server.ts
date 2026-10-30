@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { timingSafeEqual } from "node:crypto";
 
 const getEnv = (key: string): string => {
   const value = process.env[key];
@@ -11,9 +12,7 @@ export type StripeEnv = "sandbox" | "live";
 const GATEWAY_STRIPE_BASE = "https://connector-gateway.lovable.dev/stripe";
 
 export function getConnectionApiKey(env: StripeEnv): string {
-  return env === "sandbox"
-    ? getEnv("STRIPE_SANDBOX_API_KEY")
-    : getEnv("STRIPE_LIVE_API_KEY");
+  return env === "sandbox" ? getEnv("STRIPE_SANDBOX_API_KEY") : getEnv("STRIPE_LIVE_API_KEY");
 }
 
 export function createStripeClient(env: StripeEnv): Stripe {
@@ -57,7 +56,13 @@ export function getStripeErrorMessage(error: unknown): string {
 export async function verifyWebhook(
   req: Request,
   env: StripeEnv,
-): Promise<{ type: string; data: { object: any } }> {
+): Promise<{
+  id: string;
+  created: number;
+  type: string;
+  livemode: boolean;
+  data: { object: any };
+}> {
   const signature = req.headers.get("stripe-signature");
   const body = await req.text();
   const secret =
@@ -77,7 +82,7 @@ export async function verifyWebhook(
   if (!timestamp || v1Signatures.length === 0) throw new Error("Invalid signature format");
 
   const age = Math.abs(Date.now() / 1000 - Number(timestamp));
-  if (age > 300) throw new Error("Webhook timestamp too old");
+  if (!Number.isFinite(age) || age > 300) throw new Error("Webhook timestamp too old");
 
   const key = await crypto.subtle.importKey(
     "raw",
@@ -93,7 +98,19 @@ export async function verifyWebhook(
   );
   const expected = Buffer.from(new Uint8Array(signed)).toString("hex");
 
-  if (!v1Signatures.includes(expected)) throw new Error("Invalid webhook signature");
+  const matches = v1Signatures.some(
+    (signature) =>
+      /^[0-9a-f]{64}$/.test(signature) &&
+      timingSafeEqual(Buffer.from(signature, "hex"), Buffer.from(expected, "hex")),
+  );
+  if (!matches) throw new Error("Invalid webhook signature");
 
-  return JSON.parse(body);
+  const event = JSON.parse(body);
+  if (
+    typeof event.id !== "string" ||
+    !Number.isFinite(event.created) ||
+    event.livemode !== (env === "live")
+  )
+    throw new Error("Invalid webhook envelope");
+  return event;
 }

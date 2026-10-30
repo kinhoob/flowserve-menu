@@ -1,3 +1,4 @@
+import { restaurantHour, dateOrdinal, fetchAllPages } from "@/lib/operations";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
@@ -15,13 +16,18 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
-import { useOrders, STATUS_LABELS, type Order, type OrderStatus } from "@/features/orders/order-queries";
+import {
+  useOrders,
+  STATUS_LABELS,
+  type Order,
+  type OrderStatus,
+} from "@/features/orders/order-queries";
 import { formatPrice } from "@/routes/_authenticated/menu";
 import { cn } from "@/lib/utils";
 import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
 
 export const Route = createFileRoute("/_authenticated/analytics")({
-  head: () => ({ meta: [{ title: "Análises — Flux" }] }),
+  head: () => ({ meta: [{ title: "Análises — Flux Menu" }] }),
   component: AnalyticsPage,
 });
 
@@ -45,27 +51,30 @@ function AnalyticsPage() {
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
   const { data: orders = [], isLoading: oLoading } = useOrders(restaurant?.id);
   const { data: trial } = useTrialStatus();
+  const timezone = restaurant?.timezone ?? "America/Sao_Paulo";
   const [range, setRange] = useState<Range>("7d");
   const [selected, setSelected] = useState<Order | null>(null);
 
   // Pedidos arquivados (concluidos/realizados) — não vêm via useOrders.
   const { data: archivedOrders = [] } = useQuery({
-    queryKey: ["orders-archived", restaurant?.id, range],
+    queryKey: ["orders-archived", restaurant?.id, range, timezone],
     enabled: !!restaurant?.id,
     queryFn: async (): Promise<Order[]> => {
-      const since = new Date();
-      since.setHours(0, 0, 0, 0);
-      since.setDate(since.getDate() - (RANGE_DAYS[range] - 1));
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*, order_items(*)")
-        .eq("restaurant_id", restaurant!.id)
-        .eq("archived", true as any)
-        .gte("created_at", since.toISOString())
-        .order("created_at", { ascending: false })
-        .limit(1000);
-      if (error) throw error;
-      return (data ?? []) as Order[];
+      const since = new Date(
+        (dateOrdinal(new Date(), timezone) - RANGE_DAYS[range] - 1) * 86400000,
+      );
+      return fetchAllPages<Order>(
+        (from, to) =>
+          supabase
+            .from("orders")
+            .select("*, order_items(*)")
+            .eq("restaurant_id", restaurant!.id)
+            .eq("archived", true as any)
+            .gte("created_at", since.toISOString())
+            .order("created_at", { ascending: false })
+            .order("id")
+            .range(from, to) as any,
+      );
     },
   });
 
@@ -73,13 +82,13 @@ function AnalyticsPage() {
 
   const stats = useMemo(() => {
     const days = RANGE_DAYS[range];
-    const since = startOfDay(new Date());
-    since.setDate(since.getDate() - (days - 1));
+    const sinceOrdinal = dateOrdinal(new Date(), timezone) - (days - 1);
+    const since = new Date(sinceOrdinal * 86400000);
 
     // Universo completo (ativos + arquivados) para o período.
     const all: Order[] = [...orders, ...archivedOrders];
     const paid = all.filter(
-      (o) => o.status !== "cancelled" && new Date(o.created_at) >= since,
+      (o) => o.status !== "cancelled" && dateOrdinal(o.created_at, timezone) >= sinceOrdinal,
     );
 
     // Receita Realizada = pedido finalizado (concluded ≡ archived=true)
@@ -94,20 +103,17 @@ function AnalyticsPage() {
     const count = paid.length;
     const avg = count ? revenue / count : 0;
 
-    const customers = new Set(
-      paid.map((o) => `${o.table_label ?? "-"}|${o.customer_name ?? "-"}`),
-    ).size;
+    const customers = new Set(paid.map((o) => `${o.table_label ?? "-"}|${o.customer_name ?? "-"}`))
+      .size;
 
     // Per-day buckets (separa realizada vs provisionada)
     const perDay = Array.from({ length: days }, (_, i) => {
       const d = new Date(since);
-      d.setDate(d.getDate() + i);
+      d.setUTCDate(d.getUTCDate() + i);
       return { date: d, revenue: 0, realized: 0, provisioned: 0, count: 0 };
     });
     paid.forEach((o) => {
-      const idx = Math.floor(
-        (startOfDay(new Date(o.created_at)).getTime() - since.getTime()) / 86_400_000,
-      );
+      const idx = Math.floor(dateOrdinal(o.created_at, timezone) - sinceOrdinal);
       if (idx >= 0 && idx < perDay.length) {
         const v = Number(o.subtotal || 0);
         perDay[idx].revenue += v;
@@ -135,7 +141,7 @@ function AnalyticsPage() {
     // Hour heatmap (0-23)
     const perHour = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
     paid.forEach((o) => {
-      const h = new Date(o.created_at).getHours();
+      const h = restaurantHour(o.created_at, timezone);
       perHour[h].count += 1;
     });
     const maxHour = Math.max(1, ...perHour.map((h) => h.count));
@@ -150,7 +156,7 @@ function AnalyticsPage() {
       cancelled: 0,
     };
     all
-      .filter((o) => new Date(o.created_at) >= since)
+      .filter((o) => dateOrdinal(o.created_at, timezone) >= sinceOrdinal)
       .forEach((o) => {
         statusCount[o.status] += 1;
       });
@@ -169,7 +175,9 @@ function AnalyticsPage() {
       statusCount,
       since,
     };
-  }, [orders, archivedOrders, range]);
+  }, [orders, archivedOrders, range, timezone]);
+
+  const allOrders = useMemo(() => [...orders, ...archivedOrders], [orders, archivedOrders]);
 
   if (rLoading || !restaurant) {
     return (
@@ -183,18 +191,14 @@ function AnalyticsPage() {
   const maxRevenue = Math.max(1, ...stats.perDay.map((d) => d.revenue));
 
   // Universo completo usado nas tabelas e exportação.
-  const allOrders = useMemo(
-    () => [...orders, ...archivedOrders],
-    [orders, archivedOrders],
-  );
 
   const exportCsv = () => {
     const rows = [
       ["Data", "Mesa", "Cliente", "Status", "Receita", "Subtotal", "Itens"],
       ...allOrders
-        .filter((o) => new Date(o.created_at) >= stats.since)
+        .filter((o) => dateOrdinal(o.created_at, timezone) >= dateOrdinal(stats.since, "UTC"))
         .map((o) => [
-          new Date(o.created_at).toLocaleString("pt-BR"),
+          new Date(o.created_at).toLocaleString("pt-BR", { timeZone: timezone }),
           o.table_label ?? "",
           o.customer_name ?? "",
           STATUS_LABELS[o.status],
@@ -326,7 +330,11 @@ function AnalyticsPage() {
         </div>
         <div className="mt-2 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
           <span>
-            {stats.perDay[0]?.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+            {stats.perDay[0]?.date.toLocaleDateString("pt-BR", {
+              day: "2-digit",
+              month: "short",
+              timeZone: "UTC",
+            })}
           </span>
           <span>
             {stats.perDay[stats.perDay.length - 1]?.date.toLocaleDateString("pt-BR", {
@@ -413,7 +421,9 @@ function AnalyticsPage() {
         <div className="flex items-center justify-between border-b border-border p-6">
           <div>
             <h2 className="font-display text-xl tracking-tight">Histórico de pedidos</h2>
-            <p className="text-xs text-muted-foreground">Clique em qualquer linha para ver os detalhes.</p>
+            <p className="text-xs text-muted-foreground">
+              Clique em qualquer linha para ver os detalhes.
+            </p>
           </div>
         </div>
         {oLoading ? (
@@ -440,7 +450,9 @@ function AnalyticsPage() {
               </thead>
               <tbody>
                 {allOrders
-                  .filter((o) => new Date(o.created_at) >= stats.since)
+                  .filter(
+                    (o) => dateOrdinal(o.created_at, timezone) >= dateOrdinal(stats.since, "UTC"),
+                  )
                   .slice(0, 100)
                   .map((o) => {
                     const isRealized = (o as any).archived === true;
@@ -478,7 +490,11 @@ function AnalyticsPage() {
                                   : "bg-background text-muted-foreground ring-border",
                             )}
                           >
-                            {isRealized ? "Realizada" : isProvisioned ? "Provisionada" : "Em aberto"}
+                            {isRealized
+                              ? "Realizada"
+                              : isProvisioned
+                                ? "Provisionada"
+                                : "Em aberto"}
                           </span>
                         </td>
                         <td className="px-6 py-3 text-right font-medium">
@@ -490,7 +506,6 @@ function AnalyticsPage() {
               </tbody>
             </table>
           </div>
-
         )}
       </section>
 
@@ -541,7 +556,12 @@ function StatusPill({ status }: { status: OrderStatus }) {
     cancelled: "bg-[oklch(0.62_0.21_25_/_0.15)] text-[oklch(0.78_0.18_25)]",
   };
   return (
-    <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider", map[status])}>
+    <span
+      className={cn(
+        "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+        map[status],
+      )}
+    >
       {STATUS_LABELS[status]}
     </span>
   );
@@ -599,7 +619,9 @@ function OrderModal({
                     </div>
                   )}
                   {it.notes && (
-                    <div className="mt-0.5 italic text-[11px] text-muted-foreground">"{it.notes}"</div>
+                    <div className="mt-0.5 italic text-[11px] text-muted-foreground">
+                      "{it.notes}"
+                    </div>
                   )}
                 </div>
                 <span className="shrink-0 text-xs text-muted-foreground">

@@ -21,8 +21,8 @@ import {
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
     meta: [
-      { title: "Redefinir senha — Flux" },
-      { name: "description", content: "Defina uma nova senha para sua conta Flux." },
+      { title: "Redefinir senha — Flux Menu" },
+      { name: "description", content: "Defina uma nova senha para sua conta Flux Menu." },
     ],
   }),
   component: ResetPasswordPage,
@@ -59,7 +59,9 @@ function ResetPasswordPage() {
     }
 
     let resolved = false;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
         resolved = true;
         setStatus("ready");
@@ -94,7 +96,6 @@ function ResetPasswordPage() {
       clearTimeout(timeout);
     };
   }, [hashParams]);
-
 
   // Cooldown ticker
   useEffect(() => {
@@ -133,9 +134,7 @@ function ResetPasswordPage() {
       toast.success("Senha redefinida. Bem-vindo de volta!");
       navigate({ to: "/dashboard" });
     } catch (err) {
-      const result = classifyUpdateUserError(
-        err instanceof Error ? err.message : "",
-      );
+      const result = classifyUpdateUserError(err instanceof Error ? err.message : "");
       if (result.status) setStatus(result.status);
       if (result.banner) setErrorMsg(result.banner);
       toast.error(result.toast);
@@ -161,16 +160,13 @@ function ResetPasswordPage() {
       toast.success("Se existir uma conta com esse email, enviamos um novo link.");
       setCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
-      const result = classifyResendError(
-        err instanceof Error ? err.message : "",
-      );
+      const result = classifyResendError(err instanceof Error ? err.message : "");
       toast.error(result.toast);
       if (result.engageCooldown) setCooldown(RESEND_COOLDOWN_SECONDS);
     } finally {
       setResendLoading(false);
     }
   };
-
 
   const showRecoveryForm = status === "ready";
   const showResendPanel = status === "invalid" || status === "expired";
@@ -293,7 +289,8 @@ function ResetPasswordPage() {
                   : "Enviar novo link de recuperação"}
               </button>
               <p className="text-center text-xs text-muted-foreground">
-                Por segurança, você pode solicitar um novo link a cada {RESEND_COOLDOWN_SECONDS} segundos.
+                Por segurança, você pode solicitar um novo link a cada {RESEND_COOLDOWN_SECONDS}{" "}
+                segundos.
               </p>
             </form>
           )}

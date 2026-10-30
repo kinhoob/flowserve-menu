@@ -27,7 +27,7 @@ export function useRestaurant() {
       // Safety net: trigger normally creates this on signup. If missing
       // (older account, race condition), auto-create now so the app never
       // gets stuck without a restaurant_id.
-      let slug = shortSlug(user!.id);
+      const slug = shortSlug(user!.id);
       for (let attempt = 0; attempt < 3; attempt++) {
         const { data: created, error: insertErr } = await supabase
           .from("restaurants")
@@ -36,6 +36,7 @@ export function useRestaurant() {
             name: "Meu Restaurante",
             slug: attempt === 0 ? slug : `${slug}-${Math.floor(Math.random() * 9000) + 1000}`,
             currency: "BRL",
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo",
           })
           .select("*")
           .single();

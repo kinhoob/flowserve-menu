@@ -1,12 +1,33 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, ChefHat, Store, Check, Sparkles, Crown, Rocket, AlertTriangle, Users, Plus, Trash2, Save, ExternalLink, Image as ImageIcon } from "lucide-react";
+import {
+  Loader2,
+  ChefHat,
+  Store,
+  Check,
+  Sparkles,
+  Crown,
+  Rocket,
+  AlertTriangle,
+  Users,
+  Plus,
+  Trash2,
+  Save,
+  ExternalLink,
+  Image as ImageIcon,
+} from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTrialStatus, daysLeft } from "@/features/billing/trial-guard";
-import { useStaff, useCreateStaff, useUpdateStaff, useDeleteStaff, type StaffMember } from "@/features/staff/staff-queries";
+import {
+  useStaff,
+  useCreateStaff,
+  useUpdateStaff,
+  useDeleteStaff,
+  type StaffMember,
+} from "@/features/staff/staff-queries";
 import { useAuth } from "@/features/auth/auth-provider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -22,7 +43,7 @@ export const Route = createFileRoute("/_authenticated/settings")({
     tab: typeof search.tab === "string" ? search.tab : undefined,
     plan: typeof search.plan === "string" ? search.plan : undefined,
   }),
-  head: () => ({ meta: [{ title: "Configurações — Flux" }] }),
+  head: () => ({ meta: [{ title: "Configurações — Flux Menu" }] }),
   component: SettingsPage,
 });
 
@@ -57,7 +78,12 @@ const PLANS: {
     period: "/mês",
     icon: Crown,
     description: "Operação digital completa para começar.",
-    features: ["Pedidos por QR Code", "KDS para cozinha e bar", "Até 5 QR Codes", "Suporte por email"],
+    features: [
+      "Pedidos por QR Code",
+      "KDS para cozinha e bar",
+      "Até 5 QR Codes",
+      "Suporte por email",
+    ],
     priceId: "essential_monthly",
   },
   {
@@ -84,11 +110,15 @@ const PLANS: {
     period: "",
     icon: Rocket,
     description: "Multi-unidades e integrações sob medida.",
-    features: ["Multi-unidade & franquias", "Integrações personalizadas", "SLA dedicado", "Onboarding presencial"],
+    features: [
+      "Multi-unidade & franquias",
+      "Integrações personalizadas",
+      "SLA dedicado",
+      "Onboarding presencial",
+    ],
     comingSoon: true,
   },
 ];
-
 
 function SettingsPage() {
   const { tab, plan: planParam } = Route.useSearch();
@@ -156,7 +186,9 @@ function SettingsPage() {
   // Auto-open embedded checkout if user arrives with ?plan=basic|essential|pro
   useEffect(() => {
     if (!user) return;
-    const pending = planParam ?? (typeof window !== "undefined" ? sessionStorage.getItem("flux:pending_plan") : null);
+    const pending =
+      planParam ??
+      (typeof window !== "undefined" ? sessionStorage.getItem("flux:pending_plan") : null);
     if (!pending) return;
     const found = PLANS.find((p) => p.id === pending);
     if (!found?.priceId) return;
@@ -173,7 +205,6 @@ function SettingsPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planParam, user?.id, paymentsReady]);
-
 
   const update = useMutation({
     mutationFn: async (patch: { kitchen_open?: boolean }) => {
@@ -194,7 +225,7 @@ function SettingsPage() {
     }
   }
 
-  function handleSubscribe(plan: typeof PLANS[number]) {
+  function handleSubscribe(plan: (typeof PLANS)[number]) {
     if (!plan.priceId) return;
     if (!paymentsReady) {
       toast.error("Pagamentos não configurados");
@@ -254,7 +285,9 @@ function SettingsPage() {
         </div>
         <p className="mt-4 text-sm font-medium">Nenhum item encontrado</p>
         <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-          {isError ? (error as Error).message : "Configure seu restaurante para liberar as configurações."}
+          {isError
+            ? (error as Error).message
+            : "Configure seu restaurante para liberar as configurações."}
         </p>
         {!isError && (
           <button
@@ -297,7 +330,11 @@ function SettingsPage() {
         </p>
       </div>
 
-      <Tabs key={tab ?? (planParam ? "billing" : "operation")} defaultValue={tab ?? (planParam ? "billing" : "operation")} className="w-full">
+      <Tabs
+        key={tab ?? (planParam ? "billing" : "operation")}
+        defaultValue={tab ?? (planParam ? "billing" : "operation")}
+        className="w-full"
+      >
         <TabsList className="bg-surface">
           <TabsTrigger value="operation">Operação</TabsTrigger>
           <TabsTrigger value="establishment">Estabelecimento</TabsTrigger>
@@ -315,18 +352,28 @@ function SettingsPage() {
                 <div>
                   <h2 className="font-display text-xl tracking-tight">Cozinha</h2>
                   <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                    Quando fechada, itens de comida são automaticamente desabilitados no cardápio público.
-                    Apenas bebidas continuam disponíveis para pedido.
+                    Quando fechada, itens de comida são automaticamente desabilitados no cardápio
+                    público. Apenas bebidas continuam disponíveis para pedido.
                   </p>
                   <p className="mt-3 text-sm">
                     Status:{" "}
-                    <span className={kitchenOpen ? "font-medium text-emerald-400" : "font-medium text-[oklch(0.78_0.18_25)]"}>
+                    <span
+                      className={
+                        kitchenOpen
+                          ? "font-medium text-emerald-400"
+                          : "font-medium text-[oklch(0.78_0.18_25)]"
+                      }
+                    >
                       {kitchenOpen ? "Aberta" : "Fechada"}
                     </span>
                   </p>
                 </div>
               </div>
-              <Switch checked={kitchenOpen} onCheckedChange={toggleKitchen} disabled={update.isPending} />
+              <Switch
+                checked={kitchenOpen}
+                onCheckedChange={toggleKitchen}
+                disabled={update.isPending}
+              />
             </div>
           </section>
 
@@ -339,7 +386,8 @@ function SettingsPage() {
                 <div>
                   <h2 className="font-display text-xl tracking-tight">Tutorial guiado</h2>
                   <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                    Reveja o tour de boas-vindas com as principais áreas do Flux: cardápio, QR Codes, análises e operação.
+                    Reveja o tour de boas-vindas com as principais áreas do Flux Menu: cardápio, QR
+                    Codes, análises e operação.
                   </p>
                 </div>
               </div>
@@ -381,7 +429,6 @@ function SettingsPage() {
           <TeamSection restaurantId={restaurant.id} slug={restaurant.slug} />
         </TabsContent>
 
-
         <TabsContent value="billing" className="mt-6 space-y-6">
           <PaymentTestModeBanner />
 
@@ -409,58 +456,65 @@ function SettingsPage() {
           )}
 
           {/* Past-due / unpaid banner — access already revoked by webhook. */}
-          {subscription && (subscription.status === "past_due" || subscription.status === "unpaid") && (
-            <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/40 bg-red-500/10 px-5 py-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Pagamento em atraso — acesso bloqueado
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Atualize seu método de pagamento para reativar seu plano imediatamente.
-                  </p>
+          {subscription &&
+            (subscription.status === "past_due" || subscription.status === "unpaid") && (
+              <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/40 bg-red-500/10 px-5 py-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      Pagamento em atraso — acesso bloqueado
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Atualize seu método de pagamento para reativar seu plano imediatamente.
+                    </p>
+                  </div>
                 </div>
+                <button
+                  onClick={handleManageBilling}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90"
+                >
+                  Atualizar pagamento <ExternalLink className="h-3 w-3" />
+                </button>
               </div>
-              <button
-                onClick={handleManageBilling}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90"
-              >
-                Atualizar pagamento <ExternalLink className="h-3 w-3" />
-              </button>
-            </div>
-          )}
+            )}
 
           {/* Cancelamento agendado — usuário cancelou mas ainda tem período pago. */}
-          {subscription?.cancel_at_period_end && subscription.current_period_end && subscription.status === "active" && (
-            <div className="flex items-start justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-5 py-4">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">Cancelamento agendado</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Você terá acesso ao plano até{" "}
-                    <strong>{new Date(subscription.current_period_end as string).toLocaleDateString("pt-BR")}</strong>.
-                    Reative no portal a qualquer momento.
-                  </p>
+          {subscription?.cancel_at_period_end &&
+            subscription.current_period_end &&
+            subscription.status === "active" && (
+              <div className="flex items-start justify-between gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 px-5 py-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-400" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Cancelamento agendado</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Você terá acesso ao plano até{" "}
+                      <strong>
+                        {new Date(subscription.current_period_end as string).toLocaleDateString(
+                          "pt-BR",
+                        )}
+                      </strong>
+                      . Reative no portal a qualquer momento.
+                    </p>
+                  </div>
                 </div>
+                <button
+                  onClick={handleManageBilling}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium transition hover:bg-accent"
+                >
+                  Reativar
+                </button>
               </div>
-              <button
-                onClick={handleManageBilling}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium transition hover:bg-accent"
-              >
-                Reativar
-              </button>
-            </div>
-          )}
+            )}
 
           <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Plano atual</p>
-                <h2 className="mt-1 font-display text-2xl tracking-tight">
-                  {effectivePlanName}
-                </h2>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Plano atual
+                </p>
+                <h2 className="mt-1 font-display text-2xl tracking-tight">{effectivePlanName}</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {isTrial
                     ? `Período de teste — ${trialDays} ${trialDays === 1 ? "dia restante" : "dias restantes"}.`
@@ -472,14 +526,18 @@ function SettingsPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wider ring-1",
-                  subscription?.status === "past_due" || subscription?.status === "unpaid"
-                    ? "bg-red-500/10 text-red-400 ring-red-500/30"
-                    : "bg-gold-soft text-primary ring-[oklch(0.78_0.13_84_/_0.3)]",
-                )}>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wider ring-1",
+                    subscription?.status === "past_due" || subscription?.status === "unpaid"
+                      ? "bg-red-500/10 text-red-400 ring-red-500/30"
+                      : "bg-gold-soft text-primary ring-[oklch(0.78_0.13_84_/_0.3)]",
+                  )}
+                >
                   <Check className="h-3 w-3" />
-                  {subscription?.status === "past_due" || subscription?.status === "unpaid" ? "Bloqueado" : "Ativo"}
+                  {subscription?.status === "past_due" || subscription?.status === "unpaid"
+                    ? "Bloqueado"
+                    : "Ativo"}
                 </span>
                 {subscription?.stripe_customer_id && (
                   <button
@@ -497,7 +555,8 @@ function SettingsPage() {
             <div className="flex items-start gap-3 rounded-2xl border border-[oklch(0.78_0.13_84_/_0.3)] bg-gold-soft px-5 py-4">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <p className="text-sm text-foreground">
-                Você está no plano <strong className="font-semibold">Trial</strong>. Faça o upgrade para liberar todas as funções.
+                Você está no plano <strong className="font-semibold">Trial</strong>. Faça o upgrade
+                para liberar todas as funções.
               </p>
             </div>
           )}
@@ -516,7 +575,11 @@ function SettingsPage() {
 
               const handleClick = () => {
                 if (canSwap && plan.priceId) {
-                  if (confirm(`Trocar para o plano ${plan.name}? A diferença será cobrada proporcionalmente.`)) {
+                  if (
+                    confirm(
+                      `Trocar para o plano ${plan.name}? A diferença será cobrada proporcionalmente.`,
+                    )
+                  ) {
                     swapPlan.mutate(plan.priceId);
                   }
                 } else {
@@ -561,7 +624,9 @@ function SettingsPage() {
                   <p className="mt-1 text-xs text-muted-foreground">{plan.description}</p>
                   <div className="mt-4 flex items-baseline gap-1">
                     <span className="font-display text-3xl tracking-tight">{plan.price}</span>
-                    {plan.period && <span className="text-xs text-muted-foreground">{plan.period}</span>}
+                    {plan.period && (
+                      <span className="text-xs text-muted-foreground">{plan.period}</span>
+                    )}
                   </div>
                   <ul className="mt-5 flex-1 space-y-2">
                     {plan.features.map((f) => (
@@ -596,7 +661,8 @@ function SettingsPage() {
           </div>
 
           <p className="text-center text-[11px] text-muted-foreground">
-            Pagamentos processados de forma segura. Você pode cancelar ou trocar de plano a qualquer momento.
+            Pagamentos processados de forma segura. Você pode cancelar ou trocar de plano a qualquer
+            momento.
           </p>
         </TabsContent>
       </Tabs>
@@ -604,11 +670,11 @@ function SettingsPage() {
       <Dialog open={isOpen} onOpenChange={(o) => !o && closeCheckout()}>
         <DialogContent className="max-w-2xl p-0 sm:max-w-3xl">
           <DialogHeader className="border-b border-border p-4">
-            <DialogTitle className="font-display text-lg tracking-tight">Finalizar assinatura</DialogTitle>
+            <DialogTitle className="font-display text-lg tracking-tight">
+              Finalizar assinatura
+            </DialogTitle>
           </DialogHeader>
-          <div className="max-h-[80vh] overflow-y-auto p-2">
-            {checkoutElement}
-          </div>
+          <div className="max-h-[80vh] overflow-y-auto p-2">{checkoutElement}</div>
         </DialogContent>
       </Dialog>
     </div>
@@ -653,6 +719,8 @@ function EstablishmentSection({
   const qc = useQueryClient();
   const { user } = useAuth();
   const [name, setName] = useState(initialName);
+  const [selectedTimezone, setSelectedTimezone] = useState(timezone);
+  useEffect(() => setSelectedTimezone(timezone), [timezone]);
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl);
   const [uploading, setUploading] = useState(false);
   const DEFAULT_BG = "#0b0b0c";
@@ -662,11 +730,21 @@ function EstablishmentSection({
   const DEFAULT_HEADER = "#0b0b0c";
   const DEFAULT_BUTTON = "#d4a017";
   const [brandColor, setBrandColor] = useState<string>(initialBrandColor || DEFAULT_BG);
-  const [brandTextColor, setBrandTextColor] = useState<string>(initialBrandTextColor || DEFAULT_TEXT);
-  const [brandAccentColor, setBrandAccentColor] = useState<string>(initialBrandAccentColor || DEFAULT_ACCENT);
-  const [brandCardColor, setBrandCardColor] = useState<string>(initialBrandCardColor || DEFAULT_CARD);
-  const [brandHeaderColor, setBrandHeaderColor] = useState<string>(initialBrandHeaderColor || DEFAULT_HEADER);
-  const [brandButtonColor, setBrandButtonColor] = useState<string>(initialBrandButtonColor || DEFAULT_BUTTON);
+  const [brandTextColor, setBrandTextColor] = useState<string>(
+    initialBrandTextColor || DEFAULT_TEXT,
+  );
+  const [brandAccentColor, setBrandAccentColor] = useState<string>(
+    initialBrandAccentColor || DEFAULT_ACCENT,
+  );
+  const [brandCardColor, setBrandCardColor] = useState<string>(
+    initialBrandCardColor || DEFAULT_CARD,
+  );
+  const [brandHeaderColor, setBrandHeaderColor] = useState<string>(
+    initialBrandHeaderColor || DEFAULT_HEADER,
+  );
+  const [brandButtonColor, setBrandButtonColor] = useState<string>(
+    initialBrandButtonColor || DEFAULT_BUTTON,
+  );
   const [savingColor, setSavingColor] = useState(false);
 
   // Banner state
@@ -681,11 +759,26 @@ function EstablishmentSection({
   useEffect(() => setName(initialName), [initialName]);
   useEffect(() => setLogoUrl(initialLogoUrl), [initialLogoUrl]);
   useEffect(() => setBrandColor(initialBrandColor || DEFAULT_BG), [initialBrandColor]);
-  useEffect(() => setBrandTextColor(initialBrandTextColor || DEFAULT_TEXT), [initialBrandTextColor]);
-  useEffect(() => setBrandAccentColor(initialBrandAccentColor || DEFAULT_ACCENT), [initialBrandAccentColor]);
-  useEffect(() => setBrandCardColor(initialBrandCardColor || DEFAULT_CARD), [initialBrandCardColor]);
-  useEffect(() => setBrandHeaderColor(initialBrandHeaderColor || DEFAULT_HEADER), [initialBrandHeaderColor]);
-  useEffect(() => setBrandButtonColor(initialBrandButtonColor || DEFAULT_BUTTON), [initialBrandButtonColor]);
+  useEffect(
+    () => setBrandTextColor(initialBrandTextColor || DEFAULT_TEXT),
+    [initialBrandTextColor],
+  );
+  useEffect(
+    () => setBrandAccentColor(initialBrandAccentColor || DEFAULT_ACCENT),
+    [initialBrandAccentColor],
+  );
+  useEffect(
+    () => setBrandCardColor(initialBrandCardColor || DEFAULT_CARD),
+    [initialBrandCardColor],
+  );
+  useEffect(
+    () => setBrandHeaderColor(initialBrandHeaderColor || DEFAULT_HEADER),
+    [initialBrandHeaderColor],
+  );
+  useEffect(
+    () => setBrandButtonColor(initialBrandButtonColor || DEFAULT_BUTTON),
+    [initialBrandButtonColor],
+  );
 
   const colorsDirty =
     brandColor !== (initialBrandColor || DEFAULT_BG) ||
@@ -706,10 +799,7 @@ function EstablishmentSection({
         brand_header_color: overrides?.brand_header_color ?? brandHeaderColor,
         brand_button_color: overrides?.brand_button_color ?? brandButtonColor,
       };
-      const { error } = await supabase
-        .from("restaurants")
-        .update(payload)
-        .eq("id", restaurantId);
+      const { error } = await supabase.from("restaurants").update(payload).eq("id", restaurantId);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ["restaurant"] });
       qc.invalidateQueries({ queryKey: ["public-menu"] });
@@ -837,39 +927,22 @@ function EstablishmentSection({
     mutationFn: async () => {
       const trimmed = name.trim();
       if (!trimmed) throw new Error("Informe um nome");
-      const base = trimmed
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 40) || "restaurante";
-      let nextSlug = base;
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const candidate = attempt === 0 ? base : `${base}-${Math.floor(Math.random() * 9000) + 1000}`;
-        const { error } = await supabase
-          .from("restaurants")
-          .update({ name: trimmed, slug: candidate })
-          .eq("id", restaurantId);
-        if (!error) {
-          nextSlug = candidate;
-          return nextSlug;
-        }
-        if (!error.message?.toLowerCase().includes("duplicate") && !error.message?.toLowerCase().includes("unique")) {
-          throw error;
-        }
-      }
-      throw new Error("Não foi possível gerar uma URL única");
+      new Intl.DateTimeFormat("pt-BR", { timeZone: selectedTimezone }).format();
+      const { error } = await supabase
+        .from("restaurants")
+        .update({ name: trimmed, timezone: selectedTimezone })
+        .eq("id", restaurantId);
+      if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["restaurant"] });
       qc.invalidateQueries({ queryKey: ["public-menu"] });
-      toast.success("Nome e URL atualizados");
+      toast.success("Estabelecimento atualizado");
     },
     onError: (e: any) => toast.error(e.message ?? "Erro ao salvar"),
   });
 
-  const dirty = name.trim() !== initialName.trim();
+  const dirty = name.trim() !== initialName.trim() || selectedTimezone !== timezone;
   const initials = (initialName || "R").slice(0, 2).toUpperCase();
 
   return (
@@ -887,7 +960,11 @@ function EstablishmentSection({
           <div className="mt-5 flex flex-col items-start gap-4 rounded-xl border border-border bg-background/40 p-4 sm:flex-row sm:items-center">
             <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
               {logoUrl ? (
-                <img src={logoUrl} alt="Logo do estabelecimento" className="h-full w-full object-cover" />
+                <img
+                  src={logoUrl}
+                  alt="Logo do estabelecimento"
+                  className="h-full w-full object-cover"
+                />
               ) : (
                 <span className="font-display text-xl text-primary">{initials}</span>
               )}
@@ -899,7 +976,11 @@ function EstablishmentSection({
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2 text-xs font-medium transition hover:border-[oklch(0.78_0.13_84_/_0.5)]">
-                  {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Store className="h-3.5 w-3.5" />}
+                  {uploading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Store className="h-3.5 w-3.5" />
+                  )}
                   {logoUrl ? "Trocar imagem" : "Enviar imagem"}
                   <input
                     type="file"
@@ -944,7 +1025,11 @@ function EstablishmentSection({
                   disabled={!dirty || save.isPending}
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
                 >
-                  {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {save.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
                   Salvar
                 </button>
               </div>
@@ -955,12 +1040,38 @@ function EstablishmentSection({
                 <dd className="mt-1 truncate text-sm">/m/{slug}</dd>
               </div>
               <div>
-                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Moeda</dt>
+                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Moeda
+                </dt>
                 <dd className="mt-1 text-sm">{currency}</dd>
               </div>
               <div>
                 <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Fuso</dt>
-                <dd className="mt-1 text-sm">{timezone}</dd>
+                <dd className="mt-1">
+                  <select
+                    aria-label="Fuso horário do restaurante"
+                    value={selectedTimezone}
+                    onChange={(e) => setSelectedTimezone(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background p-2 text-sm"
+                  >
+                    {Array.from(
+                      new Set([
+                        timezone,
+                        "America/Sao_Paulo",
+                        "America/Manaus",
+                        "America/Cuiaba",
+                        "America/Rio_Branco",
+                        "America/Noronha",
+                        "Europe/Lisbon",
+                        "UTC",
+                      ]),
+                    ).map((zone) => (
+                      <option key={zone} value={zone}>
+                        {zone}
+                      </option>
+                    ))}
+                  </select>
+                </dd>
               </div>
             </dl>
 
@@ -975,15 +1086,50 @@ function EstablishmentSection({
 
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 {[
-                  { label: "Principal (fundo)", hint: "Cor de fundo do cardápio", value: brandColor, set: setBrandColor },
-                  { label: "Secundária (texto)", hint: "Cor das letras", value: brandTextColor, set: setBrandTextColor },
-                  { label: "Destaque", hint: "Preços e detalhes", value: brandAccentColor, set: setBrandAccentColor },
-                  { label: "Cabeçalho", hint: "Topo do cardápio", value: brandHeaderColor, set: setBrandHeaderColor },
-                  { label: "Cards", hint: "Fundo dos itens", value: brandCardColor, set: setBrandCardColor },
-                  { label: "Botões", hint: "Cor dos botões", value: brandButtonColor, set: setBrandButtonColor },
+                  {
+                    label: "Principal (fundo)",
+                    hint: "Cor de fundo do cardápio",
+                    value: brandColor,
+                    set: setBrandColor,
+                  },
+                  {
+                    label: "Secundária (texto)",
+                    hint: "Cor das letras",
+                    value: brandTextColor,
+                    set: setBrandTextColor,
+                  },
+                  {
+                    label: "Destaque",
+                    hint: "Preços e detalhes",
+                    value: brandAccentColor,
+                    set: setBrandAccentColor,
+                  },
+                  {
+                    label: "Cabeçalho",
+                    hint: "Topo do cardápio",
+                    value: brandHeaderColor,
+                    set: setBrandHeaderColor,
+                  },
+                  {
+                    label: "Cards",
+                    hint: "Fundo dos itens",
+                    value: brandCardColor,
+                    set: setBrandCardColor,
+                  },
+                  {
+                    label: "Botões",
+                    hint: "Cor dos botões",
+                    value: brandButtonColor,
+                    set: setBrandButtonColor,
+                  },
                 ].map((c) => (
-                  <div key={c.label} className="rounded-lg border border-border bg-background/60 p-3">
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{c.label}</p>
+                  <div
+                    key={c.label}
+                    className="rounded-lg border border-border bg-background/60 p-3"
+                  >
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {c.label}
+                    </p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground/80">{c.hint}</p>
                     <div className="mt-2 flex items-center gap-2">
                       <input
@@ -1040,7 +1186,11 @@ function EstablishmentSection({
                     disabled={savingColor || !colorsDirty}
                     className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
                   >
-                    {savingColor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {savingColor ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
                     Salvar cores
                   </button>
                   <button
@@ -1069,7 +1219,9 @@ function EstablishmentSection({
 
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Título</label>
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Título
+                  </label>
                   <input
                     type="text"
                     value={bannerTitle}
@@ -1079,7 +1231,9 @@ function EstablishmentSection({
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Rótulo do botão (opcional)</label>
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Rótulo do botão (opcional)
+                  </label>
                   <input
                     type="text"
                     value={bannerCtaLabel}
@@ -1089,7 +1243,9 @@ function EstablishmentSection({
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Descrição</label>
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Descrição
+                  </label>
                   <textarea
                     value={bannerDescription}
                     onChange={(e) => setBannerDescription(e.target.value)}
@@ -1099,17 +1255,27 @@ function EstablishmentSection({
                   />
                 </div>
                 <div className="sm:col-span-2">
-                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">Imagem (opcional)</label>
+                  <label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Imagem (opcional)
+                  </label>
                   <div className="mt-1.5 flex items-center gap-3">
                     {bannerImageUrl ? (
-                      <img src={bannerImageUrl} alt="Banner" className="h-16 w-28 rounded-lg object-cover" />
+                      <img
+                        src={bannerImageUrl}
+                        alt="Banner"
+                        className="h-16 w-28 rounded-lg object-cover"
+                      />
                     ) : (
                       <div className="flex h-16 w-28 items-center justify-center rounded-lg border border-dashed border-border text-[10px] text-muted-foreground">
                         Sem imagem
                       </div>
                     )}
                     <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs hover:text-foreground">
-                      {bannerUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
+                      {bannerUploading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <ImageIcon className="h-3.5 w-3.5" />
+                      )}
                       Enviar imagem
                       <input
                         type="file"
@@ -1142,7 +1308,11 @@ function EstablishmentSection({
                   disabled={savingBanner}
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
                 >
-                  {savingBanner ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {savingBanner ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
                   Salvar banner
                 </button>
               </div>
@@ -1154,7 +1324,6 @@ function EstablishmentSection({
   );
 }
 
-
 function TeamSection({ restaurantId, slug }: { restaurantId: string; slug: string }) {
   const { data: staff = [], isLoading } = useStaff(restaurantId);
   const create = useCreateStaff(restaurantId);
@@ -1163,9 +1332,8 @@ function TeamSection({ restaurantId, slug }: { restaurantId: string; slug: strin
   const [newName, setNewName] = useState("");
   const [showQr, setShowQr] = useState(false);
 
-  const staffUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/staff/${slug}`
-    : `/staff/${slug}`;
+  const staffUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/staff/${slug}` : `/staff/${slug}`;
 
   async function add() {
     const n = newName.trim();
@@ -1192,8 +1360,8 @@ function TeamSection({ restaurantId, slug }: { restaurantId: string; slug: strin
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-xl tracking-tight">Gerenciar equipe</h2>
           <p className="mt-1 max-w-xl text-xs text-muted-foreground">
-            Cadastre os funcionários, defina um PIN de 4 dígitos e a função (Garçom, Cozinha ou ambos).
-            Eles acessarão apenas as telas de operação, sem ver dados financeiros.
+            Cadastre os funcionários, defina um PIN de 4 dígitos e a função (Garçom, Cozinha ou
+            ambos). Eles acessarão apenas as telas de operação, sem ver dados financeiros.
           </p>
 
           <div className="mt-4 flex flex-col gap-2 rounded-xl border border-border bg-background/40 p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1245,7 +1413,11 @@ function TeamSection({ restaurantId, slug }: { restaurantId: string; slug: strin
               disabled={create.isPending || !newName.trim()}
               className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
             >
-              {create.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {create.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
               Adicionar
             </button>
           </div>
@@ -1262,9 +1434,17 @@ function TeamSection({ restaurantId, slug }: { restaurantId: string; slug: strin
             ) : (
               <ul className="divide-y divide-border rounded-xl border border-border">
                 {(staff as StaffMember[]).map((s) => (
-                  <li key={s.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <li
+                    key={s.id}
+                    className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
                     <div className="min-w-0 flex-1">
-                      <div className={cn("truncate text-sm font-medium", !s.active && "text-muted-foreground line-through")}>
+                      <div
+                        className={cn(
+                          "truncate text-sm font-medium",
+                          !s.active && "text-muted-foreground line-through",
+                        )}
+                      >
                         {s.name}
                       </div>
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -1274,7 +1454,9 @@ function TeamSection({ restaurantId, slug }: { restaurantId: string; slug: strin
                     <div className="flex flex-wrap items-center gap-2">
                       <select
                         value={s.role ?? "waiter"}
-                        onChange={(e) => update.mutate({ id: s.id, patch: { role: e.target.value as any } })}
+                        onChange={(e) =>
+                          update.mutate({ id: s.id, patch: { role: e.target.value as any } })
+                        }
                         className="rounded-md border border-border bg-background px-2 py-1 text-xs"
                       >
                         <option value="waiter">Garçom</option>
@@ -1282,10 +1464,19 @@ function TeamSection({ restaurantId, slug }: { restaurantId: string; slug: strin
                         <option value="both">Garçom + Cozinha</option>
                       </select>
                       <input
-                        value={s.pin ?? ""}
-                        onChange={(e) => {
-                          const v = e.target.value.replace(/\D/g, "").slice(0, 4);
-                          update.mutate({ id: s.id, patch: { pin: v || null } as any });
+                        key={s.updated_at}
+                        defaultValue=""
+                        aria-label={`Novo PIN de ${s.name}`}
+                        type="password"
+                        onBlur={(e) => {
+                          const v = e.target.value;
+                          if (!v) return;
+                          if (!/^\d{4}$/.test(v)) {
+                            toast.error("O PIN deve ter 4 dígitos");
+                            return;
+                          }
+                          update.mutate({ id: s.id, patch: { pin: v } });
+                          e.target.value = "";
                         }}
                         placeholder="PIN"
                         maxLength={4}
@@ -1293,7 +1484,16 @@ function TeamSection({ restaurantId, slug }: { restaurantId: string; slug: strin
                         className="w-16 rounded-md border border-border bg-background px-2 py-1 text-center text-xs tracking-widest"
                       />
                       <button
-                        onClick={() => update.mutate({ id: s.id, patch: { pin: randomPin() } as any })}
+                        onClick={() => {
+                          const pin = randomPin();
+                          update.mutate(
+                            { id: s.id, patch: { pin } },
+                            {
+                              onSuccess: () =>
+                                toast.success(`Novo PIN: ${pin}`, { duration: 15000 }),
+                            },
+                          );
+                        }}
                         className="rounded-md border border-border px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
                         title="Gerar PIN"
                       >
@@ -1322,5 +1522,3 @@ function TeamSection({ restaurantId, slug }: { restaurantId: string; slug: strin
     </section>
   );
 }
-
-

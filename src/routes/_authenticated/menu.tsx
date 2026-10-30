@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/menu")({
-  head: () => ({ meta: [{ title: "Cardápio — Flux" }] }),
+  head: () => ({ meta: [{ title: "Cardápio — Flux Menu" }] }),
   component: MenuPage,
 });
 
@@ -79,7 +79,10 @@ function MenuPage() {
     }
   }, [categories, activeCatId]);
 
-  const { data: items = [], isLoading: iLoading } = useMenuItems(restaurantId, activeCatId ?? undefined);
+  const { data: items = [], isLoading: iLoading } = useMenuItems(
+    restaurantId,
+    activeCatId ?? undefined,
+  );
 
   const filtered = items.filter((i) =>
     query ? i.name.toLowerCase().includes(query.toLowerCase()) : true,
@@ -158,7 +161,10 @@ function MenuPage() {
               }
               action={
                 !query && (
-                  <Button onClick={() => setItemDialog({ open: true, item: null })} className="mt-4">
+                  <Button
+                    onClick={() => setItemDialog({ open: true, item: null })}
+                    className="mt-4"
+                  >
                     <Plus className="h-4 w-4" /> Adicionar item
                   </Button>
                 )
@@ -318,6 +324,7 @@ function CategoriesPanel({
           Categorias
         </span>
         <button
+          aria-label="Adicionar categoria"
           onClick={() => setAdding(true)}
           className="rounded-md p-1 text-muted-foreground transition hover:bg-background hover:text-foreground"
         >
@@ -380,7 +387,10 @@ function CategoriesPanel({
                   )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button className="rounded-md p-1 text-muted-foreground opacity-0 transition hover:bg-background hover:text-foreground group-hover:opacity-100">
+                      <button
+                        aria-label={`Opções de ${c.name}`}
+                        className="rounded-md p-1 text-muted-foreground opacity-100 transition hover:bg-background hover:text-foreground group-hover:opacity-100"
+                      >
                         <MoreHorizontal className="h-3.5 w-3.5" />
                       </button>
                     </DropdownMenuTrigger>
@@ -603,7 +613,7 @@ function ItemCard({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-0.5 opacity-0 transition group-hover:opacity-100">
+          <div className="flex items-center gap-0.5 transition">
             <button
               onClick={onMoveUp}
               disabled={!canMoveUp}
@@ -635,12 +645,14 @@ function ItemCard({
               {item.is_available ? "Ocultar" : "Exibir"}
             </button>
             <button
+              aria-label={`Editar ${item.name}`}
               onClick={onEdit}
               className="rounded-md p-1.5 text-muted-foreground transition hover:bg-background hover:text-foreground"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
             <button
+              aria-label={`Excluir ${item.name}`}
               onClick={onDelete}
               className="rounded-md p-1.5 text-muted-foreground transition hover:bg-background hover:text-destructive"
             >

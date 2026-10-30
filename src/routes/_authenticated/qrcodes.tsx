@@ -1,9 +1,19 @@
+import { isOpenOrder, normalizeTableLabel } from "@/lib/operations";
+import { publicMenuUrl, canExportQr } from "@/lib/public-menu-url";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
-import { Download, ExternalLink, Loader2, Plus, QrCode as QrIcon, Trash2, Lock } from "lucide-react";
+import {
+  Download,
+  ExternalLink,
+  Loader2,
+  Plus,
+  QrCode as QrIcon,
+  Trash2,
+  Lock,
+} from "lucide-react";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useOrders } from "@/features/orders/order-queries";
 import {
@@ -19,14 +29,11 @@ import { useTrialStatus } from "@/features/billing/trial-guard";
 import { getTableLimit } from "@/features/staff/staff-picker";
 
 export const Route = createFileRoute("/_authenticated/qrcodes")({
-  head: () => ({ meta: [{ title: "QR Codes — Flux" }] }),
+  head: () => ({ meta: [{ title: "QR Codes — Flux Menu" }] }),
   component: QRCodesPage,
 });
 
-function publicUrl(slug: string, table: string) {
-  if (typeof window === "undefined") return `/m/${slug}?table=${encodeURIComponent(table)}`;
-  return `${window.location.origin}/m/${slug}?table=${encodeURIComponent(table)}`;
-}
+const publicUrl = publicMenuUrl;
 
 function QRCodesPage() {
   const navigate = useNavigate();
@@ -40,11 +47,11 @@ function QRCodesPage() {
   const createMany = useCreateManyTables(restaurant?.id);
   const del = useDeleteTable(restaurant?.id);
 
-  const OCCUPIED_STATUSES = ["pending", "accepted", "preparing", "ready"] as const;
   const occupiedLabels = new Set(
     orders
-      .filter((o) => (OCCUPIED_STATUSES as readonly string[]).includes(o.status) && o.table_label)
-      .map((o) => o.table_label as string),
+      .filter(isOpenOrder)
+      .map((o) => normalizeTableLabel(o.table_label))
+      .filter((label) => tables.some((t) => normalizeTableLabel(t.label) === label)),
   );
 
   const [label, setLabel] = useState("");
@@ -62,8 +69,18 @@ function QRCodesPage() {
   }
 
   const downloadPng = async (t: VenueTable) => {
+    if (!canExportQr()) {
+      toast.error(
+        "Configure VITE_PUBLIC_APP_URL com o domínio publicado antes de exportar QR Codes.",
+      );
+      return;
+    }
     const url = publicUrl(restaurant.slug, t.label);
-    const dataUrl = await QRCode.toDataURL(url, { width: 1024, margin: 2, color: { dark: "#111111", light: "#ffffff" } });
+    const dataUrl = await QRCode.toDataURL(url, {
+      width: 1024,
+      margin: 2,
+      color: { dark: "#111111", light: "#ffffff" },
+    });
     const a = document.createElement("a");
     a.href = dataUrl;
     a.download = `flux-${restaurant.slug}-${t.label.replace(/\s+/g, "-").toLowerCase()}.png`;
@@ -75,21 +92,34 @@ function QRCodesPage() {
       toast.error("Cadastre ao menos uma mesa");
       return;
     }
+    if (!canExportQr()) {
+      toast.error("Configure o domínio publicado antes de exportar QR Codes.");
+      return;
+    }
     setDownloading(true);
     try {
       const pdf = new jsPDF({ unit: "pt", format: "a4" });
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
-      const cols = 2, rows = 2, perPage = cols * rows;
-      const cardW = pageW / cols, cardH = pageH / rows;
+      const cols = 2,
+        rows = 2,
+        perPage = cols * rows;
+      const cardW = pageW / cols,
+        cardH = pageH / rows;
       for (let i = 0; i < tables.length; i++) {
         if (i > 0 && i % perPage === 0) pdf.addPage();
         const idx = i % perPage;
-        const col = idx % cols, row = Math.floor(idx / cols);
-        const x = col * cardW, y = row * cardH;
+        const col = idx % cols,
+          row = Math.floor(idx / cols);
+        const x = col * cardW,
+          y = row * cardH;
         const t = tables[i];
         const url = publicUrl(restaurant.slug, t.label);
-        const dataUrl = await QRCode.toDataURL(url, { width: 600, margin: 1, color: { dark: "#111111", light: "#ffffff" } });
+        const dataUrl = await QRCode.toDataURL(url, {
+          width: 600,
+          margin: 1,
+          color: { dark: "#111111", light: "#ffffff" },
+        });
         const qrSize = Math.min(cardW, cardH) - 120;
         pdf.setDrawColor(220);
         pdf.roundedRect(x + 24, y + 24, cardW - 48, cardH - 48, 12, 12);
@@ -102,7 +132,9 @@ function QRCodesPage() {
         pdf.text(t.label, x + cardW / 2, y + cardH - 60, { align: "center" });
         pdf.setFontSize(9);
         pdf.setTextColor(140);
-        pdf.text("Escaneie para ver o cardápio e pedir", x + cardW / 2, y + cardH - 42, { align: "center" });
+        pdf.text("Escaneie para ver o cardápio e pedir", x + cardW / 2, y + cardH - 42, {
+          align: "center",
+        });
       }
       pdf.save(`flux-${restaurant.slug}-qrcodes.pdf`);
       toast.success("PDF gerado");
@@ -122,7 +154,8 @@ function QRCodesPage() {
             Mesas & <span className="text-gradient-gold italic">QR</span>
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Gere QR codes por mesa apontando para o seu cardápio público em <span className="text-foreground">/m/{restaurant.slug}</span>.
+            Gere QR codes por mesa apontando para o seu cardápio público em{" "}
+            <span className="text-foreground">/m/{restaurant.slug}</span>.
           </p>
           {tables.length > 0 && (
             <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
@@ -132,26 +165,51 @@ function QRCodesPage() {
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[oklch(0.72_0.18_150)]" />
-                {tables.length - occupiedLabels.size} livre{tables.length - occupiedLabels.size === 1 ? "" : "s"}
+                {tables.length - occupiedLabels.size} livre
+                {tables.length - occupiedLabels.size === 1 ? "" : "s"}
               </span>
             </div>
           )}
           <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-[11px] text-muted-foreground">
             <Lock className="h-3 w-3 text-primary" />
-            Plano <strong className="mx-1 font-semibold text-foreground">{(trial?.plan_type ?? "trial").toString().toUpperCase()}</strong>
+            Plano{" "}
+            <strong className="mx-1 font-semibold text-foreground">
+              {(trial?.plan_type ?? "trial").toString().toUpperCase()}
+            </strong>
             · {tables.length}/{Number.isFinite(tableLimit) ? tableLimit : "∞"} QR Codes
           </div>
         </div>
-        <Button onClick={downloadAllPdf} disabled={downloading || tables.length === 0} size="lg" className="gap-2">
-          {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+        <Button
+          onClick={downloadAllPdf}
+          disabled={downloading || tables.length === 0}
+          size="lg"
+          className="gap-2"
+        >
+          {downloading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
           Baixar PDF de todas
         </Button>
       </div>
 
+      {!canExportQr() && (
+        <p role="status" className="rounded-xl border border-border p-4 text-sm">
+          Prévia de desenvolvimento: configure o domínio publicado para exportar QR Codes que os
+          clientes possam abrir sem login.
+        </p>
+      )}
       {reachedLimit && (
         <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft px-5 py-3 text-sm text-foreground">
           Você atingiu o limite de <strong>{tableLimit}</strong> QR Codes do seu plano atual.{" "}
-          <a href="/settings?tab=billing" className="font-medium text-primary underline-offset-2 hover:underline">Faça upgrade</a> para liberar mais mesas.
+          <a
+            href="/settings?tab=billing"
+            className="font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Faça upgrade
+          </a>{" "}
+          para liberar mais mesas.
         </div>
       )}
 
@@ -177,10 +235,14 @@ function QRCodesPage() {
                 key={t.id}
                 table={t}
                 slug={restaurant.slug}
-                occupied={occupiedLabels.has(t.label)}
+                occupied={occupiedLabels.has(normalizeTableLabel(t.label))}
                 onDelete={async () => {
-                  try { await del.mutateAsync(t.id); toast.success("Mesa removida"); }
-                  catch (e: any) { toast.error(e.message); }
+                  try {
+                    await del.mutateAsync(t.id);
+                    toast.success("Mesa removida");
+                  } catch (e: any) {
+                    toast.error(e.message);
+                  }
                 }}
                 onDownload={() => downloadPng(t)}
               />
@@ -201,9 +263,15 @@ function QRCodesPage() {
                 disabled={reachedLimit}
                 onKeyDown={async (e) => {
                   if (e.key === "Enter" && label.trim()) {
-                    if (reachedLimit) return toast.error(`Limite de ${tableLimit} QR Codes atingido`);
-                    try { await createOne.mutateAsync({ label: label.trim() }); setLabel(""); toast.success("Mesa criada"); }
-                    catch (err: any) { toast.error(err.message); }
+                    if (reachedLimit)
+                      return toast.error(`Limite de ${tableLimit} QR Codes atingido`);
+                    try {
+                      await createOne.mutateAsync({ label: label.trim() });
+                      setLabel("");
+                      toast.success("Mesa criada");
+                    } catch (err: any) {
+                      toast.error(err.message);
+                    }
                   }
                 }}
               />
@@ -211,8 +279,13 @@ function QRCodesPage() {
                 onClick={async () => {
                   if (!label.trim()) return;
                   if (reachedLimit) return toast.error(`Limite de ${tableLimit} QR Codes atingido`);
-                  try { await createOne.mutateAsync({ label: label.trim() }); setLabel(""); toast.success("Mesa criada"); }
-                  catch (err: any) { toast.error(err.message); }
+                  try {
+                    await createOne.mutateAsync({ label: label.trim() });
+                    setLabel("");
+                    toast.success("Mesa criada");
+                  } catch (err: any) {
+                    toast.error(err.message);
+                  }
                 }}
                 disabled={createOne.isPending || reachedLimit}
                 className="w-full gap-2"
@@ -224,7 +297,9 @@ function QRCodesPage() {
 
           <div className="rounded-2xl border border-border bg-surface p-5">
             <h3 className="font-display text-lg tracking-tight">Em lote</h3>
-            <p className="mt-1 text-xs text-muted-foreground">Crie um intervalo de mesas de uma vez.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Crie um intervalo de mesas de uma vez.
+            </p>
             <div className="mt-4 space-y-3">
               <input
                 value={bulk.prefix}
@@ -325,9 +400,7 @@ function TableCard({
         <span
           className={cn(
             "h-1.5 w-1.5 rounded-full",
-            occupied
-              ? "bg-[oklch(0.72_0.2_25)] animate-pulse"
-              : "bg-[oklch(0.72_0.18_150)]",
+            occupied ? "bg-[oklch(0.72_0.2_25)] animate-pulse" : "bg-[oklch(0.72_0.18_150)]",
           )}
         />
         {occupied ? "Ocupada" : "Livre"}

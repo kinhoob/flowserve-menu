@@ -13,7 +13,7 @@ type TrialInfo = {
 
 export type FeatureKey = "analytics" | "waiter" | "menu" | "kitchen" | "dashboard" | "tables";
 
-// Trial behaves like Pro so users experience the full potential of Flux.
+// Trial behaves like Pro so users experience the full potential of Flux Menu.
 const PLAN_FEATURES: Record<string, FeatureKey[]> = {
   trial: ["analytics", "waiter", "menu", "kitchen", "dashboard", "tables"],
   pro: ["analytics", "waiter", "menu", "kitchen", "dashboard", "tables"],
@@ -23,10 +23,10 @@ const PLAN_FEATURES: Record<string, FeatureKey[]> = {
 };
 
 export function canAccess(info: TrialInfo | null | undefined, feature: FeatureKey): boolean {
-  if (!info) return true;
+  if (!info) return false;
   if (isTrialExpired(info)) return false;
   const plan = (info.plan_type ?? "trial").toLowerCase();
-  const features = PLAN_FEATURES[plan] ?? PLAN_FEATURES.essential;
+  const features = PLAN_FEATURES[plan] ?? [];
   return features.includes(feature);
 }
 
@@ -87,7 +87,8 @@ export function FeatureLocked({ feature }: { feature: FeatureKey }) {
         {labels[feature]} está disponível no plano Pro
       </h2>
       <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
-        Seu plano atual não inclui este recurso. Faça upgrade para o Pro e libere todo o potencial do Flux.
+        Seu plano atual não inclui este recurso. Faça upgrade para o Pro e libere todo o potencial
+        do Flux Menu.
       </p>
       <Link
         to="/settings"
@@ -116,8 +117,8 @@ export function TrialExpiredBlock() {
           Seu período de teste acabou.
         </h2>
         <p className="mx-auto mt-3 max-w-lg text-sm text-muted-foreground">
-          Escolha um plano para continuar usando o Flux e mantenha seu salão
-          rodando sem interrupções.
+          Escolha um plano para continuar usando o Flux Menu e mantenha seu salão rodando sem
+          interrupções.
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link

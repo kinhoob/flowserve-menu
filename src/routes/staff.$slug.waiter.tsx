@@ -1,3 +1,5 @@
+import { ModifierPicker, type SelectedModifier } from "@/features/menu/modifier-picker";
+import { fetchModifiersForRestaurant } from "@/features/menu/modifier-queries";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -47,7 +49,15 @@ type WItem = {
   category_name: string;
 };
 
-type Line = { itemId: string; name: string; price: number; qty: number; notes: string };
+type Line = {
+  itemId: string;
+  productId: string;
+  name: string;
+  price: number;
+  qty: number;
+  notes: string;
+  modifiers: SelectedModifier[];
+};
 
 function StaffWaiter() {
   const { slug } = Route.useParams();
@@ -62,26 +72,26 @@ function StaffWaiter() {
   const tablesQ = useQuery({
     queryKey: ["staff-tables", session?.token],
     enabled: !!session?.token,
+    refetchInterval: 5000,
     queryFn: () => staffListTables(session!.token),
   });
 
   const ordersQ = useQuery({
     queryKey: ["staff-orders", session?.token],
     enabled: !!session?.token,
-    queryFn: () => staffListOrders(session!.token),
     refetchInterval: 5000,
+    queryFn: () => staffListOrders(session!.token),
   });
 
   const callsQ = useQuery({
     queryKey: ["staff-calls", session?.token],
     enabled: !!session?.token,
-    queryFn: () => staffListCalls(session!.token),
     refetchInterval: 5000,
+    queryFn: () => staffListCalls(session!.token),
   });
 
   const restaurantId: string | undefined =
-    (tablesQ.data?.[0] as any)?.restaurant_id ??
-    (ordersQ.data?.[0] as any)?.restaurant_id;
+    (tablesQ.data?.[0] as any)?.restaurant_id ?? (ordersQ.data?.[0] as any)?.restaurant_id;
 
   // Fetch restaurant currency via slug (public)
   const restaurantQ = useQuery({
@@ -103,23 +113,26 @@ function StaffWaiter() {
     if (!session) return;
     const ch = supabase
       .channel(`staff-live-${session.token}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "orders" },
-        (payload) => {
-          recordRealtimeEvent("waiter", payload);
-          qc.invalidateQueries({ queryKey: ["staff-orders", session.token] });
-        })
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" },
-        (payload) => {
-          recordRealtimeEvent("waiter", payload);
-          qc.invalidateQueries({ queryKey: ["staff-orders", session.token] });
-        })
-      .on("postgres_changes", { event: "*", schema: "public", table: "waiter_calls" },
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
+        recordRealtimeEvent("waiter", payload);
+        qc.invalidateQueries({ queryKey: ["staff-orders", session.token] });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, (payload) => {
+        recordRealtimeEvent("waiter", payload);
+        qc.invalidateQueries({ queryKey: ["staff-orders", session.token] });
+      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "waiter_calls" },
         (payload) => {
           recordRealtimeEvent("calls", payload);
           qc.invalidateQueries({ queryKey: ["staff-calls", session.token] });
-        })
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [session, qc]);
 
   const archive = useMutation({
@@ -140,7 +153,10 @@ function StaffWaiter() {
   const calls = (callsQ.data ?? []) as any[];
 
   const sorted = useMemo(
-    () => [...tables].sort((a, b) => String(a.label).localeCompare(String(b.label), "pt", { numeric: true })),
+    () =>
+      [...tables].sort((a, b) =>
+        String(a.label).localeCompare(String(b.label), "pt", { numeric: true }),
+      ),
     [tables],
   );
 
@@ -200,7 +216,10 @@ function StaffWaiter() {
           </div>
           <ul className="mt-3 space-y-2">
             {calls.map((c: any) => (
-              <li key={c.id} className="flex items-center justify-between rounded-lg bg-background/40 px-3 py-2 text-sm">
+              <li
+                key={c.id}
+                className="flex items-center justify-between rounded-lg bg-background/40 px-3 py-2 text-sm"
+              >
                 <div>
                   <div className="font-medium">
                     {c.kind === "bill" ? "Conta" : "Chamado"} · {c.table_label || "Sem mesa"}
@@ -229,10 +248,7 @@ function StaffWaiter() {
           const callList = callsByLabel.get(stripped) ?? [];
           const billCall = callList.find((c) => c.kind === "bill");
           const hasAnyCall = callList.length > 0;
-          const total = tableOrders.reduce(
-            (s, o) => s + Number(o.total ?? o.subtotal ?? 0),
-            0,
-          );
+          const total = tableOrders.reduce((s, o) => s + Number(o.total ?? o.subtotal ?? 0), 0);
           return (
             <motion.button
               key={t.id}
@@ -253,7 +269,11 @@ function StaffWaiter() {
             >
               {hasAnyCall && (
                 <span className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background">
-                  {billCall ? <DollarSign className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
+                  {billCall ? (
+                    <DollarSign className="h-3.5 w-3.5" />
+                  ) : (
+                    <Bell className="h-3.5 w-3.5" />
+                  )}
                 </span>
               )}
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Mesa</div>
@@ -282,7 +302,13 @@ function StaffWaiter() {
                           : "bg-emerald-400",
                     )}
                   />
-                  {billCall ? "Pedindo conta" : hasAnyCall ? "Chamando" : isBusy ? "Ver conta" : "Livre"}
+                  {billCall
+                    ? "Pedindo conta"
+                    : hasAnyCall
+                      ? "Chamando"
+                      : isBusy
+                        ? "Ver conta"
+                        : "Livre"}
                 </span>
                 {isBusy || hasAnyCall ? (
                   <Receipt className="h-3.5 w-3.5" />
@@ -313,39 +339,41 @@ function StaffWaiter() {
             restaurantId={restId}
             currency={currency}
             createdByName={session.name}
+            staffToken={session.token}
             onClose={() => setOpenTable(null)}
             onDone={() => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] })}
           />
         )}
-        {billTable && (() => {
-          const key = normalizeLabel(billTable);
-          const tableOrders = activeByLabel.get(key) ?? [];
-          const t = sorted.find((x: any) => x.label === billTable);
-          return (
-            <BillModal
-              tableLabel={billTable}
-              orders={tableOrders}
-              currency={currency}
-              onClose={() => setBillTable(null)}
-              onFinalize={() => {
-                if (tableOrders.length === 0) {
-                  setBillTable(null);
-                  return;
-                }
-                if (confirm(`Finalizar e liberar ${billTable}?`)) {
-                  archive.mutate(tableOrders.map((o) => o.id));
-                  setBillTable(null);
-                }
-              }}
-              onAddItems={() => {
-                if (t) {
-                  setBillTable(null);
-                  setOpenTable({ id: t.id, label: t.label });
-                }
-              }}
-            />
-          );
-        })()}
+        {billTable &&
+          (() => {
+            const key = normalizeLabel(billTable);
+            const tableOrders = activeByLabel.get(key) ?? [];
+            const t = sorted.find((x: any) => x.label === billTable);
+            return (
+              <BillModal
+                tableLabel={billTable}
+                orders={tableOrders}
+                currency={currency}
+                onClose={() => setBillTable(null)}
+                onFinalize={() => {
+                  if (tableOrders.length === 0) {
+                    setBillTable(null);
+                    return;
+                  }
+                  if (confirm(`Finalizar e liberar ${billTable}?`)) {
+                    archive.mutate(tableOrders.map((o) => o.id));
+                    setBillTable(null);
+                  }
+                }}
+                onAddItems={() => {
+                  if (t) {
+                    setBillTable(null);
+                    setOpenTable({ id: t.id, label: t.label });
+                  }
+                }}
+              />
+            );
+          })()}
       </AnimatePresence>
     </main>
   );
@@ -357,6 +385,7 @@ function QuickOrderModal({
   restaurantId,
   currency,
   createdByName,
+  staffToken,
   onClose,
   onDone,
 }: {
@@ -365,12 +394,18 @@ function QuickOrderModal({
   restaurantId: string;
   currency: string;
   createdByName: string;
+  staffToken: string;
   onClose: () => void;
   onDone: () => void;
 }) {
   const [q, setQ] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [pickerItem, setPickerItem] = useState<WItem | null>(null);
+  const modifiers = useQuery({
+    queryKey: ["modifiers", restaurantId],
+    queryFn: () => fetchModifiersForRestaurant(restaurantId),
+  });
 
   const { data: items, isLoading } = useQuery({
     queryKey: ["staff-waiter-items", restaurantId],
@@ -400,13 +435,45 @@ function QuickOrderModal({
     );
   }, [items, q]);
 
-  function addItem(it: WItem) {
+  function addConfigured(it: WItem, selected: SelectedModifier[] = []) {
+    const key =
+      it.id +
+      ":" +
+      selected
+        .map((m) => m.id)
+        .sort()
+        .join(",");
     setLines((prev) => {
-      const ex = prev.find((l) => l.itemId === it.id);
-      if (ex) return prev.map((l) => (l.itemId === it.id ? { ...l, qty: l.qty + 1 } : l));
-      return [...prev, { itemId: it.id, name: it.name, price: it.price, qty: 1, notes: "" }];
+      const existing = prev.find((l) => l.itemId === key);
+      if (existing)
+        return prev.map((l) => (l.itemId === key ? { ...l, qty: Math.min(99, l.qty + 1) } : l));
+      return [
+        ...prev,
+        {
+          itemId: key,
+          productId: it.id,
+          name: it.name,
+          price: it.price + selected.reduce((sum, m) => sum + m.price_delta, 0),
+          qty: 1,
+          notes: "",
+          modifiers: selected,
+        },
+      ];
     });
   }
+  function addItem(it: WItem) {
+    if (modifiers.isPending) {
+      toast.info("Carregando adicionais");
+      return;
+    }
+    if (modifiers.isError) {
+      toast.error("Não foi possível carregar adicionais");
+      return;
+    }
+    if (modifiers.data?.get(it.id)?.length) setPickerItem(it);
+    else addConfigured(it);
+  }
+
   function setQty(id: string, qty: number) {
     if (qty <= 0) return setLines((p) => p.filter((l) => l.itemId !== id));
     setLines((p) => p.map((l) => (l.itemId === id ? { ...l, qty } : l)));
@@ -418,30 +485,17 @@ function QuickOrderModal({
     if (lines.length === 0) return;
     setSubmitting(true);
     try {
-      const { data: order, error: oErr } = await supabase
-        .from("orders")
-        .insert({
-          restaurant_id: restaurantId,
-          table_id: tableId,
-          table_label: tableLabel,
-          subtotal,
-          currency,
-          status: "pending",
-          created_by_name: createdByName,
-        } as any)
-        .select()
-        .single();
-      if (oErr) throw oErr;
-      const rows = lines.map((l) => ({
-        order_id: order.id,
-        menu_item_id: l.itemId,
-        name_snapshot: l.name,
-        price_snapshot: l.price,
-        quantity: l.qty,
-        notes: l.notes || null,
-      }));
-      const { error: iErr } = await supabase.from("order_items").insert(rows);
-      if (iErr) throw iErr;
+      const { error } = await (supabase as any).rpc("staff_place_order", {
+        p_token: staffToken,
+        p_table_id: tableId,
+        p_items: lines.map((l) => ({
+          menu_item_id: l.productId,
+          quantity: l.qty,
+          notes: l.notes || null,
+          modifier_option_ids: l.modifiers.map((m) => m.id),
+        })),
+      });
+      if (error) throw error;
       toast.success(`Pedido enviado · ${tableLabel}`, {
         description: `${lines.reduce((s, l) => s + l.qty, 0)} item(s) · ${fmt(subtotal, currency)}`,
       });
@@ -456,22 +510,31 @@ function QuickOrderModal({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
       onClick={onClose}
     >
       <motion.div
-        initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
         transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
         onClick={(e) => e.stopPropagation()}
         className="flex h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-border bg-background sm:rounded-3xl"
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Lançamento rápido</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Lançamento rápido
+            </div>
             <h2 className="font-display text-xl tracking-tight">{tableLabel}</h2>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-muted-foreground hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -480,7 +543,9 @@ function QuickOrderModal({
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
-              autoFocus value={q} onChange={(e) => setQ(e.target.value)}
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar item ou categoria…"
               className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
             />
@@ -497,7 +562,10 @@ function QuickOrderModal({
               {filtered.map((it) => {
                 const ex = lines.find((l) => l.itemId === it.id);
                 return (
-                  <li key={it.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2.5">
+                  <li
+                    key={it.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2.5"
+                  >
                     <button onClick={() => addItem(it)} className="min-w-0 flex-1 text-left">
                       <div className="truncate text-sm font-medium">{it.name}</div>
                       <div className="text-[11px] text-muted-foreground">
@@ -506,16 +574,27 @@ function QuickOrderModal({
                     </button>
                     {ex ? (
                       <div className="flex items-center gap-1.5">
-                        <button onClick={() => setQty(it.id, ex.qty - 1)} className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground">
+                        <button
+                          onClick={() => setQty(it.id, ex.qty - 1)}
+                          className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground"
+                        >
                           <Minus className="h-3.5 w-3.5" />
                         </button>
-                        <span className="min-w-[1.5rem] text-center text-sm font-medium">{ex.qty}</span>
-                        <button onClick={() => setQty(it.id, ex.qty + 1)} className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground">
+                        <span className="min-w-[1.5rem] text-center text-sm font-medium">
+                          {ex.qty}
+                        </span>
+                        <button
+                          onClick={() => setQty(it.id, ex.qty + 1)}
+                          className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground"
+                        >
                           <Plus className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     ) : (
-                      <button onClick={() => addItem(it)} className="rounded-lg bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground">
+                      <button
+                        onClick={() => addItem(it)}
+                        className="rounded-lg bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
+                      >
                         Adicionar
                       </button>
                     )}
@@ -523,7 +602,9 @@ function QuickOrderModal({
                 );
               })}
               {filtered.length === 0 && (
-                <li className="py-8 text-center text-sm text-muted-foreground">Nenhum item encontrado.</li>
+                <li className="py-8 text-center text-sm text-muted-foreground">
+                  Nenhum item encontrado.
+                </li>
               )}
             </ul>
           )}
@@ -538,7 +619,11 @@ function QuickOrderModal({
                   <span className="flex-1 truncate">{l.name}</span>
                   <input
                     value={l.notes}
-                    onChange={(e) => setLines((p) => p.map((x) => (x.itemId === l.itemId ? { ...x, notes: e.target.value } : x)))}
+                    onChange={(e) =>
+                      setLines((p) =>
+                        p.map((x) => (x.itemId === l.itemId ? { ...x, notes: e.target.value } : x)),
+                      )
+                    }
                     placeholder="obs"
                     className="w-24 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
                   />
@@ -548,7 +633,9 @@ function QuickOrderModal({
           )}
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Subtotal</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Subtotal
+              </div>
               <div className="font-display text-xl tracking-tight">{fmt(subtotal, currency)}</div>
             </div>
             <button
@@ -556,11 +643,27 @@ function QuickOrderModal({
               disabled={lines.length === 0 || submitting}
               className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-95 disabled:opacity-50"
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : (<><Send className="h-4 w-4" /> Enviar pedido</>)}
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <>
+                  <Send className="h-4 w-4" /> Enviar pedido
+                </>
+              )}
             </button>
           </div>
         </div>
       </motion.div>
+      <ModifierPicker
+        item={pickerItem}
+        groups={pickerItem ? (modifiers.data?.get(pickerItem.id) ?? []) : []}
+        currency={currency}
+        onClose={() => setPickerItem(null)}
+        onConfirm={(selected) => {
+          if (pickerItem) addConfigured(pickerItem, selected);
+          setPickerItem(null);
+        }}
+      />
     </motion.div>
   );
 }
@@ -601,29 +704,41 @@ function BillModal({
   const statusMap: Record<string, { label: string; cls: string }> = {
     pending: { label: "Aguardando", cls: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
     accepted: { label: "Aceito", cls: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
-    preparing: { label: "Preparando", cls: "bg-orange-500/15 text-orange-300 border-orange-500/30" },
+    preparing: {
+      label: "Preparando",
+      cls: "bg-orange-500/15 text-orange-300 border-orange-500/30",
+    },
     ready: { label: "Pronto", cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
     served: { label: "Entregue", cls: "bg-muted text-muted-foreground border-border" },
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
       onClick={onClose}
     >
       <motion.div
-        initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 40, opacity: 0 }}
         transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
         onClick={(e) => e.stopPropagation()}
         className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-border bg-background sm:rounded-3xl"
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Conta da mesa</div>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Conta da mesa
+            </div>
             <h2 className="font-display text-xl tracking-tight">{tableLabel}</h2>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-muted-foreground hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -637,10 +752,15 @@ function BillModal({
             <div className="space-y-4">
               <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
                 <span>Histórico da mesa</span>
-                <span>{sorted.length} {sorted.length === 1 ? "pedido" : "pedidos"}</span>
+                <span>
+                  {sorted.length} {sorted.length === 1 ? "pedido" : "pedidos"}
+                </span>
               </div>
               {sorted.map((o, idx) => {
-                const when = new Date(o.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                const when = new Date(o.created_at).toLocaleTimeString("pt-BR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
                 const orderSubtotal = (o.items ?? []).reduce(
                   (s: number, it: any) => s + Number(it.price ?? 0) * Number(it.quantity ?? 0),
                   0,
@@ -656,7 +776,12 @@ function BillModal({
                           <span className="text-muted-foreground">· por {o.created_by_name}</span>
                         )}
                       </div>
-                      <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider", st.cls)}>
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+                          st.cls,
+                        )}
+                      >
                         {st.label}
                       </span>
                     </div>
@@ -670,14 +795,17 @@ function BillModal({
                         <li key={it.id} className="flex flex-col gap-0.5 py-1.5">
                           <div className="flex items-center justify-between gap-2 text-sm">
                             <span>
-                              <span className="font-medium text-primary">{it.quantity}×</span> {it.name}
+                              <span className="font-medium text-primary">{it.quantity}×</span>{" "}
+                              {it.name}
                             </span>
                             <span className="text-muted-foreground">
                               {fmt(Number(it.price ?? 0) * Number(it.quantity ?? 0), currency)}
                             </span>
                           </div>
                           {it.notes && (
-                            <span className="pl-5 text-[11px] italic text-muted-foreground">obs: {it.notes}</span>
+                            <span className="pl-5 text-[11px] italic text-muted-foreground">
+                              obs: {it.notes}
+                            </span>
                           )}
                         </li>
                       ))}
@@ -707,7 +835,9 @@ function BillModal({
             )}
             <div className="flex items-center justify-between border-t border-border pt-2">
               <span className="text-xs uppercase tracking-wider text-muted-foreground">Total</span>
-              <span className="font-display text-2xl tracking-tight text-primary">{fmt(total, currency)}</span>
+              <span className="font-display text-2xl tracking-tight text-primary">
+                {fmt(total, currency)}
+              </span>
             </div>
           </div>
           <div className="flex gap-2">

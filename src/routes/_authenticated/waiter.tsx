@@ -1,3 +1,5 @@
+import { ModifierPicker, type SelectedModifier } from "@/features/menu/modifier-picker";
+import { fetchModifiersForRestaurant } from "@/features/menu/modifier-queries";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,7 +22,7 @@ import { StaffPicker } from "@/features/staff/staff-picker";
 const ACTIVE: Order["status"][] = ["pending", "accepted", "preparing", "ready", "served"];
 
 export const Route = createFileRoute("/_authenticated/waiter")({
-  head: () => ({ meta: [{ title: "Garçom — Flux" }] }),
+  head: () => ({ meta: [{ title: "Garçom — Flux Menu" }] }),
   component: WaiterPage,
 });
 
@@ -32,7 +34,15 @@ type WItem = {
   category_name: string;
 };
 
-type Line = { itemId: string; name: string; price: number; qty: number; notes: string };
+type Line = {
+  itemId: string;
+  productId: string;
+  name: string;
+  price: number;
+  qty: number;
+  notes: string;
+  modifiers: SelectedModifier[];
+};
 
 function WaiterPage() {
   const { data: restaurant } = useRestaurant();
@@ -105,7 +115,6 @@ function WaiterPage() {
     return s;
   }, [orders, recentlyFreed]);
 
-
   // Detect newly-ready orders
   useEffect(() => {
     const readyOrders = (orders ?? []).filter((o) => o.status === "ready");
@@ -115,7 +124,11 @@ function WaiterPage() {
           seenReady.current.add(o.id);
           playChime();
           if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-            try { navigator.vibrate([200, 100, 200]); } catch {}
+            try {
+              navigator.vibrate([200, 100, 200]);
+            } catch {
+              /* Optional local state is best effort. */
+            }
           }
           setReady({ label: o.table_label ?? "Balcão", id: o.id });
           break;
@@ -134,7 +147,9 @@ function WaiterPage() {
   }, [ready]);
 
   const sorted = useMemo(() => {
-    return [...(tables ?? [])].sort((a, b) => a.label.localeCompare(b.label, "pt", { numeric: true }));
+    return [...(tables ?? [])].sort((a, b) =>
+      a.label.localeCompare(b.label, "pt", { numeric: true }),
+    );
   }, [tables]);
 
   if (trial && !canAccess(trial, "waiter")) {
@@ -149,7 +164,7 @@ function WaiterPage() {
     <div className="mx-auto w-full max-w-4xl space-y-6">
       <div>
         <p className="text-xs uppercase tracking-[0.18em] text-primary">Operação ao vivo</p>
-        <h1 className="mt-2 font-display text-3xl tracking-tight">
+        <h1 className="mt-2 font-sans font-semibold text-3xl tracking-tight">
           Painel do <span className="text-gradient-gold italic">garçom</span>
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -182,11 +197,15 @@ function WaiterPage() {
             >
               {hasAnyCall && (
                 <span className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background animate-pulse">
-                  {billCall ? <DollarSign className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
+                  {billCall ? (
+                    <DollarSign className="h-3.5 w-3.5" />
+                  ) : (
+                    <Bell className="h-3.5 w-3.5" />
+                  )}
                 </span>
               )}
               <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Mesa</div>
-              <div className="mt-1 font-display text-3xl tracking-tight">{stripped}</div>
+              <div className="mt-1 font-sans font-semibold text-3xl tracking-tight">{stripped}</div>
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px]">
                 <span
                   className={cn(
@@ -236,11 +255,15 @@ function WaiterPage() {
         <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft p-4 animate-fade-up">
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
             <DollarSign className="h-4 w-4 animate-pulse" />
-            {billCallsByLabel.size} {billCallsByLabel.size === 1 ? "mesa pedindo a conta" : "mesas pedindo a conta"}
+            {billCallsByLabel.size}{" "}
+            {billCallsByLabel.size === 1 ? "mesa pedindo a conta" : "mesas pedindo a conta"}
           </div>
           <ul className="space-y-1.5">
             {[...billCallsByLabel.entries()].map(([label, c]) => (
-              <li key={c.id} className="flex items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2 text-sm">
+              <li
+                key={c.id}
+                className="flex items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2 text-sm"
+              >
                 <span className="font-medium">Mesa {label}</span>
                 <div className="flex items-center gap-2">
                   <button
@@ -272,35 +295,36 @@ function WaiterPage() {
             onClose={() => setOpenTable(null)}
           />
         )}
-        {billTable && restaurant && (() => {
-          const targetKey = billTable.replace(/^(?:Mesa\s*)+/i, "").trim();
-          // Inclui TODOS os pedidos ativos da mesa (pending → served / entregue),
-          // independente de duplicações de prefixo "Mesa " no label salvo.
-          const tableOrders = (orders ?? []).filter((o) => {
-            if (!ACTIVE.includes(o.status)) return false;
-            if (!o.table_label) return false;
-            const key = o.table_label.replace(/^(?:Mesa\s*)+/i, "").trim();
-            return key === targetKey;
-          });
-          return (
-            <BillModal
-              tableLabel={billTable}
-              restaurantId={restaurant.id}
-              orders={tableOrders}
-              currency={restaurant.currency}
-              onClose={() => setBillTable(null)}
-              onFreed={markFreed}
-              onAddItems={() => {
-                const t = sorted.find((x) => x.label === billTable);
-                if (t) {
-                  setBillTable(null);
-                  setOpenTable(t.id);
-                }
-              }}
-            />
-          );
-        })()}
-
+        {billTable &&
+          restaurant &&
+          (() => {
+            const targetKey = billTable.replace(/^(?:Mesa\s*)+/i, "").trim();
+            // Inclui TODOS os pedidos ativos da mesa (pending → served / entregue),
+            // independente de duplicações de prefixo "Mesa " no label salvo.
+            const tableOrders = (orders ?? []).filter((o) => {
+              if (!ACTIVE.includes(o.status)) return false;
+              if (!o.table_label) return false;
+              const key = o.table_label.replace(/^(?:Mesa\s*)+/i, "").trim();
+              return key === targetKey;
+            });
+            return (
+              <BillModal
+                tableLabel={billTable}
+                restaurantId={restaurant.id}
+                orders={tableOrders}
+                currency={restaurant.currency}
+                onClose={() => setBillTable(null)}
+                onFreed={markFreed}
+                onAddItems={() => {
+                  const t = sorted.find((x) => x.label === billTable);
+                  if (t) {
+                    setBillTable(null);
+                    setOpenTable(t.id);
+                  }
+                }}
+              />
+            );
+          })()}
       </AnimatePresence>
 
       <AnimatePresence>
@@ -314,12 +338,17 @@ function WaiterPage() {
             <div className="flex items-center gap-3 rounded-2xl border border-[oklch(0.78_0.13_84_/_0.5)] bg-gradient-to-r from-[oklch(0.78_0.13_84_/_0.25)] to-[oklch(0.7_0.18_150_/_0.18)] px-5 py-3 shadow-xl backdrop-blur">
               <Bell className="h-5 w-5 text-primary animate-pulse" />
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-primary">Pedido pronto</div>
-                <div className="font-display text-lg tracking-tight">
+                <div className="text-[11px] uppercase tracking-wider text-primary">
+                  Pedido pronto
+                </div>
+                <div className="font-sans font-semibold text-lg tracking-tight">
                   {ready.label.startsWith("Mesa") ? ready.label : `Mesa ${ready.label}`} pronta!
                 </div>
               </div>
-              <button onClick={() => setReady(null)} className="ml-2 rounded-md p-1 text-muted-foreground hover:text-foreground">
+              <button
+                onClick={() => setReady(null)}
+                className="ml-2 rounded-md p-1 text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -346,6 +375,12 @@ function QuickOrderModal({
   const [q, setQ] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [pickerItem, setPickerItem] = useState<WItem | null>(null);
+  const modifiers = useQuery({
+    queryKey: ["modifiers", restaurantId],
+    queryFn: () => fetchModifiersForRestaurant(restaurantId),
+  });
+
   const [pickingStaff, setPickingStaff] = useState(false);
 
   const { data: items, isLoading } = useQuery({
@@ -376,12 +411,43 @@ function QuickOrderModal({
     );
   }, [items, q]);
 
-  function addItem(it: WItem) {
+  function addConfigured(it: WItem, selected: SelectedModifier[] = []) {
+    const key =
+      it.id +
+      ":" +
+      selected
+        .map((m) => m.id)
+        .sort()
+        .join(",");
     setLines((prev) => {
-      const ex = prev.find((l) => l.itemId === it.id);
-      if (ex) return prev.map((l) => (l.itemId === it.id ? { ...l, qty: l.qty + 1 } : l));
-      return [...prev, { itemId: it.id, name: it.name, price: it.price, qty: 1, notes: "" }];
+      const existing = prev.find((l) => l.itemId === key);
+      if (existing)
+        return prev.map((l) => (l.itemId === key ? { ...l, qty: Math.min(99, l.qty + 1) } : l));
+      return [
+        ...prev,
+        {
+          itemId: key,
+          productId: it.id,
+          name: it.name,
+          price: it.price + selected.reduce((sum, m) => sum + m.price_delta, 0),
+          qty: 1,
+          notes: "",
+          modifiers: selected,
+        },
+      ];
     });
+  }
+  function addItem(it: WItem) {
+    if (modifiers.isPending) {
+      toast.info("Carregando adicionais");
+      return;
+    }
+    if (modifiers.isError) {
+      toast.error("Não foi possível carregar adicionais");
+      return;
+    }
+    if (modifiers.data?.get(it.id)?.length) setPickerItem(it);
+    else addConfigured(it);
   }
 
   function setQty(id: string, qty: number) {
@@ -403,30 +469,18 @@ function QuickOrderModal({
     if (lines.length === 0) return;
     setSubmitting(true);
     try {
-      const { data: order, error: oErr } = await supabase
-        .from("orders")
-        .insert({
-          restaurant_id: restaurantId,
-          table_id: tableId,
-          table_label: tableLabel,
-          subtotal,
-          currency,
-          status: "pending",
-          created_by_name: createdByName,
-        } as any)
-        .select()
-        .single();
-      if (oErr) throw oErr;
-      const rows = lines.map((l) => ({
-        order_id: order.id,
-        menu_item_id: l.itemId,
-        name_snapshot: l.name,
-        price_snapshot: l.price,
-        quantity: l.qty,
-        notes: l.notes || null,
-      }));
-      const { error: iErr } = await supabase.from("order_items").insert(rows);
-      if (iErr) throw iErr;
+      const { error } = await (supabase as any).rpc("owner_place_order", {
+        p_restaurant_id: restaurantId,
+        p_table_id: tableId,
+        p_created_by_name: createdByName,
+        p_items: lines.map((l) => ({
+          menu_item_id: l.productId,
+          quantity: l.qty,
+          notes: l.notes || null,
+          modifier_option_ids: l.modifiers.map((m) => m.id),
+        })),
+      });
+      if (error) throw error;
       toast.success(`Pedido enviado · ${tableLabel}`, {
         description: `${lines.reduce((s, l) => s + l.qty, 0)} item(s) · ${formatPrice(subtotal, currency)}`,
       });
@@ -456,10 +510,15 @@ function QuickOrderModal({
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Lançamento rápido</div>
-            <h2 className="font-display text-xl tracking-tight">{tableLabel}</h2>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Lançamento rápido
+            </div>
+            <h2 className="font-sans font-semibold text-xl tracking-tight">{tableLabel}</h2>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-muted-foreground hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -505,7 +564,9 @@ function QuickOrderModal({
                         >
                           <Minus className="h-3.5 w-3.5" />
                         </button>
-                        <span className="min-w-[1.5rem] text-center text-sm font-medium">{ex.qty}</span>
+                        <span className="min-w-[1.5rem] text-center text-sm font-medium">
+                          {ex.qty}
+                        </span>
                         <button
                           onClick={() => setQty(it.id, ex.qty + 1)}
                           className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground"
@@ -525,7 +586,9 @@ function QuickOrderModal({
                 );
               })}
               {filtered.length === 0 && (
-                <li className="py-8 text-center text-sm text-muted-foreground">Nenhum item encontrado.</li>
+                <li className="py-8 text-center text-sm text-muted-foreground">
+                  Nenhum item encontrado.
+                </li>
               )}
             </ul>
           )}
@@ -541,7 +604,9 @@ function QuickOrderModal({
                   <input
                     value={l.notes}
                     onChange={(e) =>
-                      setLines((p) => p.map((x) => (x.itemId === l.itemId ? { ...x, notes: e.target.value } : x)))
+                      setLines((p) =>
+                        p.map((x) => (x.itemId === l.itemId ? { ...x, notes: e.target.value } : x)),
+                      )
                     }
                     placeholder="obs"
                     className="w-24 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
@@ -552,8 +617,12 @@ function QuickOrderModal({
           )}
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Subtotal</div>
-              <div className="font-display text-xl tracking-tight">{formatPrice(subtotal, currency)}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Subtotal
+              </div>
+              <div className="font-sans font-semibold text-xl tracking-tight">
+                {formatPrice(subtotal, currency)}
+              </div>
             </div>
             <button
               onClick={requestSubmit}
@@ -584,6 +653,16 @@ function QuickOrderModal({
           />
         )}
       </AnimatePresence>
+      <ModifierPicker
+        item={pickerItem}
+        groups={pickerItem ? (modifiers.data?.get(pickerItem.id) ?? []) : []}
+        currency={currency}
+        onClose={() => setPickerItem(null)}
+        onConfirm={(selected) => {
+          if (pickerItem) addConfigured(pickerItem, selected);
+          setPickerItem(null);
+        }}
+      />
     </motion.div>
   );
 }
@@ -629,7 +708,9 @@ function BillModal({
       .select("id, table_label")
       .eq("restaurant_id", restaurantId)
       .eq("resolved", false);
-    const ids = (rows ?? []).filter((r: any) => normalize(r.table_label) === target).map((r: any) => r.id);
+    const ids = (rows ?? [])
+      .filter((r: any) => normalize(r.table_label) === target)
+      .map((r: any) => r.id);
     if (ids.length === 0) return;
     await supabase
       .from("waiter_calls")
@@ -713,8 +794,6 @@ function BillModal({
     onError: (e: any) => toast.error(e.message ?? "Erro ao liberar mesa"),
   });
 
-
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -733,10 +812,15 @@ function BillModal({
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Conta da mesa</div>
-            <h2 className="font-display text-xl tracking-tight">{tableLabel}</h2>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Conta da mesa
+            </div>
+            <h2 className="font-sans font-semibold text-xl tracking-tight">{tableLabel}</h2>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-muted-foreground hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -745,32 +829,57 @@ function BillModal({
           {orders.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
               <p>Sem itens ativos nesta mesa.</p>
-              <p className="mt-1 text-xs">Se a mesa aparece ocupada, use "Marcar mesa como livre" abaixo.</p>
+              <p className="mt-1 text-xs">
+                Se a mesa aparece ocupada, use "Marcar mesa como livre" abaixo.
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
                 <span>Histórico da mesa</span>
-                <span>{orders.length} {orders.length === 1 ? "pedido" : "pedidos"}</span>
+                <span>
+                  {orders.length} {orders.length === 1 ? "pedido" : "pedidos"}
+                </span>
               </div>
               {[...orders]
                 .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
                 .map((o, idx) => {
-                  const when = new Date(o.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+                  const when = new Date(o.created_at).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
                   const orderSubtotal = o.order_items.reduce(
                     (s, it) => s + Number(it.price_snapshot) * it.quantity,
                     0,
                   );
                   const statusMap: Record<string, { label: string; cls: string }> = {
-                    pending: { label: "Aguardando", cls: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
-                    accepted: { label: "Aceito", cls: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
-                    preparing: { label: "Preparando", cls: "bg-orange-500/15 text-orange-300 border-orange-500/30" },
-                    ready: { label: "Pronto", cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
-                    served: { label: "Entregue", cls: "bg-muted text-muted-foreground border-border" },
+                    pending: {
+                      label: "Aguardando",
+                      cls: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+                    },
+                    accepted: {
+                      label: "Aceito",
+                      cls: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+                    },
+                    preparing: {
+                      label: "Preparando",
+                      cls: "bg-orange-500/15 text-orange-300 border-orange-500/30",
+                    },
+                    ready: {
+                      label: "Pronto",
+                      cls: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+                    },
+                    served: {
+                      label: "Entregue",
+                      cls: "bg-muted text-muted-foreground border-border",
+                    },
                   };
                   const st = statusMap[o.status] ?? statusMap.served;
                   return (
-                    <div key={o.id} className="rounded-xl border border-border bg-background/40 p-3">
+                    <div
+                      key={o.id}
+                      className="rounded-xl border border-border bg-background/40 p-3"
+                    >
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
                           <span className="font-semibold text-foreground">Pedido #{idx + 1}</span>
@@ -779,7 +888,12 @@ function BillModal({
                             <span className="text-muted-foreground">· por {o.created_by_name}</span>
                           )}
                         </div>
-                        <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider", st.cls)}>
+                        <span
+                          className={cn(
+                            "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+                            st.cls,
+                          )}
+                        >
                           {st.label}
                         </span>
                       </div>
@@ -793,14 +907,17 @@ function BillModal({
                           <li key={it.id} className="flex flex-col gap-0.5 py-1.5">
                             <div className="flex items-center justify-between gap-2 text-sm">
                               <span>
-                                <span className="font-medium text-primary">{it.quantity}×</span> {it.name_snapshot}
+                                <span className="font-medium text-primary">{it.quantity}×</span>{" "}
+                                {it.name_snapshot}
                               </span>
                               <span className="text-muted-foreground">
                                 {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
                               </span>
                             </div>
                             {it.notes && (
-                              <span className="pl-5 text-[11px] italic text-muted-foreground">obs: {it.notes}</span>
+                              <span className="pl-5 text-[11px] italic text-muted-foreground">
+                                obs: {it.notes}
+                              </span>
                             )}
                           </li>
                         ))}
@@ -886,14 +1003,20 @@ function BillModal({
                 </label>
               </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{people} × {formatPrice(coverPerPerson, currency)}</span>
+                <span>
+                  {people} × {formatPrice(coverPerPerson, currency)}
+                </span>
                 <span>{cover > 0 ? `+ ${formatPrice(cover, currency)}` : "—"}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-between border-t border-border pt-3">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground">Total Geral</span>
-              <span className="font-display text-3xl tracking-tight text-primary">{formatPrice(total, currency)}</span>
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                Total Geral
+              </span>
+              <span className="font-sans font-semibold text-3xl tracking-tight text-primary">
+                {formatPrice(total, currency)}
+              </span>
             </div>
           </div>
           <div className="flex flex-col gap-2">
@@ -909,19 +1032,31 @@ function BillModal({
                 disabled={close.isPending || orders.length === 0}
                 className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-95 disabled:opacity-50"
               >
-                {close.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Finalizar e liberar"}
+                {close.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Finalizar e liberar"
+                )}
               </button>
             </div>
             <button
               onClick={() => {
-                if (confirm(`Marcar ${tableLabel} como livre? Qualquer pedido residual será arquivado sem cobrança.`)) {
+                if (
+                  confirm(
+                    `Marcar ${tableLabel} como livre? Qualquer pedido residual será arquivado sem cobrança.`,
+                  )
+                ) {
                   forceFree.mutate();
                 }
               }}
               disabled={forceFree.isPending}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border bg-transparent text-sm font-medium text-muted-foreground transition hover:border-emerald-400/50 hover:text-emerald-400 disabled:opacity-50"
             >
-              {forceFree.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Marcar mesa como livre (sem cobrança)"}
+              {forceFree.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Marcar mesa como livre (sem cobrança)"
+              )}
             </button>
           </div>
         </div>
