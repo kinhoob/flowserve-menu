@@ -1,5 +1,5 @@
+import { createClient } from "@supabase/supabase-js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const url = process.env.TEST_SUPABASE_URL;
 const anonKey = process.env.TEST_SUPABASE_PUBLISHABLE_KEY;
@@ -12,15 +12,13 @@ const shouldRun =
   process.env.RUN_INTEGRATION_TESTS === "1" && !!url && !!anonKey && !!slug && !!pin;
 const d = shouldRun ? describe : describe.skip;
 
-const anon: SupabaseClient = shouldRun
-  ? createClient(url!, anonKey!, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        storage: undefined as any,
-      },
-    })
-  : (null as any);
+const anon = createClient(url ?? "https://test.invalid", anonKey ?? "test-key", {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    storage: undefined,
+  },
+});
 
 let validToken: string | null = null;
 

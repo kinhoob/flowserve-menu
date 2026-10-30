@@ -1,15 +1,16 @@
-import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Delete, Loader2, LogOut, ChefHat, Users } from "lucide-react";
-import { toast } from "sonner";
 import { FluxLogo } from "@/components/brand/logo";
+import { staffLogin, staffLogout } from "@/features/staff/staff-rpc";
 import {
+  clearStaffSession,
   useStaffSession,
   writeStaffSession,
-  clearStaffSession,
 } from "@/features/staff/staff-session";
-import { staffLogin, staffLogout } from "@/features/staff/staff-rpc";
+import { getErrorDetails } from "@/lib/errors";
 import { cn } from "@/lib/utils";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { ChefHat, Delete, Loader2, LogOut, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/staff/$slug")({
   head: () => ({ meta: [{ title: "Acesso da Equipe — Flux Menu" }] }),
@@ -125,7 +126,8 @@ function PinScreen({ slug }: { slug: string }) {
       writeStaffSession(session);
       toast.success(`Olá, ${session.name}!`);
       navigate({ to: "/staff/$slug", params: { slug } });
-    } catch (e: any) {
+    } catch (caught: unknown) {
+      const e = getErrorDetails(caught);
       toast.error(e.message ?? "PIN inválido");
       setPin("");
     } finally {

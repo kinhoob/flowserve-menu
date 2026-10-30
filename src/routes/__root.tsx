@@ -1,15 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  Outlet,
-  Link,
   createRootRouteWithContext,
   HeadContent,
+  Link,
+  Outlet,
   Scripts,
 } from "@tanstack/react-router";
 import { Toaster } from "sonner";
 
-import appCss from "../styles.css?url";
 import { AuthProvider } from "@/features/auth/auth-provider";
+import appCss from "../styles.css?url";
 
 function NotFoundComponent() {
   return (

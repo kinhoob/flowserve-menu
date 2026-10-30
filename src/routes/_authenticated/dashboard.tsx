@@ -1,24 +1,18 @@
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/features/auth/use-auth";
+import { TrialBanner, TrialExpiredBlock } from "@/features/billing/trial-guard";
+import { isTrialExpired, useTrialStatus } from "@/features/billing/trial-status";
+import { AdminTour } from "@/features/onboarding/admin-tour";
+import { STATUS_LABELS, useOrders, type Order } from "@/features/orders/order-queries";
+import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
+import { useResolveWaiterCall, useWaiterCalls } from "@/features/waiter/waiter-queries";
+import { formatPrice } from "@/lib/format";
 import { isOpenOrder, normalizeTableLabel, restaurantDate, restaurantHour } from "@/lib/operations";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowUpRight, Bell, DollarSign, Receipt, Users, Flame, Loader2 } from "lucide-react";
+import { ArrowUpRight, Bell, DollarSign, Flame, Loader2, Receipt, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/features/auth/auth-provider";
-import { useRestaurant } from "@/features/restaurant/use-restaurant";
-import { useOrders, STATUS_LABELS, type Order } from "@/features/orders/order-queries";
-import { useWaiterCalls, useResolveWaiterCall } from "@/features/waiter/waiter-queries";
-import { supabase } from "@/integrations/supabase/client";
-import { formatPrice } from "@/routes/_authenticated/menu";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AdminTour } from "@/features/onboarding/admin-tour";
-import {
-  useTrialStatus,
-  isTrialExpired,
-  TrialExpiredBlock,
-  TrialBanner,
-} from "@/features/billing/trial-guard";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   validateSearch: (
@@ -32,12 +26,6 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   }),
   component: DashboardPage,
 });
-
-function startOfToday() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
 
 function DashboardPage() {
   const { user } = useAuth();
@@ -60,8 +48,8 @@ function DashboardPage() {
   const resolveCall = useResolveWaiterCall(restaurant?.id);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const pendingCalls = waiterCalls.filter((c) => !c.resolved);
-  const billCalls = pendingCalls.filter((c) => (c as any).kind === "bill");
-  const regularCalls = pendingCalls.filter((c) => (c as any).kind !== "bill");
+  const billCalls = pendingCalls.filter((c) => c.kind === "bill");
+  const regularCalls = pendingCalls.filter((c) => c.kind !== "bill");
   const currency = restaurant?.currency ?? "BRL";
   const { data: trial } = useTrialStatus();
   const trialExpired = isTrialExpired(trial);
@@ -348,28 +336,26 @@ function DashboardPage() {
                       {STATUS_LABELS[selectedOrder.status]}
                     </span>
                   </div>
-                  {(selectedOrder as any).created_by_name && (
+                  {selectedOrder.created_by_name && (
                     <div className="text-xs text-muted-foreground">
                       Lançado por:{" "}
                       <span className="font-medium text-foreground">
-                        {(selectedOrder as any).created_by_name}
+                        {selectedOrder.created_by_name}
                       </span>
                     </div>
                   )}
-                  {(selectedOrder as any).delivered_by_name && (
+                  {selectedOrder.delivered_by_name && (
                     <div className="text-xs text-emerald-400/90">
                       Entregue por:{" "}
-                      <span className="font-medium">
-                        {(selectedOrder as any).delivered_by_name}
-                      </span>
-                      {(selectedOrder as any).delivered_at && (
+                      <span className="font-medium">{selectedOrder.delivered_by_name}</span>
+                      {selectedOrder.delivered_at && (
                         <>
                           {" "}
                           às{" "}
-                          {new Date((selectedOrder as any).delivered_at).toLocaleTimeString(
-                            "pt-BR",
-                            { hour: "2-digit", minute: "2-digit" },
-                          )}
+                          {new Date(selectedOrder.delivered_at).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </>
                       )}
                     </div>

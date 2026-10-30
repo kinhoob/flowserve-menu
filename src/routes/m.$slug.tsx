@@ -1,19 +1,17 @@
-import { ModifierPicker } from "@/features/menu/modifier-picker";
-import { createFileRoute, notFound } from "@tanstack/react-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { z } from "zod";
-import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
-import { Bell, Check, Loader2, Minus, Plus, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { formatPrice } from "@/routes/_authenticated/menu";
 import { FluxLogo, FluxMark } from "@/components/brand/logo";
-import {
-  fetchModifiersForRestaurant,
-  type ModifierGroupWithOptions,
-} from "@/features/menu/modifier-queries";
+import { ModifierPicker } from "@/features/menu/modifier-picker";
+import { fetchModifiersForRestaurant } from "@/features/menu/modifier-queries";
 import { callWaiter } from "@/features/waiter/waiter-queries";
+import { supabase } from "@/integrations/supabase/client";
+import { getErrorDetails } from "@/lib/errors";
+import { formatPrice } from "@/lib/format";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, notFound } from "@tanstack/react-router";
+import { AnimatePresence, motion } from "framer-motion";
+import { Bell, Check, Loader2, Minus, Plus, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { z } from "zod";
 
 const searchSchema = z.object({
   table: z.string().optional(),
@@ -48,6 +46,9 @@ type PublicItem = {
   price: number;
   image_url: string | null;
   category_id: string;
+  is_promo: boolean;
+  promo_label: string | null;
+  original_price: number | null;
 };
 
 function PublicMenuPage() {
@@ -83,15 +84,15 @@ function PublicMenuPage() {
           .eq("is_available", true)
           .order("position"),
         fetchModifiersForRestaurant(r.id),
-        supabase.rpc("get_restaurant_plan" as any, { p_slug: slug }),
+        supabase.rpc("get_restaurant_plan", { p_slug: slug }),
       ]);
       if (cats.error) throw cats.error;
       if (items.error) throw items.error;
       if (planRes.error) throw planRes.error;
-      const kitchenOpen = (r as any).kitchen_open !== false;
+      const kitchenOpen = r.kitchen_open !== false;
       const filteredItems = kitchenOpen
         ? (items.data ?? [])
-        : (items.data ?? []).filter((i: any) => i.categories?.kind === "drink");
+        : (items.data ?? []).filter((i) => i.categories?.kind === "drink");
       const plan = ((planRes.data as unknown as string) ?? "basic").toLowerCase();
       const viewOnly = plan === "basic";
       return {
@@ -127,7 +128,7 @@ function PublicMenuPage() {
     if (!placedOrder?.id) return;
     let stopped = false;
     const refresh = async () => {
-      const { data: status, error } = await (supabase as any).rpc("get_order_status", {
+      const { data: status, error } = await supabase.rpc("get_order_status", {
         p_order_id: placedOrder.id,
         p_token: placedOrder.token,
       });
@@ -251,7 +252,7 @@ function PublicMenuPage() {
     try {
       orderAttempt.current ??= crypto.randomUUID();
       const trackingToken = orderAttempt.current;
-      const { data: orderId, error } = await (supabase as any).rpc("place_order", {
+      const { data: orderId, error } = await supabase.rpc("place_order", {
         p_restaurant_id: data.restaurant.id,
         p_tracking_token: trackingToken,
         p_table_label: table ? `Mesa ${table}` : null,
@@ -272,10 +273,13 @@ function PublicMenuPage() {
       setPlacedOrder({ id: orderId as string, status: "pending", token: trackingToken });
       orderAttempt.current = null;
       setCart([]);
-    } catch (e: any) {
-      let details: any = null;
+    } catch (caught: unknown) {
+      const e = getErrorDetails(caught);
+      let details: { retry_after_seconds?: number } | null = null;
       try {
-        details = e?.details ? JSON.parse(e.details) : null;
+        details = e.details
+          ? z.object({ retry_after_seconds: z.number().optional() }).parse(JSON.parse(e.details))
+          : null;
       } catch {
         /* ignore */
       }
@@ -300,7 +304,8 @@ function PublicMenuPage() {
         customer_name: customerName.trim() || null,
       });
       toast.success("Garçom a caminho", { duration: 2000 });
-    } catch (e: any) {
+    } catch (caught: unknown) {
+      const e = getErrorDetails(caught);
       toast.error(e.message ?? "Não foi possível chamar o garçom");
     } finally {
       setCallingWaiter(false);
@@ -333,17 +338,17 @@ function PublicMenuPage() {
   const { restaurant, categories } = data;
   const currency = restaurant.currency;
 
-  const brandBg = (restaurant as any).brand_color as string | null;
-  const brandText = (restaurant as any).brand_text_color as string | null;
-  const brandAccent = (restaurant as any).brand_accent_color as string | null;
-  const brandCard = (restaurant as any).brand_card_color as string | null;
-  const brandHeader = (restaurant as any).brand_header_color as string | null;
-  const brandButton = (restaurant as any).brand_button_color as string | null;
-  const bannerEnabled = (restaurant as any).banner_enabled === true;
-  const bannerTitle = (restaurant as any).banner_title as string | null;
-  const bannerDescription = (restaurant as any).banner_description as string | null;
-  const bannerImage = (restaurant as any).banner_image_url as string | null;
-  const bannerCta = (restaurant as any).banner_cta_label as string | null;
+  const brandBg = restaurant.brand_color as string | null;
+  const brandText = restaurant.brand_text_color as string | null;
+  const brandAccent = restaurant.brand_accent_color as string | null;
+  const brandCard = restaurant.brand_card_color as string | null;
+  const brandHeader = restaurant.brand_header_color as string | null;
+  const brandButton = restaurant.brand_button_color as string | null;
+  const bannerEnabled = restaurant.banner_enabled === true;
+  const bannerTitle = restaurant.banner_title as string | null;
+  const bannerDescription = restaurant.banner_description as string | null;
+  const bannerImage = restaurant.banner_image_url as string | null;
+  const bannerCta = restaurant.banner_cta_label as string | null;
   const hasBrand = !!(
     brandBg ||
     brandText ||
@@ -368,16 +373,16 @@ function PublicMenuPage() {
   const buttonColor = brandButton || brandAccent;
   const brandStyle = hasBrand
     ? ({
-        ...(brandBg ? { ["--background" as any]: brandBg } : {}),
-        ...(brandText ? { ["--foreground" as any]: brandText } : {}),
-        ...(brandCard ? { ["--card" as any]: brandCard, ["--surface" as any]: brandCard } : {}),
+        ...(brandBg ? { ["--background"]: brandBg } : {}),
+        ...(brandText ? { ["--foreground"]: brandText } : {}),
+        ...(brandCard ? { ["--card"]: brandCard, ["--surface"]: brandCard } : {}),
         ...(buttonColor
           ? {
-              ["--primary" as any]: buttonColor,
-              ["--primary-foreground" as any]: readableOn(buttonColor),
+              ["--primary"]: buttonColor,
+              ["--primary-foreground"]: readableOn(buttonColor),
             }
           : {}),
-        ...(brandAccent ? { ["--accent" as any]: brandAccent } : {}),
+        ...(brandAccent ? { ["--accent"]: brandAccent } : {}),
         backgroundColor: brandBg ?? undefined,
         color: brandText ?? undefined,
       } as React.CSSProperties)
@@ -400,9 +405,9 @@ function PublicMenuPage() {
           className="relative mx-auto max-w-3xl px-5 pb-8 pt-10"
         >
           <div className="flex items-center gap-4">
-            {(restaurant as any).logo_url ? (
+            {restaurant.logo_url ? (
               <img
-                src={(restaurant as any).logo_url}
+                src={restaurant.logo_url}
                 alt={`Logo ${restaurant.name}`}
                 className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-1 ring-[oklch(0.78_0.13_84_/_0.3)] shadow-[0_8px_24px_-12px_oklch(0.78_0.13_84_/_0.5)]"
               />
@@ -459,7 +464,8 @@ function PublicMenuPage() {
                       kind: "bill",
                     });
                     toast.success("Conta solicitada", { duration: 2000 });
-                  } catch (e: any) {
+                  } catch (caught: unknown) {
+                    const e = getErrorDetails(caught);
                     toast.error(e.message ?? "Erro");
                   }
                 }}
@@ -580,7 +586,7 @@ function PublicMenuPage() {
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-1.5">
                               <h3 className="truncate text-sm font-medium">{it.name}</h3>
-                              {(it as any).is_promo && (
+                              {it.is_promo && (
                                 <span
                                   className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
                                   style={{
@@ -588,14 +594,14 @@ function PublicMenuPage() {
                                     color: readableOn(brandAccent),
                                   }}
                                 >
-                                  {((it as any).promo_label as string) || "Promo"}
+                                  {(it.promo_label as string) || "Promo"}
                                 </span>
                               )}
                             </div>
                             <div className="flex flex-col items-end">
-                              {(it as any).is_promo && (it as any).original_price ? (
+                              {it.is_promo && it.original_price ? (
                                 <span className="text-[10px] text-muted-foreground line-through">
-                                  {formatPrice(Number((it as any).original_price), currency)}
+                                  {formatPrice(Number(it.original_price), currency)}
                                 </span>
                               ) : null}
                               <span className="font-display text-base tracking-tight text-primary">

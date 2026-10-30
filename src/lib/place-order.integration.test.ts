@@ -1,5 +1,5 @@
-import { afterAll, describe, expect, it } from "vitest";
 import { createClient } from "@supabase/supabase-js";
+import { afterAll, describe, expect, it } from "vitest";
 
 const url = process.env.TEST_SUPABASE_URL;
 const anonKey = process.env.TEST_SUPABASE_PUBLISHABLE_KEY;
@@ -21,11 +21,9 @@ function randomPhone() {
   return `119${suffix.slice(0, 8)}`; // 11 digits, DDD 11, starts with 9
 }
 
-const anon = shouldRun
-  ? createClient(url!, anonKey!, {
-      auth: { persistSession: false, autoRefreshToken: false, storage: undefined as any },
-    })
-  : (null as any);
+const anon = createClient(url ?? "https://test.invalid", anonKey ?? "test-key", {
+  auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
+});
 
 const createdOrderIds: string[] = [];
 
@@ -129,7 +127,7 @@ afterAll(async () => {
   const service = process.env.TEST_SUPABASE_SERVICE_ROLE_KEY;
   if (!service) return;
   const admin = createClient(url!, service, {
-    auth: { persistSession: false, autoRefreshToken: false, storage: undefined as any },
+    auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
   });
   await admin.from("order_items").delete().in("order_id", createdOrderIds);
   await admin.from("orders").delete().in("id", createdOrderIds);

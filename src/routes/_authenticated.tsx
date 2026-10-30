@@ -1,8 +1,8 @@
-import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { Loader2 } from "lucide-react";
-import { useAuth } from "@/features/auth/auth-provider";
+import { useAuth } from "@/features/auth/use-auth";
 import { DashboardShell } from "@/features/dashboard/dashboard-shell";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,

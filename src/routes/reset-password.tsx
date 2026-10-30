@@ -1,22 +1,22 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { ArrowLeft, Loader2, KeyRound, AlertTriangle, MailCheck } from "lucide-react";
-import { motion } from "framer-motion";
-import { supabase } from "@/integrations/supabase/client";
 import { FluxLogo } from "@/components/brand/logo";
+import { supabase } from "@/integrations/supabase/client";
 import {
-  RESEND_COOLDOWN_SECONDS,
-  VALIDATION_TIMEOUT_MS,
   classifyHashError,
   classifyResendError,
   classifyUpdateUserError,
   isValidEmail,
   parseHashParams as parseHashParamsPure,
+  RESEND_COOLDOWN_SECONDS,
   tickCooldown,
   validateNewPassword,
+  VALIDATION_TIMEOUT_MS,
   type LinkStatus,
 } from "@/lib/reset-password.helpers";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { motion } from "framer-motion";
+import { AlertTriangle, ArrowLeft, KeyRound, Loader2, MailCheck } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({

@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { formatPrice } from "@/lib/format";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, X, Plus } from "lucide-react";
+import { Check, Plus, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { ModifierGroupWithOptions } from "./modifier-queries";
-import { formatPrice } from "@/routes/_authenticated/menu";
 export type SelectedModifier = { id: string; group: string; name: string; price_delta: number };
 export function ModifierPicker({
   item,

@@ -1,6 +1,6 @@
-import { useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 export type StaffRole = "waiter" | "kitchen" | "both";
 
@@ -43,7 +43,7 @@ export function useStaff(restaurantId: string | undefined) {
     enabled: !!restaurantId,
     queryFn: async (): Promise<StaffMember[]> => {
       const { data, error } = await supabase
-        .from("staff_members" as any)
+        .from("staff_members")
         .select("id,restaurant_id,name,active,pin,role,created_at,updated_at")
         .eq("restaurant_id", restaurantId!)
         .order("name", { ascending: true });
@@ -61,8 +61,8 @@ export function useCreateStaff(restaurantId: string | undefined) {
       const trimmed = name.trim();
       if (!trimmed) throw new Error("Informe um nome");
       const { error } = await supabase
-        .from("staff_members" as any)
-        .insert({ restaurant_id: restaurantId, name: trimmed } as any);
+        .from("staff_members")
+        .insert({ restaurant_id: restaurantId, name: trimmed });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff", restaurantId] }),
@@ -79,10 +79,7 @@ export function useUpdateStaff(restaurantId: string | undefined) {
       id: string;
       patch: Partial<Pick<StaffMember, "name" | "active" | "pin" | "role">>;
     }) => {
-      const { error } = await supabase
-        .from("staff_members" as any)
-        .update(patch as any)
-        .eq("id", id);
+      const { error } = await supabase.from("staff_members").update(patch).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff", restaurantId] }),
@@ -93,10 +90,7 @@ export function useDeleteStaff(restaurantId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("staff_members" as any)
-        .delete()
-        .eq("id", id);
+      const { error } = await supabase.from("staff_members").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff", restaurantId] }),

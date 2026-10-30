@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   RESEND_COOLDOWN_SECONDS,
   classifyHashError,
@@ -26,9 +26,7 @@ describe("parseHashParams", () => {
 describe("classifyHashError — valid link", () => {
   it("returns null when the hash carries no error signals", () => {
     // A "healthy" recovery redirect only carries tokens, no error keys.
-    const params = new URLSearchParams(
-      "access_token=abc&refresh_token=def&type=recovery",
-    );
+    const params = new URLSearchParams("access_token=abc&refresh_token=def&type=recovery");
     expect(classifyHashError(params)).toBeNull();
   });
 
@@ -49,9 +47,7 @@ describe("classifyHashError — expired link", () => {
   });
 
   it("detects expired via error_description even without otp_expired code", () => {
-    const params = new URLSearchParams(
-      "error_description=Token+has+expired",
-    );
+    const params = new URLSearchParams("error_description=Token+has+expired");
     const res = classifyHashError(params);
     expect(res!.status).toBe("expired");
   });
@@ -109,9 +105,7 @@ describe("classifyUpdateUserError", () => {
   });
 
   it("flags 'same password' errors distinctly", () => {
-    const r = classifyUpdateUserError(
-      "New password should be different from the old password",
-    );
+    const r = classifyUpdateUserError("New password should be different from the old password");
     expect(r.status).toBeUndefined();
     expect(r.toast).toMatch(/diferente/i);
   });
@@ -150,7 +144,6 @@ describe("isValidEmail", () => {
     expect(isValidEmail(email)).toBe(expected);
   });
 });
-
 
 describe("tickCooldown", () => {
   it("decrements normally", () => {

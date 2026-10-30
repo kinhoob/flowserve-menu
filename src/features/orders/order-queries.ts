@@ -1,12 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { fetchAllPages } from "@/lib/operations";
-import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { recordRealtimeEvent } from "@/lib/realtime-telemetry";
 import type { Database, Tables } from "@/integrations/supabase/types";
+import { fetchAllPages } from "@/lib/operations";
+import { recordRealtimeEvent } from "@/lib/realtime-telemetry";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 export type OrderStatus = Database["public"]["Enums"]["order_status"];
-export type Order = Tables<"orders"> & { order_items: Tables<"order_items">[] };
+export type OrderItem = Tables<"order_items"> & {
+  menu_items?: { category_id: string; categories: { kind: string } | null } | null;
+};
+export type Order = Tables<"orders"> & { order_items: OrderItem[] };
 
 export const STATUS_FLOW: OrderStatus[] = ["pending", "accepted", "preparing", "ready", "served"];
 
@@ -58,20 +61,19 @@ export function useOrders(restaurantId: string | undefined, includeRecentArchive
     enabled: !!restaurantId,
     refetchInterval: 15000,
     queryFn: async (): Promise<Order[]> => {
-      return fetchAllPages<Order>(
-        (from, to) =>
-          supabase
-            .from("orders")
-            .select("*, order_items(*, menu_items(category_id, categories(kind)))")
-            .eq("restaurant_id", restaurantId!)
-            .or(
-              includeRecentArchived
-                ? `archived.eq.false,created_at.gte.${new Date(Date.now() - 2 * 86400000).toISOString()}`
-                : "archived.eq.false",
-            )
-            .order("created_at", { ascending: false })
-            .order("id")
-            .range(from, to) as any,
+      return fetchAllPages<Order>((from, to) =>
+        supabase
+          .from("orders")
+          .select("*, order_items(*, menu_items(category_id, categories(kind)))")
+          .eq("restaurant_id", restaurantId!)
+          .or(
+            includeRecentArchived
+              ? `archived.eq.false,created_at.gte.${new Date(Date.now() - 2 * 86400000).toISOString()}`
+              : "archived.eq.false",
+          )
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(from, to),
       );
     },
   });
@@ -84,11 +86,11 @@ export function useArchiveServedOrders(restaurantId: string | undefined) {
       const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
       const { error, count } = await supabase
         .from("orders")
-        .update({ archived: true } as any, { count: "exact" })
+        .update({ archived: true }, { count: "exact" })
         .eq("restaurant_id", restaurantId!)
         .in("status", ["served", "cancelled"])
         .lt("created_at", cutoff)
-        .eq("archived", false as any);
+        .eq("archived", false);
       if (error) throw error;
       return count ?? 0;
     },

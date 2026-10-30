@@ -1,30 +1,31 @@
-import { restaurantHour, dateOrdinal, fetchAllPages } from "@/lib/operations";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { FeatureLocked } from "@/features/billing/trial-guard";
+import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
 import {
-  BarChart3,
-  Loader2,
-  TrendingUp,
-  Receipt,
-  Users,
-  Clock,
-  Trophy,
-  Download,
-  CheckCircle2,
-} from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useRestaurant } from "@/features/restaurant/use-restaurant";
-import {
-  useOrders,
   STATUS_LABELS,
+  useOrders,
   type Order,
   type OrderStatus,
 } from "@/features/orders/order-queries";
-import { formatPrice } from "@/routes/_authenticated/menu";
+import { useRestaurant } from "@/features/restaurant/use-restaurant";
+import { supabase } from "@/integrations/supabase/client";
+import { formatPrice } from "@/lib/format";
+import { dateOrdinal, fetchAllPages, restaurantHour } from "@/lib/operations";
 import { cn } from "@/lib/utils";
-import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { motion } from "framer-motion";
+import {
+  BarChart3,
+  CheckCircle2,
+  Clock,
+  Download,
+  Loader2,
+  Receipt,
+  TrendingUp,
+  Trophy,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 
 export const Route = createFileRoute("/_authenticated/analytics")({
   head: () => ({ meta: [{ title: "Análises — Flux Menu" }] }),
@@ -40,14 +41,7 @@ const RANGE_LABELS: Record<Range, string> = {
   "90d": "Últimos 90 dias",
 };
 
-function startOfDay(d: Date) {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
 function AnalyticsPage() {
-  const navigate = useNavigate();
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
   const { data: orders = [], isLoading: oLoading } = useOrders(restaurant?.id);
   const { data: trial } = useTrialStatus();
@@ -63,17 +57,16 @@ function AnalyticsPage() {
       const since = new Date(
         (dateOrdinal(new Date(), timezone) - RANGE_DAYS[range] - 1) * 86400000,
       );
-      return fetchAllPages<Order>(
-        (from, to) =>
-          supabase
-            .from("orders")
-            .select("*, order_items(*)")
-            .eq("restaurant_id", restaurant!.id)
-            .eq("archived", true as any)
-            .gte("created_at", since.toISOString())
-            .order("created_at", { ascending: false })
-            .order("id")
-            .range(from, to) as any,
+      return fetchAllPages<Order>((from, to) =>
+        supabase
+          .from("orders")
+          .select("*, order_items(*)")
+          .eq("restaurant_id", restaurant!.id)
+          .eq("archived", true)
+          .gte("created_at", since.toISOString())
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(from, to),
       );
     },
   });
@@ -94,10 +87,10 @@ function AnalyticsPage() {
     // Receita Realizada = pedido finalizado (concluded ≡ archived=true)
     // Receita Provisionada = entregue (status=served) porém ainda não fechado.
     const realizedRevenue = paid
-      .filter((o) => (o as any).archived === true)
+      .filter((o) => o.archived === true)
       .reduce((s, o) => s + Number(o.subtotal || 0), 0);
     const provisionedRevenue = paid
-      .filter((o) => (o as any).archived !== true && o.status === "served")
+      .filter((o) => o.archived !== true && o.status === "served")
       .reduce((s, o) => s + Number(o.subtotal || 0), 0);
     const revenue = realizedRevenue + provisionedRevenue;
     const count = paid.length;
@@ -118,7 +111,7 @@ function AnalyticsPage() {
         const v = Number(o.subtotal || 0);
         perDay[idx].revenue += v;
         perDay[idx].count += 1;
-        if ((o as any).archived === true) perDay[idx].realized += v;
+        if (o.archived === true) perDay[idx].realized += v;
         else if (o.status === "served") perDay[idx].provisioned += v;
       }
     });
@@ -202,11 +195,7 @@ function AnalyticsPage() {
           o.table_label ?? "",
           o.customer_name ?? "",
           STATUS_LABELS[o.status],
-          (o as any).archived === true
-            ? "Realizada"
-            : o.status === "served"
-              ? "Provisionada"
-              : "Em aberto",
+          o.archived === true ? "Realizada" : o.status === "served" ? "Provisionada" : "Em aberto",
           String(o.subtotal),
           o.order_items.map((i) => `${i.quantity}x ${i.name_snapshot}`).join(" | "),
         ]),
@@ -455,7 +444,7 @@ function AnalyticsPage() {
                   )
                   .slice(0, 100)
                   .map((o) => {
-                    const isRealized = (o as any).archived === true;
+                    const isRealized = o.archived === true;
                     const isProvisioned = !isRealized && o.status === "served";
                     return (
                       <tr

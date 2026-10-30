@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, ArrowRight, Sparkles } from "lucide-react";
-import { useAuth } from "@/features/auth/auth-provider";
+import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowRight, Sparkles, X } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "flux-admin-tour-v2";
 
@@ -107,10 +107,7 @@ export function AdminTour() {
 
   async function persistSeen() {
     if (user) {
-      await supabase
-        .from("profiles")
-        .update({ has_seen_onboarding: true })
-        .eq("id", user.id);
+      await supabase.from("profiles").update({ has_seen_onboarding: true }).eq("id", user.id);
     }
     localStorage.setItem(STORAGE_KEY, "1");
   }
@@ -135,7 +132,13 @@ export function AdminTour() {
         left: rect.right + 16,
         zIndex: 100,
       }
-    : { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: 100 };
+    : {
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 100,
+      };
 
   return (
     <AnimatePresence>
@@ -176,7 +179,10 @@ export function AdminTour() {
             <Sparkles className="h-3.5 w-3.5" />
             Tour · {step + 1}/{STEPS.length}
           </div>
-          <button onClick={close} className="rounded-md p-1 text-muted-foreground hover:text-foreground">
+          <button
+            onClick={close}
+            className="rounded-md p-1 text-muted-foreground hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>

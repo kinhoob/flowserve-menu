@@ -1,5 +1,33 @@
 import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import { verifyWebhook, type StripeEnv } from "./stripe.server";
+
+const referenceSchema = z.union([z.string(), z.object({ id: z.string() })]);
+const subscriptionSchema = z.object({
+  id: z.string(),
+  metadata: z.object({ userId: z.string().optional() }),
+  customer: referenceSchema,
+  status: z.string(),
+  current_period_start: z.number().optional(),
+  current_period_end: z.number().optional(),
+  cancel_at_period_end: z.boolean().optional(),
+  items: z
+    .object({
+      data: z.array(
+        z.object({
+          current_period_start: z.number().optional(),
+          current_period_end: z.number().optional(),
+          price: z.object({
+            id: z.string().optional(),
+            lookup_key: z.string().nullish(),
+            metadata: z.object({ lovable_external_id: z.string().optional() }).optional(),
+            product: referenceSchema.optional(),
+          }),
+        }),
+      ),
+    })
+    .optional(),
+});
 
 export async function processBillingWebhook(
   request: Request,
@@ -14,7 +42,7 @@ export async function processBillingWebhook(
     ].includes(event.type)
   )
     return;
-  const subscription = event.data.object;
+  const subscription = subscriptionSchema.parse(event.data.object);
   if (!subscription.metadata?.userId) throw new Error("Assinatura sem usuário vinculado");
   const item = subscription.items?.data?.[0];
   const price = item?.price?.lookup_key || item?.price?.metadata?.lovable_external_id;
@@ -23,7 +51,7 @@ export async function processBillingWebhook(
     essential_monthly: "essential",
     pro_monthly: "pro",
   };
-  const plan = plans[price];
+  const plan = price ? plans[price] : undefined;
   if (!plan && ["active", "trialing"].includes(subscription.status))
     throw new Error("Preço sem plano cadastrado");
   const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {

@@ -17,7 +17,7 @@ export type LatencySample = {
 
 // Limite padrão em ms — acima disso disparamos alerta.
 export const REALTIME_LATENCY_THRESHOLD_MS = Number(
-  (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_REALTIME_LATENCY_THRESHOLD_MS) || 3000,
+  import.meta.env.VITE_REALTIME_LATENCY_THRESHOLD_MS || 3000,
 );
 
 // Janela de deduplicação para não spamar toasts em burst.
@@ -30,16 +30,12 @@ let lastAlertAt = 0;
 function pushSample(sample: LatencySample) {
   samples.push(sample);
   if (samples.length > MAX_SAMPLES) samples.shift();
-  if (typeof window !== "undefined") {
-    (window as any).__fluxRealtimeSamples = samples;
-  }
 }
 
 function fireAlert(sample: LatencySample) {
   const now = Date.now();
   if (now - lastAlertAt < ALERT_COOLDOWN_MS) return;
   lastAlertAt = now;
-  // eslint-disable-next-line no-console
   console.warn(
     `[realtime-telemetry] latência alta: ${sample.latencyMs}ms em ${sample.table} (${sample.source}) — limite ${REALTIME_LATENCY_THRESHOLD_MS}ms`,
     sample,
@@ -53,14 +49,20 @@ function fireAlert(sample: LatencySample) {
     /* toast pode não estar disponível fora do app */
   }
   if (typeof window !== "undefined") {
-    window.dispatchEvent(
-      new CustomEvent("flux:realtime-slow", { detail: sample }),
-    );
+    window.dispatchEvent(new CustomEvent("flux:realtime-slow", { detail: sample }));
   }
 }
 
 /** Extrai o `created_at` do payload do postgres_changes. */
-function extractCreatedAt(payload: any): number | null {
+type RealtimePayload = {
+  new?: { created_at?: string };
+  old?: { created_at?: string };
+  table?: string;
+  eventType?: string;
+  event?: string;
+};
+
+function extractCreatedAt(payload: RealtimePayload): number | null {
   const raw = payload?.new?.created_at ?? payload?.old?.created_at;
   if (!raw) return null;
   const t = new Date(raw).getTime();
@@ -75,7 +77,7 @@ function extractCreatedAt(payload: any): number | null {
  */
 export function recordRealtimeEvent(
   source: RealtimeSource,
-  payload: any,
+  payload: RealtimePayload,
 ): LatencySample | null {
   const table = payload?.table ?? "unknown";
   const event = payload?.eventType ?? payload?.event ?? "unknown";

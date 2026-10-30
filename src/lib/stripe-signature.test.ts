@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHmac } from "node:crypto";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { verifyWebhook } from "./stripe.server";
 afterEach(() => vi.unstubAllEnvs());
 function signed(options: { timestamp?: string; tamper?: boolean; live?: boolean } = {}) {

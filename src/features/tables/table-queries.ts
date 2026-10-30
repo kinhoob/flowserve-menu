@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type VenueTable = Tables<"venue_tables">;
 
@@ -38,11 +38,7 @@ export function useCreateTable(restaurantId: string | undefined) {
         label: input.label,
         short_code: randomCode(),
       };
-      const { data, error } = await supabase
-        .from("venue_tables")
-        .insert(payload)
-        .select()
-        .single();
+      const { data, error } = await supabase.from("venue_tables").insert(payload).select().single();
       if (error) throw error;
       return data;
     },

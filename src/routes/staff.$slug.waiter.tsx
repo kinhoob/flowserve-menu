@@ -1,33 +1,23 @@
-import { ModifierPicker, type SelectedModifier } from "@/features/menu/modifier-picker";
-import { fetchModifiersForRestaurant } from "@/features/menu/modifier-queries";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import type { StaffOrder } from "@/features/staff/staff-rpc";
 import {
-  ArrowLeft,
-  Bell,
-  Loader2,
-  Minus,
-  Plus,
-  Receipt,
-  Search,
-  Send,
-  X,
-  DollarSign,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useStaffSession } from "@/features/staff/staff-session";
-import {
+  staffArchiveOrders,
+  staffListCalls,
   staffListOrders,
   staffListTables,
-  staffListCalls,
   staffResolveCall,
-  staffArchiveOrders,
 } from "@/features/staff/staff-rpc";
+import { useStaffSession } from "@/features/staff/staff-session";
+import { QuickOrderModal } from "@/features/waiter/quick-order-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeTableLabel } from "@/lib/operations";
 import { recordRealtimeEvent } from "@/lib/realtime-telemetry";
 import { cn } from "@/lib/utils";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowLeft, Bell, DollarSign, Loader2, Plus, Receipt, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/staff/$slug/waiter")({
   component: StaffWaiter,
@@ -37,27 +27,6 @@ const ACTIVE = ["pending", "accepted", "preparing", "ready", "served"];
 
 const fmt = (n: number, currency = "BRL") =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency }).format(Number(n) || 0);
-
-const normalizeLabel = (s: string | null | undefined) =>
-  (s ?? "").replace(/^(?:Mesa\s*)+/i, "").trim();
-
-type WItem = {
-  id: string;
-  name: string;
-  price: number;
-  category_id: string;
-  category_name: string;
-};
-
-type Line = {
-  itemId: string;
-  productId: string;
-  name: string;
-  price: number;
-  qty: number;
-  notes: string;
-  modifiers: SelectedModifier[];
-};
 
 function StaffWaiter() {
   const { slug } = Route.useParams();
@@ -91,7 +60,7 @@ function StaffWaiter() {
   });
 
   const restaurantId: string | undefined =
-    (tablesQ.data?.[0] as any)?.restaurant_id ?? (ordersQ.data?.[0] as any)?.restaurant_id;
+    tablesQ.data?.[0]?.restaurant_id ?? ordersQ.data?.[0]?.restaurant_id;
 
   // Fetch restaurant currency via slug (public)
   const restaurantQ = useQuery({
@@ -148,9 +117,9 @@ function StaffWaiter() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff-calls", session?.token] }),
   });
 
-  const tables = (tablesQ.data ?? []) as any[];
-  const orders = (ordersQ.data ?? []) as any[];
-  const calls = (callsQ.data ?? []) as any[];
+  const tables = useMemo(() => tablesQ.data ?? [], [tablesQ.data]);
+  const orders = useMemo(() => ordersQ.data ?? [], [ordersQ.data]);
+  const calls = useMemo(() => callsQ.data ?? [], [callsQ.data]);
 
   const sorted = useMemo(
     () =>
@@ -161,11 +130,11 @@ function StaffWaiter() {
   );
 
   const activeByLabel = useMemo(() => {
-    const m = new Map<string, any[]>();
+    const m = new Map<string, StaffOrder[]>();
     for (const o of orders) {
       if (!ACTIVE.includes(o.status)) continue;
       if (o.archived) continue;
-      const key = normalizeLabel(o.table_label);
+      const key = normalizeTableLabel(o.table_label);
       if (!key) continue;
       const arr = m.get(key) ?? [];
       arr.push(o);
@@ -177,10 +146,10 @@ function StaffWaiter() {
   const callsByLabel = useMemo(() => {
     const m = new Map<string, { id: string; kind: "bill" | "call" }[]>();
     for (const c of calls) {
-      const key = normalizeLabel(c.table_label);
+      const key = normalizeTableLabel(c.table_label);
       if (!key) continue;
       const arr = m.get(key) ?? [];
-      arr.push({ id: c.id, kind: (c.kind === "bill" ? "bill" : "call") as any });
+      arr.push({ id: c.id, kind: c.kind === "bill" ? "bill" : "call" });
       m.set(key, arr);
     }
     return m;
@@ -215,7 +184,7 @@ function StaffWaiter() {
             <Bell className="h-4 w-4" /> {calls.length} chamado(s) em aberto
           </div>
           <ul className="mt-3 space-y-2">
-            {calls.map((c: any) => (
+            {calls.map((c) => (
               <li
                 key={c.id}
                 className="flex items-center justify-between rounded-lg bg-background/40 px-3 py-2 text-sm"
@@ -241,8 +210,8 @@ function StaffWaiter() {
       )}
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-        {sorted.map((t: any) => {
-          const stripped = normalizeLabel(t.label);
+        {sorted.map((t) => {
+          const stripped = normalizeTableLabel(t.label);
           const tableOrders = activeByLabel.get(stripped) ?? [];
           const isBusy = tableOrders.length > 0;
           const callList = callsByLabel.get(stripped) ?? [];
@@ -338,17 +307,16 @@ function StaffWaiter() {
             tableLabel={openTable.label}
             restaurantId={restId}
             currency={currency}
-            createdByName={session.name}
-            staffToken={session.token}
+            staffIdentity={{ name: session.name, token: session.token }}
             onClose={() => setOpenTable(null)}
             onDone={() => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] })}
           />
         )}
         {billTable &&
           (() => {
-            const key = normalizeLabel(billTable);
+            const key = normalizeTableLabel(billTable);
             const tableOrders = activeByLabel.get(key) ?? [];
-            const t = sorted.find((x: any) => x.label === billTable);
+            const t = sorted.find((x) => x.label === billTable);
             return (
               <BillModal
                 tableLabel={billTable}
@@ -379,295 +347,6 @@ function StaffWaiter() {
   );
 }
 
-function QuickOrderModal({
-  tableId,
-  tableLabel,
-  restaurantId,
-  currency,
-  createdByName,
-  staffToken,
-  onClose,
-  onDone,
-}: {
-  tableId: string;
-  tableLabel: string;
-  restaurantId: string;
-  currency: string;
-  createdByName: string;
-  staffToken: string;
-  onClose: () => void;
-  onDone: () => void;
-}) {
-  const [q, setQ] = useState("");
-  const [lines, setLines] = useState<Line[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const [pickerItem, setPickerItem] = useState<WItem | null>(null);
-  const modifiers = useQuery({
-    queryKey: ["modifiers", restaurantId],
-    queryFn: () => fetchModifiersForRestaurant(restaurantId),
-  });
-
-  const { data: items, isLoading } = useQuery({
-    queryKey: ["staff-waiter-items", restaurantId],
-    queryFn: async (): Promise<WItem[]> => {
-      const { data, error } = await supabase
-        .from("menu_items")
-        .select("id, name, price, category_id, is_available, categories(name)")
-        .eq("restaurant_id", restaurantId)
-        .eq("is_available", true)
-        .order("name");
-      if (error) throw error;
-      return (data ?? []).map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        price: Number(r.price),
-        category_id: r.category_id,
-        category_name: r.categories?.name ?? "",
-      }));
-    },
-  });
-
-  const filtered = useMemo(() => {
-    const term = q.trim().toLowerCase();
-    if (!term) return items ?? [];
-    return (items ?? []).filter(
-      (i) => i.name.toLowerCase().includes(term) || i.category_name.toLowerCase().includes(term),
-    );
-  }, [items, q]);
-
-  function addConfigured(it: WItem, selected: SelectedModifier[] = []) {
-    const key =
-      it.id +
-      ":" +
-      selected
-        .map((m) => m.id)
-        .sort()
-        .join(",");
-    setLines((prev) => {
-      const existing = prev.find((l) => l.itemId === key);
-      if (existing)
-        return prev.map((l) => (l.itemId === key ? { ...l, qty: Math.min(99, l.qty + 1) } : l));
-      return [
-        ...prev,
-        {
-          itemId: key,
-          productId: it.id,
-          name: it.name,
-          price: it.price + selected.reduce((sum, m) => sum + m.price_delta, 0),
-          qty: 1,
-          notes: "",
-          modifiers: selected,
-        },
-      ];
-    });
-  }
-  function addItem(it: WItem) {
-    if (modifiers.isPending) {
-      toast.info("Carregando adicionais");
-      return;
-    }
-    if (modifiers.isError) {
-      toast.error("Não foi possível carregar adicionais");
-      return;
-    }
-    if (modifiers.data?.get(it.id)?.length) setPickerItem(it);
-    else addConfigured(it);
-  }
-
-  function setQty(id: string, qty: number) {
-    if (qty <= 0) return setLines((p) => p.filter((l) => l.itemId !== id));
-    setLines((p) => p.map((l) => (l.itemId === id ? { ...l, qty } : l)));
-  }
-
-  const subtotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
-
-  async function submit() {
-    if (lines.length === 0) return;
-    setSubmitting(true);
-    try {
-      const { error } = await (supabase as any).rpc("staff_place_order", {
-        p_token: staffToken,
-        p_table_id: tableId,
-        p_items: lines.map((l) => ({
-          menu_item_id: l.productId,
-          quantity: l.qty,
-          notes: l.notes || null,
-          modifier_option_ids: l.modifiers.map((m) => m.id),
-        })),
-      });
-      if (error) throw error;
-      toast.success(`Pedido enviado · ${tableLabel}`, {
-        description: `${lines.reduce((s, l) => s + l.qty, 0)} item(s) · ${fmt(subtotal, currency)}`,
-      });
-      onDone();
-      onClose();
-    } catch (e: any) {
-      toast.error(e.message ?? "Erro ao enviar pedido");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ y: 40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 40, opacity: 0 }}
-        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-        onClick={(e) => e.stopPropagation()}
-        className="flex h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-border bg-background sm:rounded-3xl"
-      >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Lançamento rápido
-            </div>
-            <h2 className="font-display text-xl tracking-tight">{tableLabel}</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="px-5 py-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              autoFocus
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar item ou categoria…"
-              className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-5">
-          {isLoading ? (
-            <div className="flex h-32 items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <ul className="space-y-1.5 pb-2">
-              {filtered.map((it) => {
-                const ex = lines.find((l) => l.itemId === it.id);
-                return (
-                  <li
-                    key={it.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2.5"
-                  >
-                    <button onClick={() => addItem(it)} className="min-w-0 flex-1 text-left">
-                      <div className="truncate text-sm font-medium">{it.name}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {it.category_name} · {fmt(it.price, currency)}
-                      </div>
-                    </button>
-                    {ex ? (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => setQty(it.id, ex.qty - 1)}
-                          className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground"
-                        >
-                          <Minus className="h-3.5 w-3.5" />
-                        </button>
-                        <span className="min-w-[1.5rem] text-center text-sm font-medium">
-                          {ex.qty}
-                        </span>
-                        <button
-                          onClick={() => setQty(it.id, ex.qty + 1)}
-                          className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => addItem(it)}
-                        className="rounded-lg bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
-                      >
-                        Adicionar
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-              {filtered.length === 0 && (
-                <li className="py-8 text-center text-sm text-muted-foreground">
-                  Nenhum item encontrado.
-                </li>
-              )}
-            </ul>
-          )}
-        </div>
-
-        <div className="border-t border-border bg-surface/50 px-5 py-3">
-          {lines.length > 0 && (
-            <div className="mb-3 max-h-32 space-y-1.5 overflow-y-auto">
-              {lines.map((l) => (
-                <div key={l.itemId} className="flex items-center gap-2 text-xs">
-                  <span className="font-medium text-primary">{l.qty}×</span>
-                  <span className="flex-1 truncate">{l.name}</span>
-                  <input
-                    value={l.notes}
-                    onChange={(e) =>
-                      setLines((p) =>
-                        p.map((x) => (x.itemId === l.itemId ? { ...x, notes: e.target.value } : x)),
-                      )
-                    }
-                    placeholder="obs"
-                    className="w-24 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Subtotal
-              </div>
-              <div className="font-display text-xl tracking-tight">{fmt(subtotal, currency)}</div>
-            </div>
-            <button
-              onClick={submit}
-              disabled={lines.length === 0 || submitting}
-              className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-95 disabled:opacity-50"
-            >
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Send className="h-4 w-4" /> Enviar pedido
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </motion.div>
-      <ModifierPicker
-        item={pickerItem}
-        groups={pickerItem ? (modifiers.data?.get(pickerItem.id) ?? []) : []}
-        currency={currency}
-        onClose={() => setPickerItem(null)}
-        onConfirm={(selected) => {
-          if (pickerItem) addConfigured(pickerItem, selected);
-          setPickerItem(null);
-        }}
-      />
-    </motion.div>
-  );
-}
-
 function BillModal({
   tableLabel,
   orders,
@@ -677,7 +356,7 @@ function BillModal({
   onFinalize,
 }: {
   tableLabel: string;
-  orders: any[];
+  orders: StaffOrder[];
   currency: string;
   onClose: () => void;
   onAddItems: () => void;
@@ -690,7 +369,7 @@ function BillModal({
     (s, o) =>
       s +
       (o.items ?? []).reduce(
-        (ss: number, it: any) => ss + Number(it.price ?? 0) * Number(it.quantity ?? 0),
+        (ss: number, it) => ss + Number(it.price ?? 0) * Number(it.quantity ?? 0),
         0,
       ),
     0,
@@ -762,7 +441,7 @@ function BillModal({
                   minute: "2-digit",
                 });
                 const orderSubtotal = (o.items ?? []).reduce(
-                  (s: number, it: any) => s + Number(it.price ?? 0) * Number(it.quantity ?? 0),
+                  (s: number, it) => s + Number(it.price ?? 0) * Number(it.quantity ?? 0),
                   0,
                 );
                 const st = statusMap[o.status] ?? statusMap.served;
@@ -791,7 +470,7 @@ function BillModal({
                       </div>
                     )}
                     <ul className="divide-y divide-border/60">
-                      {(o.items ?? []).map((it: any) => (
+                      {(o.items ?? []).map((it) => (
                         <li key={it.id} className="flex flex-col gap-0.5 py-1.5">
                           <div className="flex items-center justify-between gap-2 text-sm">
                             <span>

@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
 import { FluxLogo } from "@/components/brand/logo";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
 
 export const Route = createFileRoute("/privacidade")({
   head: () => ({

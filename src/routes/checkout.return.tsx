@@ -1,9 +1,9 @@
+import { useAuth } from "@/features/auth/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/features/auth/auth-provider";
-import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
 
 export const Route = createFileRoute("/checkout/return")({
   head: () => ({ meta: [{ title: "Pagamento confirmado — Flux Menu" }] }),
@@ -24,7 +24,7 @@ function CheckoutReturn() {
     queryKey: ["checkout-return-sub", user?.id],
     enabled: !!user?.id && !!session_id && paymentsReady,
     refetchInterval: (q) => {
-      const data: any = q.state.data;
+      const data = q.state.data;
       if (data?.status === "active" || data?.status === "trialing") return false;
       return 1500;
     },

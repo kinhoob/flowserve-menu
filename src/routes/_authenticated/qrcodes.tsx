@@ -1,21 +1,8 @@
-import { isOpenOrder, normalizeTableLabel } from "@/lib/operations";
-import { publicMenuUrl, canExportQr } from "@/lib/public-menu-url";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import QRCode from "qrcode";
-import jsPDF from "jspdf";
-import { toast } from "sonner";
-import {
-  Download,
-  ExternalLink,
-  Loader2,
-  Plus,
-  QrCode as QrIcon,
-  Trash2,
-  Lock,
-} from "lucide-react";
-import { useRestaurant } from "@/features/restaurant/use-restaurant";
+import { Button } from "@/components/ui/button";
+import { getTableLimit } from "@/features/billing/plan-limits";
+import { useTrialStatus } from "@/features/billing/trial-status";
 import { useOrders } from "@/features/orders/order-queries";
+import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import {
   useCreateManyTables,
   useCreateTable,
@@ -23,10 +10,24 @@ import {
   useTables,
   type VenueTable,
 } from "@/features/tables/table-queries";
-import { Button } from "@/components/ui/button";
+import { getErrorDetails } from "@/lib/errors";
+import { isOpenOrder, normalizeTableLabel } from "@/lib/operations";
+import { canExportQr, publicMenuUrl } from "@/lib/public-menu-url";
 import { cn } from "@/lib/utils";
-import { useTrialStatus } from "@/features/billing/trial-guard";
-import { getTableLimit } from "@/features/staff/staff-picker";
+import { createFileRoute } from "@tanstack/react-router";
+import jsPDF from "jspdf";
+import {
+  Download,
+  ExternalLink,
+  Loader2,
+  Lock,
+  Plus,
+  QrCode as QrIcon,
+  Trash2,
+} from "lucide-react";
+import QRCode from "qrcode";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/qrcodes")({
   head: () => ({ meta: [{ title: "QR Codes — Flux Menu" }] }),
@@ -36,7 +37,6 @@ export const Route = createFileRoute("/_authenticated/qrcodes")({
 const publicUrl = publicMenuUrl;
 
 function QRCodesPage() {
-  const navigate = useNavigate();
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
   const { data: tables = [], isLoading: tLoading } = useTables(restaurant?.id);
   const { data: orders = [] } = useOrders(restaurant?.id);
@@ -138,7 +138,8 @@ function QRCodesPage() {
       }
       pdf.save(`flux-${restaurant.slug}-qrcodes.pdf`);
       toast.success("PDF gerado");
-    } catch (e: any) {
+    } catch (caught: unknown) {
+      const e = getErrorDetails(caught);
       toast.error(e.message ?? "Falha ao gerar PDF");
     } finally {
       setDownloading(false);
@@ -240,7 +241,8 @@ function QRCodesPage() {
                   try {
                     await del.mutateAsync(t.id);
                     toast.success("Mesa removida");
-                  } catch (e: any) {
+                  } catch (caught: unknown) {
+                    const e = getErrorDetails(caught);
                     toast.error(e.message);
                   }
                 }}
@@ -269,7 +271,8 @@ function QRCodesPage() {
                       await createOne.mutateAsync({ label: label.trim() });
                       setLabel("");
                       toast.success("Mesa criada");
-                    } catch (err: any) {
+                    } catch (caught: unknown) {
+                      const err = getErrorDetails(caught);
                       toast.error(err.message);
                     }
                   }
@@ -283,7 +286,8 @@ function QRCodesPage() {
                     await createOne.mutateAsync({ label: label.trim() });
                     setLabel("");
                     toast.success("Mesa criada");
-                  } catch (err: any) {
+                  } catch (caught: unknown) {
+                    const err = getErrorDetails(caught);
                     toast.error(err.message);
                   }
                 }}
@@ -336,7 +340,8 @@ function QRCodesPage() {
                   try {
                     await createMany.mutateAsync(bulk);
                     toast.success(`${count} mesas criadas`);
-                  } catch (e: any) {
+                  } catch (caught: unknown) {
+                    const e = getErrorDetails(caught);
                     toast.error(e.message);
                   }
                 }}

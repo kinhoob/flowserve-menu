@@ -1,15 +1,7 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
-
-type AuthState = {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  signOut: () => Promise<void>;
-};
-
-const AuthContext = createContext<AuthState | undefined>(undefined);
+import type { Session } from "@supabase/supabase-js";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { AuthContext, type AuthState } from "./use-auth";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -31,7 +23,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     // Set up listener BEFORE getSession (Supabase auth pattern)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, newSession) => {
       // Ignore noisy events (TOKEN_REFRESHED fires ~hourly and on focus; INITIAL_SESSION duplicates getSession)
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") {
         // Still complete initial load if we somehow only get INITIAL_SESSION
@@ -66,10 +60,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
-  return ctx;
 }

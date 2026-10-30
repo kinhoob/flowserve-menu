@@ -1,24 +1,24 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import {
-  ArrowUpRight,
-  QrCode,
-  ChefHat,
-  BarChart3,
-  Sparkles,
-  Check,
-  Zap,
-  Clock,
-  Smartphone,
-  Radio,
-  ShieldCheck,
-  Menu as MenuIcon,
-} from "lucide-react";
-import { useState } from "react";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { motion } from "framer-motion";
 import { FluxLogo } from "@/components/brand/logo";
 import { FadeIn } from "@/components/motion/page-transition";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { motion } from "framer-motion";
+import {
+  ArrowUpRight,
+  BarChart3,
+  Check,
+  ChefHat,
+  Clock,
+  Menu as MenuIcon,
+  QrCode,
+  Radio,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+import { useState } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => ({

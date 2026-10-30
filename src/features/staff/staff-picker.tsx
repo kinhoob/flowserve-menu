@@ -1,6 +1,6 @@
-import { motion } from "framer-motion";
-import { UserCircle2, X, Users } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { motion } from "framer-motion";
+import { UserCircle2, Users, X } from "lucide-react";
 import { useStaff, type StaffMember } from "./staff-queries";
 
 export function StaffPicker({
@@ -38,7 +38,10 @@ export function StaffPicker({
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Equipe</div>
             <h2 className="font-display text-lg tracking-tight">{title}</h2>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-muted-foreground hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -53,7 +56,8 @@ export function StaffPicker({
               </div>
               <p className="text-sm font-medium">Nenhum garçom cadastrado</p>
               <p className="max-w-xs text-xs text-muted-foreground">
-                Adicione a equipe em Configurações &gt; Gerenciar Equipe para registrar quem realizou cada ação.
+                Adicione a equipe em Configurações &gt; Gerenciar Equipe para registrar quem
+                realizou cada ação.
               </p>
               <Link
                 to="/settings"
@@ -88,18 +92,4 @@ export function StaffPicker({
       </motion.div>
     </motion.div>
   );
-}
-
-// Per produto: Essential = 5 QR Codes, Pro = ilimitado,
-// Trial libera o limite do Pro, Enterprise é ilimitado.
-export const PLAN_TABLE_LIMITS: Record<string, number> = {
-  essential: 5,
-  pro: Number.POSITIVE_INFINITY,
-  trial: Number.POSITIVE_INFINITY,
-  enterprise: Number.POSITIVE_INFINITY,
-};
-
-export function getTableLimit(plan: string | null | undefined): number {
-  const p = (plan ?? "trial").toLowerCase();
-  return PLAN_TABLE_LIMITS[p] ?? PLAN_TABLE_LIMITS.essential;
 }

@@ -1,73 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 import { Lock, Sparkles } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/features/auth/auth-provider";
-
-export type PlanType = "trial" | "essential" | "pro" | "enterprise" | string;
-
-type TrialInfo = {
-  plan_type: PlanType;
-  trial_ends_at: string;
-};
-
-export type FeatureKey = "analytics" | "waiter" | "menu" | "kitchen" | "dashboard" | "tables";
-
-// Trial behaves like Pro so users experience the full potential of Flux Menu.
-const PLAN_FEATURES: Record<string, FeatureKey[]> = {
-  trial: ["analytics", "waiter", "menu", "kitchen", "dashboard", "tables"],
-  pro: ["analytics", "waiter", "menu", "kitchen", "dashboard", "tables"],
-  enterprise: ["analytics", "waiter", "menu", "kitchen", "dashboard", "tables"],
-  essential: ["menu", "kitchen", "dashboard", "tables"],
-  basic: ["menu", "dashboard"],
-};
-
-export function canAccess(info: TrialInfo | null | undefined, feature: FeatureKey): boolean {
-  if (!info) return false;
-  if (isTrialExpired(info)) return false;
-  const plan = (info.plan_type ?? "trial").toLowerCase();
-  const features = PLAN_FEATURES[plan] ?? [];
-  return features.includes(feature);
-}
-
-export function useTrialStatus() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["trial-status", user?.id],
-    enabled: !!user?.id,
-    retry: false,
-    queryFn: async (): Promise<TrialInfo | null> => {
-      try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("plan_type, trial_ends_at" as any)
-          .eq("id", user!.id)
-          .maybeSingle();
-        if (error) {
-          console.error("[trial-status] fetch error", error);
-          return null;
-        }
-        return (data as unknown as TrialInfo) ?? null;
-      } catch (e) {
-        console.error("[trial-status] unexpected error", e);
-        return null;
-      }
-    },
-    refetchOnWindowFocus: false,
-  });
-}
-
-export function isTrialExpired(info: TrialInfo | null | undefined): boolean {
-  if (!info) return false;
-  if (info.plan_type && info.plan_type !== "trial") return false;
-  return new Date(info.trial_ends_at).getTime() < Date.now();
-}
-
-export function daysLeft(info: TrialInfo | null | undefined): number {
-  if (!info) return 0;
-  const ms = new Date(info.trial_ends_at).getTime() - Date.now();
-  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
-}
+import { daysLeft, type FeatureKey, type TrialInfo } from "./trial-status";
 
 export function FeatureLocked({ feature }: { feature: FeatureKey }) {
   const labels: Record<FeatureKey, string> = {
@@ -123,7 +56,7 @@ export function TrialExpiredBlock() {
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             to="/settings"
-            search={{ tab: "billing" } as any}
+            search={{ tab: "billing" }}
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-[0_18px_40px_-15px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_60px_-18px_oklch(0.78_0.13_84_/_0.75)]"
           >
             <Sparkles className="h-4 w-4" />

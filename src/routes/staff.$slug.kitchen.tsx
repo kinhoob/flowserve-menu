@@ -1,11 +1,12 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
-import { ArrowLeft, Loader2, ChefHat, CheckCircle2 } from "lucide-react";
-import { useStaffSession } from "@/features/staff/staff-session";
+import type { StaffOrder } from "@/features/staff/staff-rpc";
 import { staffListOrders, staffUpdateOrderStatus } from "@/features/staff/staff-rpc";
+import { useStaffSession } from "@/features/staff/staff-session";
 import { supabase } from "@/integrations/supabase/client";
 import { recordRealtimeEvent } from "@/lib/realtime-telemetry";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ArrowLeft, CheckCircle2, ChefHat, Loader2 } from "lucide-react";
+import { useEffect, useMemo } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -61,7 +62,7 @@ function StaffKitchen() {
   });
 
   const grouped = useMemo(() => {
-    const map: Record<string, any[]> = { pending: [], preparing: [], ready: [] };
+    const map: Record<string, StaffOrder[]> = { pending: [], preparing: [], ready: [] };
     for (const o of ordersQ.data ?? []) {
       // Treat 'accepted' (recém-confirmado) as 'pending' na coluna Novos
       const col = o.status === "accepted" ? "pending" : o.status;
@@ -107,7 +108,7 @@ function StaffKitchen() {
                     Vazio
                   </div>
                 ) : (
-                  grouped[col.key].map((o: any) => (
+                  grouped[col.key].map((o) => (
                     <article
                       key={o.id}
                       className={cn(
@@ -121,7 +122,7 @@ function StaffKitchen() {
                         <span className="text-muted-foreground">{o.customer_name || ""}</span>
                       </div>
                       <ul className="mt-2 space-y-0.5 text-sm">
-                        {(o.items ?? []).map((it: any) => (
+                        {(o.items ?? []).map((it) => (
                           <li key={it.id} className="flex justify-between">
                             <span>
                               {it.quantity}× {it.name}

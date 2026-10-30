@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type ModifierGroup = Tables<"modifier_groups">;
 export type ModifierOption = Tables<"modifier_options">;
@@ -20,9 +20,7 @@ export function useItemModifiers(menuItemId: string | undefined) {
         .order("position", { ascending: true });
       if (error) throw error;
       const rows = (data ?? []) as ModifierGroupWithOptions[];
-      rows.forEach((g) =>
-        g.modifier_options.sort((a, b) => a.position - b.position),
-      );
+      rows.forEach((g) => g.modifier_options.sort((a, b) => a.position - b.position));
       return rows;
     },
   });
@@ -111,8 +109,8 @@ export async function fetchModifiersForRestaurant(restaurantId: string) {
     .order("position", { ascending: true });
   if (error) throw error;
   const map = new Map<string, ModifierGroupWithOptions[]>();
-  (data ?? []).forEach((g: any) => {
-    g.modifier_options?.sort((a: any, b: any) => a.position - b.position);
+  (data ?? []).forEach((g) => {
+    g.modifier_options?.sort((a, b) => a.position - b.position);
     const arr = map.get(g.menu_item_id) ?? [];
     arr.push(g);
     map.set(g.menu_item_id, arr);

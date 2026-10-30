@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  recordRealtimeEvent,
   getRealtimeStats,
-  resetRealtimeTelemetry,
   REALTIME_LATENCY_THRESHOLD_MS,
+  recordRealtimeEvent,
+  resetRealtimeTelemetry,
 } from "./realtime-telemetry";
 
 vi.mock("sonner", () => ({ toast: { warning: vi.fn() } }));
@@ -48,14 +48,14 @@ describe("realtime-telemetry", () => {
   it("fires alert above threshold via CustomEvent", () => {
     const spy = vi.fn();
     if (typeof window !== "undefined") {
-      window.addEventListener("flux:realtime-slow", spy as any);
+      window.addEventListener("flux:realtime-slow", spy);
     }
     const overshoot = REALTIME_LATENCY_THRESHOLD_MS + 500;
     // Simula latência alta usando um created_at bem no passado mas <60s.
     recordRealtimeEvent("kds", payload(Date.now() - overshoot));
     if (typeof window !== "undefined") {
       expect(spy).toHaveBeenCalledTimes(1);
-      window.removeEventListener("flux:realtime-slow", spy as any);
+      window.removeEventListener("flux:realtime-slow", spy);
     }
   });
 });

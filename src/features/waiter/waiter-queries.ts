@@ -1,7 +1,7 @@
-import { useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 export type WaiterCall = Tables<"waiter_calls">;
 
@@ -36,7 +36,7 @@ export function useWaiterCalls(restaurantId: string | undefined) {
         .from("waiter_calls")
         .select("*")
         .eq("restaurant_id", restaurantId!)
-        .eq("is_test" as any, false)
+        .eq("is_test", false)
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
@@ -72,7 +72,7 @@ export async function callWaiter(input: {
     table_label: input.table_label ?? null,
     customer_name: input.customer_name ?? null,
     message: input.message ?? null,
-    ...(input.kind ? ({ kind: input.kind } as any) : {}),
-  } as any);
+    ...(input.kind ? { kind: input.kind } : {}),
+  });
   if (error) throw error;
 }

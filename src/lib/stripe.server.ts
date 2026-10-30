@@ -1,5 +1,6 @@
-import Stripe from "stripe";
 import { timingSafeEqual } from "node:crypto";
+import Stripe from "stripe";
+import { z } from "zod";
 
 const getEnv = (key: string): string => {
   const value = process.env[key];
@@ -21,8 +22,11 @@ export function createStripeClient(env: StripeEnv): Stripe {
 
   return new Stripe(connectionApiKey, {
     apiVersion: "2026-03-25.dahlia",
-    httpClient: Stripe.createFetchHttpClient(((input: any, init?: RequestInit) => {
-      const gatewayUrl = input.toString().replace("https://api.stripe.com", GATEWAY_STRIPE_BASE);
+    httpClient: Stripe.createFetchHttpClient(((input: RequestInfo | URL, init?: RequestInit) => {
+      const gatewayUrl = (input instanceof Request ? input.url : input.toString()).replace(
+        "https://api.stripe.com",
+        GATEWAY_STRIPE_BASE,
+      );
       return fetch(gatewayUrl, {
         ...init,
         headers: {
@@ -37,7 +41,28 @@ export function createStripeClient(env: StripeEnv): Stripe {
 
 export function getStripeErrorMessage(error: unknown): string {
   if (error && typeof error === "object") {
-    const e = error as any;
+    const parsed = z
+      .object({
+        message: z.string().optional(),
+        type: z.string().optional(),
+        code: z.string().optional(),
+        decline_code: z.string().optional(),
+        param: z.string().optional(),
+        requestId: z.string().optional(),
+        raw: z
+          .object({
+            message: z.string().optional(),
+            type: z.string().optional(),
+            code: z.string().optional(),
+            decline_code: z.string().optional(),
+            param: z.string().optional(),
+            requestId: z.string().optional(),
+          })
+          .optional(),
+      })
+      .safeParse(error);
+    if (!parsed.success) return "Stripe request failed";
+    const e = parsed.data;
     const message = e.raw?.message ?? e.message;
     if (message) {
       const details = [
@@ -61,7 +86,7 @@ export async function verifyWebhook(
   created: number;
   type: string;
   livemode: boolean;
-  data: { object: any };
+  data: { object: unknown };
 }> {
   const signature = req.headers.get("stripe-signature");
   const body = await req.text();
@@ -105,7 +130,15 @@ export async function verifyWebhook(
   );
   if (!matches) throw new Error("Invalid webhook signature");
 
-  const event = JSON.parse(body);
+  const event = z
+    .object({
+      id: z.string(),
+      created: z.number().finite(),
+      type: z.string(),
+      livemode: z.boolean(),
+      data: z.object({ object: z.unknown() }),
+    })
+    .parse(JSON.parse(body));
   if (
     typeof event.id !== "string" ||
     !Number.isFinite(event.created) ||

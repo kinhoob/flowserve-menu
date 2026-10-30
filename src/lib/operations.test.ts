@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  normalizeTableLabel,
-  isOpenOrder,
-  restaurantDate,
-  restaurantHour,
   dateOrdinal,
   fetchAllPages,
+  isOpenOrder,
+  normalizeTableLabel,
+  restaurantDate,
+  restaurantHour,
 } from "./operations";
 
 describe("operational consistency", () => {

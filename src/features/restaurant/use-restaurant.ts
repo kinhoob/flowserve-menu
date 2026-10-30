@@ -1,7 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/features/auth/auth-provider";
 import type { Tables } from "@/integrations/supabase/types";
+import { useQuery } from "@tanstack/react-query";
 
 export type Restaurant = Tables<"restaurants">;
 

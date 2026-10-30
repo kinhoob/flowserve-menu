@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type Category = Tables<"categories">;
 export type MenuItem = Tables<"menu_items">;
@@ -51,7 +51,7 @@ export function useCreateCategory(restaurantId: string | undefined) {
         restaurant_id: restaurantId,
         name: input.name,
         description: input.description || null,
-        ...(input.kind ? ({ kind: input.kind } as any) : {}),
+        ...(input.kind ? { kind: input.kind } : {}),
       };
       const { data, error } = await supabase.from("categories").insert(payload).select().single();
       if (error) throw error;
@@ -123,11 +123,7 @@ export function useUpsertMenuItem(restaurantId: string | undefined) {
         ...(input.original_price !== undefined ? { original_price: input.original_price } : {}),
         ...(input.promo_label !== undefined ? { promo_label: input.promo_label } : {}),
       } as TablesInsert<"menu_items">;
-      const { data, error } = await supabase
-        .from("menu_items")
-        .insert(payload)
-        .select()
-        .single();
+      const { data, error } = await supabase.from("menu_items").insert(payload).select().single();
       if (error) throw error;
       return data;
     },

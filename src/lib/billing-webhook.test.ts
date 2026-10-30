@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { processBillingWebhook } from "./billing-webhook";
 const { rpc, verify } = vi.hoisted(() => ({ rpc: vi.fn(), verify: vi.fn() }));
 vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({ rpc }) }));
 vi.mock("./stripe.server", () => ({ verifyWebhook: verify }));
-import { processBillingWebhook } from "./billing-webhook";
 beforeEach(() => {
   vi.clearAllMocks();
   rpc.mockResolvedValue({ error: null });

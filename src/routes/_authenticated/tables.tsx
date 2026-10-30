@@ -1,21 +1,17 @@
-import { isOpenOrder, normalizeTableLabel, fetchAllPages } from "@/lib/operations";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
-  Loader2,
-  Plus,
-  Trash2,
-  QrCode as QrIcon,
-  Users,
-  Armchair,
-  ExternalLink,
-  History,
-  X,
-} from "lucide-react";
-import { useRestaurant } from "@/features/restaurant/use-restaurant";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { getTableLimit } from "@/features/billing/plan-limits";
+import { FeatureLocked } from "@/features/billing/trial-guard";
+import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
 import { useOrders } from "@/features/orders/order-queries";
+import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import {
   useCreateManyTables,
   useCreateTable,
@@ -23,20 +19,25 @@ import {
   useTables,
   type VenueTable,
 } from "@/features/tables/table-queries";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
-import { getTableLimit } from "@/features/staff/staff-picker";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
+import { fetchAllPages, isOpenOrder, normalizeTableLabel } from "@/lib/operations";
+import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  Armchair,
+  ExternalLink,
+  History,
+  Loader2,
+  Plus,
+  QrCode as QrIcon,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/tables")({
   head: () => ({ meta: [{ title: "Mesas — Flux Menu" }] }),
@@ -53,16 +54,15 @@ function useTableHistory(restaurantId: string | undefined) {
     queryKey: ["table-history", restaurantId],
     enabled: !!restaurantId,
     queryFn: async (): Promise<HistoryOrder[]> => {
-      return fetchAllPages<HistoryOrder>(
-        (from, to) =>
-          supabase
-            .from("orders")
-            .select("*, order_items(*)")
-            .eq("restaurant_id", restaurantId!)
-            .neq("status", "cancelled")
-            .order("created_at", { ascending: false })
-            .order("id")
-            .range(from, to) as any,
+      return fetchAllPages<HistoryOrder>((from, to) =>
+        supabase
+          .from("orders")
+          .select("*, order_items(*)")
+          .eq("restaurant_id", restaurantId!)
+          .neq("status", "cancelled")
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(from, to),
       );
     },
   });

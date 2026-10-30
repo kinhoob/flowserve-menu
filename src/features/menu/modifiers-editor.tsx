@@ -1,8 +1,9 @@
-import { useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { getErrorDetails } from "@/lib/errors";
+import { Loader2, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import {
   useCreateModifierGroup,
   useCreateModifierOption,
@@ -34,7 +35,8 @@ export function ModifiersEditor({
     try {
       await createGroup.mutateAsync({ name: newGroup.trim() });
       setNewGroup("");
-    } catch (e: any) {
+    } catch (caught: unknown) {
+      const e = getErrorDetails(caught);
       toast.error(e.message);
     }
   };
@@ -49,7 +51,8 @@ export function ModifiersEditor({
         price_delta: Number(v.price || 0),
       });
       setNewOption((s) => ({ ...s, [groupId]: { name: "", price: "" } }));
-    } catch (e: any) {
+    } catch (caught: unknown) {
+      const e = getErrorDetails(caught);
       toast.error(e.message);
     }
   };

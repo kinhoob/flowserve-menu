@@ -55,5 +55,3 @@ export function useStaffSession(slug: string): StaffSession | null {
   }, [slug]);
   return session;
 }
-
-

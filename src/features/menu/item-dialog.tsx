@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { toast } from "sonner";
-import { ImagePlus, Loader2, X } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/features/auth/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/features/auth/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { getErrorDetails } from "@/lib/errors";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ImagePlus, Loader2, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 import type { MenuItem } from "./menu-queries";
 import { useUpsertMenuItem } from "./menu-queries";
 import { ModifiersEditor } from "./modifiers-editor";
@@ -81,9 +82,9 @@ export function ItemDialog({
         is_available: item?.is_available ?? true,
         dietary_tags: item?.dietary_tags ?? [],
         image_url: item?.image_url ?? null,
-        is_promo: (item as any)?.is_promo ?? false,
-        original_price: (item as any)?.original_price ? Number((item as any).original_price) : null,
-        promo_label: (item as any)?.promo_label ?? null,
+        is_promo: item?.is_promo ?? false,
+        original_price: item?.original_price ? Number(item.original_price) : null,
+        promo_label: item?.promo_label ?? null,
       });
     }
   }, [open, item, form]);
@@ -133,14 +134,15 @@ export function ItemDialog({
         is_promo: values.is_promo,
         original_price: values.is_promo ? (values.original_price ?? null) : null,
         promo_label: values.is_promo ? (values.promo_label ?? null) : null,
-      } as any);
+      });
       toast.success(
         currentItem ? "Item atualizado" : "Item criado — agora adicione opções se quiser",
       );
       setCurrentItem(saved as MenuItem);
       if (!currentItem) setTab("modifiers");
       else onOpenChange(false);
-    } catch (e: any) {
+    } catch (caught: unknown) {
+      const e = getErrorDetails(caught);
       toast.error(e.message);
     }
   };

@@ -1,21 +1,21 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
 import {
-  ChevronRight,
-  GripVertical,
-  Loader2,
-  MoreHorizontal,
-  ArrowUp,
-  ArrowDown,
-  Pencil,
-  Plus,
-  Search,
-  Tag,
-  Trash2,
-  UtensilsCrossed,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useRestaurant } from "@/features/restaurant/use-restaurant";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ItemDialog } from "@/features/menu/item-dialog";
 import {
   useCategories,
   useCreateCategory,
@@ -29,24 +29,26 @@ import {
   type Category,
   type MenuItem,
 } from "@/features/menu/menu-queries";
-import { Button } from "@/components/ui/button";
-import { ItemDialog } from "@/features/menu/item-dialog";
+import { useRestaurant } from "@/features/restaurant/use-restaurant";
+import { getErrorDetails } from "@/lib/errors";
+import { formatPrice } from "@/lib/format";
+import { createFileRoute } from "@tanstack/react-router";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  ArrowDown,
+  ArrowUp,
+  ChevronRight,
+  GripVertical,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Tag,
+  Trash2,
+  UtensilsCrossed,
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/menu")({
   head: () => ({ meta: [{ title: "Cardápio — Flux Menu" }] }),
@@ -54,7 +56,6 @@ export const Route = createFileRoute("/_authenticated/menu")({
 });
 
 function MenuPage() {
-  const navigate = useNavigate();
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
   const restaurantId = restaurant?.id;
   const { data: categories = [], isLoading: cLoading } = useCategories(restaurantId);
@@ -207,7 +208,8 @@ function MenuPage() {
                 try {
                   await deleteItem.mutateAsync(delItem.id);
                   toast.success("Item excluído");
-                } catch (e: any) {
+                } catch (caught: unknown) {
+                  const e = getErrorDetails(caught);
                   toast.error(e.message);
                 }
                 setDelItem(null);
@@ -235,7 +237,8 @@ function MenuPage() {
                 try {
                   await deleteCat.mutateAsync(delCat.id);
                   toast.success("Categoria excluída");
-                } catch (e: any) {
+                } catch (caught: unknown) {
+                  const e = getErrorDetails(caught);
                   toast.error(e.message);
                 }
                 setDelCat(null);
@@ -290,16 +293,18 @@ function CategoriesPanel({
       setName("");
       setNewKind("food");
       setAdding(false);
-    } catch (e: any) {
+    } catch (caught: unknown) {
+      const e = getErrorDetails(caught);
       toast.error(e.message);
     }
   };
 
   const toggleKind = async (c: Category) => {
-    const next = ((c as any).kind === "drink" ? "food" : "drink") as "food" | "drink";
+    const next = (c.kind === "drink" ? "food" : "drink") as "food" | "drink";
     try {
-      await update.mutateAsync({ id: c.id, patch: { kind: next } as any });
-    } catch (e: any) {
+      await update.mutateAsync({ id: c.id, patch: { kind: next } });
+    } catch (caught: unknown) {
+      const e = getErrorDetails(caught);
       toast.error(e.message);
     }
   };
@@ -312,7 +317,8 @@ function CategoriesPanel({
     try {
       await update.mutateAsync({ id, patch: { name: editName.trim() } });
       setEditingId(null);
-    } catch (e: any) {
+    } catch (caught: unknown) {
+      const e = getErrorDetails(caught);
       toast.error(e.message);
     }
   };
@@ -374,12 +380,12 @@ function CategoriesPanel({
                         <span
                           className={
                             "rounded-full px-1.5 py-0.5 text-[9px] uppercase tracking-wider ring-1 " +
-                            ((c as any).kind === "drink"
+                            (c.kind === "drink"
                               ? "bg-[oklch(0.65_0.18_250_/_0.15)] text-[oklch(0.78_0.13_250)] ring-[oklch(0.65_0.18_250_/_0.3)]"
                               : "bg-gold-soft text-primary ring-[oklch(0.78_0.13_84_/_0.3)]")
                           }
                         >
-                          {(c as any).kind === "drink" ? "Bar" : "Cozinha"}
+                          {c.kind === "drink" ? "Bar" : "Cozinha"}
                         </span>
                       </span>
                       {active && <ChevronRight className="h-3.5 w-3.5 text-primary" />}
@@ -414,7 +420,7 @@ function CategoriesPanel({
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => toggleKind(c)}>
                         <UtensilsCrossed className="h-3.5 w-3.5" />
-                        {(c as any).kind === "drink" ? "Mover p/ Cozinha" : "Mover p/ Bar"}
+                        {c.kind === "drink" ? "Mover p/ Cozinha" : "Mover p/ Bar"}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
@@ -552,9 +558,9 @@ function ItemCard({
   onDelete: () => void;
 }) {
   const upsert = useUpsertMenuItem(item.restaurant_id);
-  const isPromo = (item as any).is_promo === true;
-  const originalPrice = (item as any).original_price ? Number((item as any).original_price) : null;
-  const promoLabel = ((item as any).promo_label as string | null) || "PROMO";
+  const isPromo = item.is_promo === true;
+  const originalPrice = item.original_price ? Number(item.original_price) : null;
+  const promoLabel = (item.promo_label as string | null) || "PROMO";
   return (
     <li
       className={
@@ -695,13 +701,4 @@ const TAG_LABELS: Record<string, string> = {
 };
 function translateTag(t: string) {
   return TAG_LABELS[t] ?? t;
-}
-
-export function formatPrice(n: number, currency: string) {
-  try {
-    const locale = currency === "BRL" ? "pt-BR" : undefined;
-    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(n);
-  } catch {
-    return `${currency} ${n.toFixed(2)}`;
-  }
 }

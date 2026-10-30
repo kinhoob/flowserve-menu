@@ -1,28 +1,28 @@
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard,
-  ClipboardList,
-  UtensilsCrossed,
-  QrCode,
-  BarChart3,
-  Settings,
-  LogOut,
-  Bell,
-  Search,
-  HandPlatter,
-  Lock,
   Armchair,
+  BarChart3,
+  Bell,
+  ClipboardList,
+  HandPlatter,
+  LayoutDashboard,
+  Lock,
+  LogOut,
   Menu,
+  QrCode,
+  Search,
+  Settings,
+  UtensilsCrossed,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
-import { motion } from "framer-motion";
-import { useAuth } from "@/features/auth/auth-provider";
 import { FluxLogo } from "@/components/brand/logo";
-import { cn } from "@/lib/utils";
-import { useTrialStatus, canAccess, type FeatureKey } from "@/features/billing/trial-guard";
+import { useAuth } from "@/features/auth/use-auth";
+import { canAccess, useTrialStatus, type FeatureKey } from "@/features/billing/trial-status";
 import { UpgradeProModal } from "@/features/billing/upgrade-modal";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 type NavItem = {
   label: string;

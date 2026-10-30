@@ -1,7 +1,7 @@
-import { cn } from "@/lib/utils";
 import logoAsset from "@/assets/fluxqr-logo.png.asset.json";
-import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { QrCode } from "lucide-react";
+import { useState } from "react";
 
 function BrandImage({ className }: { className: string }) {
   const [failed, setFailed] = useState(false);

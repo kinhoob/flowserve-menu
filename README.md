@@ -15,6 +15,7 @@ Use Node.js 24 e npm. Copie `.env.example` para `.env.local` e preencha os valor
 ```sh
 npm ci
 npm run dev
+npm run lint
 npm run typecheck
 npm test
 npm run build
@@ -43,3 +44,9 @@ Leia [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) antes de publicar. As migrações 
 ## Lovable
 
 [Editor do projeto](https://lovable.dev/projects/2b7608ef-e90e-4bb7-a850-830dcb920ec8). Mudanças na branch principal podem sincronizar com o editor; revise a implantação do banco antes do merge.
+
+## Manutenção do código
+
+As telas de configuração usam componentes próprios de estabelecimento e equipe. O lançamento rápido de pedidos é compartilhado entre dono e funcionários, mantendo RPCs distintos para cada autorização. Formatação monetária, normalização de mesas, sessão de autenticação e regras de planos ficam em módulos compartilhados. TypeScript rejeita variáveis e parâmetros sem uso, e o CI executa lint antes dos testes e do build.
+
+Foram removidos componentes de UI sem referências, dependências associadas, configuração do Bun, cliente administrativo não utilizado e o envio de e-mail que não fazia nada. A integração ativa com Lovable permanece: `.lovable/project.json`, configuração de build, OAuth do Google e gateway Stripe. Remover esses itens exige substituir os serviços que eles fornecem. O arquivo JSON do logotipo também é usado pela marca. As migrações SQL históricas são necessárias para reconstruir o banco e foram preservadas.

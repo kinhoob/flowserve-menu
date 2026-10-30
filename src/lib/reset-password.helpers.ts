@@ -17,17 +17,12 @@ export interface HashClassification {
  * already signals a failure (expired / generic invalid). Returns null when the
  * hash carries no error and we should proceed with normal session validation.
  */
-export function classifyHashError(
-  params: URLSearchParams,
-): HashClassification | null {
+export function classifyHashError(params: URLSearchParams): HashClassification | null {
   const errorCode = params.get("error_code");
   const errorDescription = params.get("error_description");
   const error = params.get("error");
 
-  if (
-    errorCode === "otp_expired" ||
-    errorDescription?.toLowerCase().includes("expired")
-  ) {
+  if (errorCode === "otp_expired" || errorDescription?.toLowerCase().includes("expired")) {
     return {
       status: "expired",
       message: "Este link de recuperação expirou. Solicite um novo abaixo.",
@@ -60,10 +55,7 @@ export interface PasswordValidation {
   message?: string;
 }
 
-export function validateNewPassword(
-  password: string,
-  confirm: string,
-): PasswordValidation {
+export function validateNewPassword(password: string, confirm: string): PasswordValidation {
   if (password.length < 6) {
     return { ok: false, message: "A senha precisa ter pelo menos 6 caracteres." };
   }
@@ -100,8 +92,7 @@ export function classifyUpdateUserError(rawMessage: string): UpdateUserErrorResu
   }
   if (msg.includes("weak") || msg.includes("password")) {
     return {
-      toast:
-        "Senha muito fraca. Use pelo menos 6 caracteres com letras e números.",
+      toast: "Senha muito fraca. Use pelo menos 6 caracteres com letras e números.",
     };
   }
   return { toast: "Não foi possível redefinir. Tente novamente." };
@@ -122,8 +113,7 @@ export function classifyResendError(rawMessage: string): ResendErrorResult {
   if (msg.includes("rate") || msg.includes("limit") || msg.includes("too many")) {
     return {
       engageCooldown: true,
-      toast:
-        "Muitas tentativas. Aguarde alguns minutos antes de tentar de novo.",
+      toast: "Muitas tentativas. Aguarde alguns minutos antes de tentar de novo.",
     };
   }
   return {

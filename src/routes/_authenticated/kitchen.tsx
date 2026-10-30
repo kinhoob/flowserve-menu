@@ -1,35 +1,37 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { motion, AnimatePresence } from "framer-motion";
+import { FeatureLocked } from "@/features/billing/trial-guard";
+import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
 import {
-  Clock,
-  ChefHat,
-  CheckCircle2,
-  XCircle,
-  ArrowRight,
-  Loader2,
-  Volume2,
-  VolumeX,
-  Archive,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
-import { useRestaurant } from "@/features/restaurant/use-restaurant";
-import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
-import {
-  useOrders,
-  useUpdateOrderStatus,
-  useArchiveServedOrders,
   STATUS_FLOW,
   STATUS_LABELS,
+  useArchiveServedOrders,
+  useOrders,
+  useUpdateOrderStatus,
   type Order,
   type OrderStatus,
 } from "@/features/orders/order-queries";
-import { formatPrice } from "@/routes/_authenticated/menu";
-import { cn } from "@/lib/utils";
-import { playChime } from "@/lib/sound";
+import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { StaffPicker } from "@/features/staff/staff-picker";
-import { useTrialStatus, canAccess, FeatureLocked } from "@/features/billing/trial-guard";
+import { supabase } from "@/integrations/supabase/client";
+import { getErrorDetails } from "@/lib/errors";
+import { formatPrice } from "@/lib/format";
+import { playChime } from "@/lib/sound";
+import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Archive,
+  ArrowRight,
+  CheckCircle2,
+  ChefHat,
+  Clock,
+  Loader2,
+  Volume2,
+  VolumeX,
+  XCircle,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/kitchen")({
   head: () => ({ meta: [{ title: "Cozinha — Flux Menu" }] }),
@@ -69,7 +71,7 @@ function KitchenPage() {
         status: "served",
         delivered_by_name: deliveredByName,
         delivered_at: new Date().toISOString(),
-      } as any)
+      })
       .eq("id", id);
     if (error) {
       toast.error(error.message);
@@ -98,7 +100,7 @@ function KitchenPage() {
     return (orders ?? [])
       .map((o) => {
         const items = o.order_items.filter((it) => {
-          const kind = (it as any)?.menu_items?.categories?.kind ?? "food";
+          const kind = it?.menu_items?.categories?.kind ?? "food";
           return kind === scope;
         });
         return { ...o, order_items: items };
@@ -192,7 +194,8 @@ function KitchenPage() {
               try {
                 const n = await archive.mutateAsync();
                 toast.success(n > 0 ? `${n} pedido(s) arquivado(s)` : "Nada para arquivar");
-              } catch (e: any) {
+              } catch (caught: unknown) {
+                const e = getErrorDetails(caught);
                 toast.error(e.message ?? "Erro ao arquivar");
               }
             }}
@@ -312,19 +315,19 @@ function KitchenColumn({
                     {o.customer_name && (
                       <div className="text-xs text-muted-foreground">{o.customer_name}</div>
                     )}
-                    {(o as any).created_by_name && (
+                    {o.created_by_name && (
                       <div className="mt-0.5 text-[10px] uppercase tracking-wider text-primary/80">
-                        Lançado por: {(o as any).created_by_name}
+                        Lançado por: {o.created_by_name}
                       </div>
                     )}
-                    {(o as any).delivered_by_name && (
+                    {o.delivered_by_name && (
                       <div className="mt-0.5 text-[10px] uppercase tracking-wider text-emerald-400/90">
-                        Entregue por: {(o as any).delivered_by_name}
-                        {(o as any).delivered_at && (
+                        Entregue por: {o.delivered_by_name}
+                        {o.delivered_at && (
                           <>
                             {" "}
                             ·{" "}
-                            {new Date((o as any).delivered_at).toLocaleTimeString("pt-BR", {
+                            {new Date(o.delivered_at).toLocaleTimeString("pt-BR", {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}

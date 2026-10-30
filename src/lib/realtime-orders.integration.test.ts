@@ -1,5 +1,5 @@
-import { afterAll, describe, expect, it } from "vitest";
 import { createClient } from "@supabase/supabase-js";
+import { afterAll, describe, expect, it } from "vitest";
 
 const url = process.env.TEST_SUPABASE_URL;
 const key = process.env.TEST_SUPABASE_PUBLISHABLE_KEY;
