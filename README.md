@@ -1,6 +1,6 @@
 # Flux Menu
 
-SaaS de cardápio digital e operação de bares e restaurantes criado no Lovable.
+SaaS de cardápio digital e operação de bares e restaurantes com integrações diretas de autenticação e pagamento.
 
 ## Implementação atual
 
@@ -41,12 +41,12 @@ O acompanhamento público usa um token privado e retorna apenas status; não exp
 
 Leia [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) antes de publicar. As migrações novas exigem publicação coordenada com o frontend. Não foram executadas contra o banco de produção.
 
-## Lovable
+## Integrações e realidade aumentada
 
-[Editor do projeto](https://lovable.dev/projects/2b7608ef-e90e-4bb7-a850-830dcb920ec8). Mudanças na branch principal podem sincronizar com o editor; revise a implantação do banco antes do merge.
+Leia [a migração das integrações](docs/INDEPENDENT-INTEGRATIONS.md), [a produção dos modelos e RA](docs/DISH-AR.md) e [as prioridades de produto](docs/PRODUCT-ROADMAP.md). O código não depende do editor ou gateway Lovable.
 
 ## Manutenção do código
 
 As telas de configuração usam componentes próprios de estabelecimento e equipe. O lançamento rápido de pedidos é compartilhado entre dono e funcionários, mantendo RPCs distintos para cada autorização. Formatação monetária, normalização de mesas, sessão de autenticação e regras de planos ficam em módulos compartilhados. TypeScript rejeita variáveis e parâmetros sem uso, e o CI executa lint antes dos testes e do build.
 
-Foram removidos componentes de UI sem referências, dependências associadas, configuração do Bun, cliente administrativo não utilizado e o envio de e-mail que não fazia nada. A integração ativa com Lovable permanece: `.lovable/project.json`, configuração de build, OAuth do Google e gateway Stripe. Remover esses itens exige substituir os serviços que eles fornecem. O arquivo JSON do logotipo também é usado pela marca. As migrações SQL históricas são necessárias para reconstruir o banco e foram preservadas.
+O cadastro de itens aceita modelos GLB/USDZ e descrição de porção. A RA fica disponível somente após confirmação de escala pelo estabelecimento e em aparelhos compatíveis. Ainda é necessário produzir os modelos reais, configurar as contas próprias e homologar em celulares. As migrações históricas permanecem para reconstrução do banco.

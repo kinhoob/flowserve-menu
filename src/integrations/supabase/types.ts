@@ -54,6 +54,10 @@ export type Database = {
       };
       menu_items: {
         Row: {
+          model_3d_url: string | null;
+          model_usdz_url: string | null;
+          portion_description: string | null;
+          ar_scale_verified: boolean;
           category_id: string;
           created_at: string;
           description: string | null;
@@ -71,6 +75,10 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          model_3d_url?: string | null;
+          model_usdz_url?: string | null;
+          portion_description?: string | null;
+          ar_scale_verified?: boolean;
           category_id: string;
           created_at?: string;
           description?: string | null;
@@ -88,6 +96,10 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          model_3d_url?: string | null;
+          model_usdz_url?: string | null;
+          portion_description?: string | null;
+          ar_scale_verified?: boolean;
           category_id?: string;
           created_at?: string;
           description?: string | null;

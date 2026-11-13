@@ -1,9 +1,14 @@
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
-
-// The Lovable wrapper configures React, TanStack Start, Tailwind and Nitro.
-// Keep the custom SSR error handler as the TanStack server entry.
-export default defineConfig({
-  tanstackStart: {
-    server: { entry: "server" },
-  },
-});
+import { defineConfig } from "vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import { nitro } from "nitro/vite";
+export default defineConfig(({ command }) => ({
+  resolve: { tsconfigPaths: true },
+  plugins: [
+    tailwindcss(),
+    tanstackStart({ server: { entry: "server" } }),
+    ...(command === "build" ? nitro({ preset: "cloudflare-module" }) : []),
+    react(),
+  ],
+}));

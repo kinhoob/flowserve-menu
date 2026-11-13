@@ -1,6 +1,5 @@
 import { FluxLogo } from "@/components/brand/logo";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { lovable } from "@/integrations/lovable";
 import { supabase } from "@/integrations/supabase/client";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
@@ -167,16 +166,16 @@ function AuthPage() {
     if (oauthLoading) return;
     setOauthLoading(true);
     try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin + "/dashboard",
+      const result = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: new URL("/dashboard", window.location.origin).href },
       });
       if (result.error) {
         toast.error(friendlyError(result.error.message || ""));
         setOauthLoading(false);
         return;
       }
-      if (result.redirected) return;
-      navigate({ to: redirectTo ?? "/dashboard" });
+      // Supabase redirects to Google; the persisted browser session handles the callback.
     } catch (err) {
       toast.error(friendlyError(err instanceof Error ? err.message : ""));
       setOauthLoading(false);

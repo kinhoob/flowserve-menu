@@ -1,3 +1,4 @@
+import { modelAssetFields } from "@/features/ar/model-assets";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -24,6 +25,7 @@ const DIETARY = [
 ] as const;
 
 const schema = z.object({
+  ...modelAssetFields,
   name: z.string().trim().min(1, "Obrigatório").max(80),
   description: z.string().trim().max(280).optional(),
   price: z.coerce.number().min(0, "Deve ser ≥ 0").max(99999),
@@ -59,6 +61,10 @@ export function ItemDialog({
   const form = useForm<z.input<typeof schema>, unknown, Vals>({
     resolver: zodResolver(schema),
     defaultValues: {
+      model_3d_url: null,
+      model_usdz_url: null,
+      portion_description: null,
+      ar_scale_verified: false,
       name: "",
       description: "",
       price: 0,
@@ -76,6 +82,10 @@ export function ItemDialog({
       setCurrentItem(item);
       setTab("details");
       form.reset({
+        model_3d_url: item?.model_3d_url ?? null,
+        model_usdz_url: item?.model_usdz_url ?? null,
+        portion_description: item?.portion_description ?? null,
+        ar_scale_verified: item?.ar_scale_verified ?? false,
         name: item?.name ?? "",
         description: item?.description ?? "",
         price: item?.price ? Number(item.price) : 0,
@@ -125,6 +135,10 @@ export function ItemDialog({
       const saved = await upsert.mutateAsync({
         id: currentItem?.id,
         category_id: categoryId,
+        model_3d_url: values.model_3d_url || null,
+        model_usdz_url: values.model_usdz_url || null,
+        portion_description: values.portion_description || null,
+        ar_scale_verified: !!values.model_3d_url && values.ar_scale_verified,
         name: values.name,
         description: values.description || null,
         price: values.price,
@@ -335,6 +349,64 @@ export function ItemDialog({
                 )}
               </div>
 
+              <fieldset className="space-y-3 rounded-xl border border-border p-4">
+                <legend className="px-1 text-sm font-medium">Visualização do prato na mesa</legend>
+                <p className="text-xs text-muted-foreground">
+                  Use modelos do prato real, com dimensões em metros. Sem modelo, o cardápio
+                  continua com a foto.
+                </p>
+                <label className="block text-xs">
+                  Modelo 3D (GLB)
+                  <input
+                    {...form.register("model_3d_url", {
+                      onChange: () => form.setValue("ar_scale_verified", false),
+                    })}
+                    type="url"
+                    placeholder="https://seu-storage/prato.glb"
+                    className="input-field mt-1.5"
+                  />
+                </label>
+                {form.formState.errors.model_3d_url && (
+                  <p role="alert" className="text-xs text-destructive">
+                    {form.formState.errors.model_3d_url.message}
+                  </p>
+                )}
+                <label className="block text-xs">
+                  Modelo para iPhone (USDZ, opcional)
+                  <input
+                    {...form.register("model_usdz_url", {
+                      onChange: () => form.setValue("ar_scale_verified", false),
+                    })}
+                    type="url"
+                    placeholder="https://seu-storage/prato.usdz"
+                    className="input-field mt-1.5"
+                  />
+                </label>
+                {form.formState.errors.model_usdz_url && (
+                  <p role="alert" className="text-xs text-destructive">
+                    {form.formState.errors.model_usdz_url.message}
+                  </p>
+                )}
+                <label className="block text-xs">
+                  Porção e medidas
+                  <input
+                    {...form.register("portion_description")}
+                    maxLength={160}
+                    placeholder="Ex.: 400 g · serve 2 pessoas · prato de 28 cm"
+                    className="input-field mt-1.5"
+                  />
+                </label>
+                <label className="flex items-center gap-3 text-xs">
+                  <Switch
+                    checked={form.watch("ar_scale_verified")}
+                    disabled={!form.watch("model_3d_url")}
+                    onCheckedChange={(v) =>
+                      form.setValue("ar_scale_verified", v, { shouldDirty: true })
+                    }
+                  />
+                  Conferi as medidas do modelo com o prato real e quero liberar a RA.
+                </label>
+              </fieldset>
               <div className="flex items-center justify-end gap-2 pt-2">
                 <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                   Fechar

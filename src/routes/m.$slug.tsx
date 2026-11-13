@@ -1,3 +1,6 @@
+import { lazy, Suspense } from "react";
+import type { DishModel } from "@/features/ar/model-assets";
+const DishModelDialog = lazy(() => import("@/features/ar/dish-model-dialog"));
 import { FluxLogo, FluxMark } from "@/components/brand/logo";
 import { ModifierPicker } from "@/features/menu/modifier-picker";
 import { fetchModifiersForRestaurant } from "@/features/menu/modifier-queries";
@@ -39,7 +42,7 @@ type CartLine = {
   modifiers: { id: string; group: string; name: string; price_delta: number }[];
 };
 
-type PublicItem = {
+type PublicItem = DishModel & {
   id: string;
   name: string;
   description: string | null;
@@ -106,6 +109,7 @@ function PublicMenuPage() {
     },
   });
 
+  const [modelItem, setModelItem] = useState<PublicItem | null>(null);
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [openCart, setOpenCart] = useState(false);
@@ -609,12 +613,23 @@ function PublicMenuPage() {
                               </span>
                             </div>
                           </div>
+                          {it.portion_description && (
+                            <p className="mt-1 text-xs text-primary">{it.portion_description}</p>
+                          )}
                           {it.description && (
                             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                               {it.description}
                             </p>
                           )}
-                          <div className="mt-auto flex items-center justify-end pt-2">
+                          <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-2">
+                            {it.model_3d_url && (
+                              <button
+                                onClick={() => setModelItem(it)}
+                                className="rounded-lg border border-border px-3 py-1.5 text-xs"
+                              >
+                                Ver prato em 3D
+                              </button>
+                            )}
                             {!data.viewOnly && (
                               <button
                                 onClick={() => handleAdd(it)}
@@ -846,6 +861,17 @@ function PublicMenuPage() {
         <FluxMark />
         <span className="font-medium">Flux Menu</span>
       </footer>
+      {modelItem && (
+        <Suspense
+          fallback={
+            <div role="status" className="fixed bottom-4 left-4 z-50 rounded-lg bg-surface p-3">
+              Carregando visualização…
+            </div>
+          }
+        >
+          <DishModelDialog item={modelItem} onClose={() => setModelItem(null)} />
+        </Suspense>
+      )}
     </div>
   );
 }

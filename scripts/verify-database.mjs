@@ -184,6 +184,21 @@ try {
     client.query("SELECT owner_place_order($1,$2,$3,'Owner')", [other, tid, items]),
   );
   await client.query("RESET ROLE");
+  await assert.rejects(
+    client.query("UPDATE menu_items SET ar_scale_verified=true WHERE id=$1", [product]),
+  );
+  await assert.rejects(
+    client.query("UPDATE menu_items SET model_3d_url='http://cdn.example/prato.glb' WHERE id=$1", [
+      product,
+    ]),
+  );
+  await client.query(
+    "UPDATE menu_items SET model_3d_url='https://cdn.example/prato.glb',ar_scale_verified=true,portion_description='400 g · serve 2' WHERE id=$1",
+    [product],
+  );
+  console.log(
+    "PASS: AR requires a model, validates HTTPS asset formats and preserves portion metadata",
+  );
   console.log(
     "PASS: cross-tenant products, quantities, duplicate options, sold-out items, closed kitchen, owner order scope",
   );

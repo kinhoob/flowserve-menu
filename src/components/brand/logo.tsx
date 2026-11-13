@@ -1,24 +1,5 @@
-import logoAsset from "@/assets/fluxqr-logo.png.asset.json";
 import { cn } from "@/lib/utils";
 import { QrCode } from "lucide-react";
-import { useState } from "react";
-
-function BrandImage({ className }: { className: string }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return <QrCode aria-hidden className={cn(className, "text-primary")} />;
-  return (
-    <img
-      ref={(image) => {
-        if (image?.complete && image.naturalWidth === 0) setFailed(true);
-      }}
-      src={logoAsset.url}
-      alt=""
-      onError={() => setFailed(true)}
-      className={className}
-    />
-  );
-}
-
 export function FluxLogo({ className }: { className?: string }) {
   return (
     <span
@@ -27,14 +8,11 @@ export function FluxLogo({ className }: { className?: string }) {
         className,
       )}
     >
-      <BrandImage className="h-10 w-10 object-contain" />
+      <QrCode aria-hidden className="h-10 w-10 text-primary" />
       <span>Flux Menu</span>
     </span>
   );
 }
-
 export function FluxMark({ className }: { className?: string }) {
-  return (
-    <BrandImage className={cn("inline-block h-5 w-5 object-contain align-[-2px]", className)} />
-  );
+  return <QrCode aria-hidden className={cn("inline-block h-5 w-5 text-primary", className)} />;
 }

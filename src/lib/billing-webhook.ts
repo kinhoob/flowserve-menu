@@ -20,7 +20,7 @@ const subscriptionSchema = z.object({
           price: z.object({
             id: z.string().optional(),
             lookup_key: z.string().nullish(),
-            metadata: z.object({ lovable_external_id: z.string().optional() }).optional(),
+
             product: referenceSchema.optional(),
           }),
         }),
@@ -45,7 +45,7 @@ export async function processBillingWebhook(
   const subscription = subscriptionSchema.parse(event.data.object);
   if (!subscription.metadata?.userId) throw new Error("Assinatura sem usuário vinculado");
   const item = subscription.items?.data?.[0];
-  const price = item?.price?.lookup_key || item?.price?.metadata?.lovable_external_id;
+  const price = item?.price?.lookup_key;
   const plans: Record<string, string> = {
     basic_monthly: "basic",
     essential_monthly: "essential",

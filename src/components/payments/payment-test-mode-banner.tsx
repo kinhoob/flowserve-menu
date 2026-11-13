@@ -1,10 +1,10 @@
-const clientToken = import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN as string | undefined;
+const clientToken = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
 
 export function PaymentTestModeBanner() {
   if (!clientToken) {
     return (
       <div className="w-full border-b border-red-500/40 bg-red-500/10 px-4 py-2 text-center text-xs text-red-300">
-        Checkout em produção não configurado. Conclua o go-live de pagamentos no Lovable.
+        Pagamentos indisponíveis. Entre em contato com o estabelecimento.
       </div>
     );
   }

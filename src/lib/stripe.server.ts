@@ -10,32 +10,13 @@ const getEnv = (key: string): string => {
 
 export type StripeEnv = "sandbox" | "live";
 
-const GATEWAY_STRIPE_BASE = "https://connector-gateway.lovable.dev/stripe";
-
-export function getConnectionApiKey(env: StripeEnv): string {
-  return env === "sandbox" ? getEnv("STRIPE_SANDBOX_API_KEY") : getEnv("STRIPE_LIVE_API_KEY");
-}
-
 export function createStripeClient(env: StripeEnv): Stripe {
-  const connectionApiKey = getConnectionApiKey(env);
-  const lovableApiKey = getEnv("LOVABLE_API_KEY");
-
-  return new Stripe(connectionApiKey, {
+  const key = getEnv(env === "sandbox" ? "STRIPE_SANDBOX_SECRET_KEY" : "STRIPE_LIVE_SECRET_KEY");
+  if (!key.startsWith(env === "sandbox" ? "sk_test_" : "sk_live_"))
+    throw new Error("Chave Stripe incompatível com o ambiente");
+  return new Stripe(key, {
     apiVersion: "2026-03-25.dahlia",
-    httpClient: Stripe.createFetchHttpClient(((input: RequestInfo | URL, init?: RequestInit) => {
-      const gatewayUrl = (input instanceof Request ? input.url : input.toString()).replace(
-        "https://api.stripe.com",
-        GATEWAY_STRIPE_BASE,
-      );
-      return fetch(gatewayUrl, {
-        ...init,
-        headers: {
-          ...Object.fromEntries(new Headers(init?.headers).entries()),
-          "X-Connection-Api-Key": connectionApiKey,
-          "Lovable-API-Key": lovableApiKey,
-        },
-      });
-    }) as typeof fetch),
+    httpClient: Stripe.createFetchHttpClient(),
   });
 }
 
