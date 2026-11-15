@@ -13,7 +13,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "test:db": "node scripts/verify-database.mjs",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "db:bootstrap": "node scripts/build-bootstrap.mjs"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",

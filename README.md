@@ -56,3 +56,7 @@ O cadastro de itens aceita modelos GLB/USDZ e descrição de porção. A RA fica
 Abra `/demo` para explorar a operação e o cardápio com dados ilustrativos, sem configurar um banco. A página inicial e a demonstração funcionam mesmo sem credenciais. O uso com dados reais exige o novo Supabase e a configuração de autenticação.
 
 Busca por nome/descrição/categoria, filtros, ordenação e favoritos foram adicionados ao cardápio. O painel tem navegação com Ctrl/Cmd+K e acessos rápidos. As contas têm calculadora de divisão igual com distribuição exata dos centavos, sem registro de pagamento. Leia [o guia de recursos e validação](docs/EXPERIENCE.md).
+
+## Banco Supabase novo
+
+Siga [o guia de conexão e primeira instalação](docs/SUPABASE-SETUP.md). `npm run db:bootstrap` gera um instalador único para um projeto novo e vazio; credenciais e o SQL gerado ficam fora do Git. O script reúne as migrações em uma transação e bloqueia uma reaplicação sobre as tabelas já existentes.

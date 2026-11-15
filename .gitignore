@@ -34,3 +34,6 @@ dist-ssr
 .db-tests/
 .env*
 !.env.example
+
+# Generated one-time database installer
+supabase/bootstrap.sql
