@@ -6,7 +6,7 @@ import { DEMO_DISHES } from "@/features/demo/demo-data";
 import { OperationPreview } from "@/features/demo/operation-preview";
 import { plans } from "@/features/experience/plan-catalog";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowDown,
   ArrowRight,
@@ -24,7 +24,7 @@ import {
   Users,
   UtensilsCrossed,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -45,14 +45,23 @@ const nav = [
 ];
 function LandingPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const mobileSection = useRef<string | null>(null);
+  const reducedMotion = useReducedMotion();
+  const sectionScroll: ScrollIntoViewOptions = {
+    behavior: reducedMotion ? "auto" : "smooth",
+    block: "start",
+  };
   return (
     <div className="relative min-h-screen overflow-x-clip bg-background text-foreground">
-      <a
-        href="#main"
+      <Link
+        to="/"
+        hash="main"
+        resetScroll={false}
+        hashScrollIntoView={sectionScroll}
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:p-3 focus:text-primary-foreground"
       >
         Pular para o conteúdo
-      </a>
+      </Link>
       <div
         aria-hidden
         className="flux-dot-grid pointer-events-none absolute inset-x-0 top-0 h-[900px] opacity-40 [mask-image:linear-gradient(black,transparent)]"
@@ -66,9 +75,16 @@ function LandingPage() {
           className="hidden items-center gap-8 text-xs text-muted-foreground lg:flex"
         >
           {nav.map((item) => (
-            <a key={item.href} href={item.href} className="hover:text-foreground">
+            <Link
+              key={item.href}
+              to="/"
+              hash={item.href.slice(1)}
+              resetScroll={false}
+              hashScrollIntoView={sectionScroll}
+              className="hover:text-foreground"
+            >
               {item.label}
-            </a>
+            </Link>
           ))}
           <Link
             to="/demo"
@@ -104,21 +120,42 @@ function LandingPage() {
                 <MenuIcon className="h-4 w-4" />
               </button>
             </SheetTrigger>
-            <SheetContent className="border-border bg-background">
+            <SheetContent
+              className="border-border bg-background"
+              onCloseAutoFocus={(event) => {
+                const sectionId = mobileSection.current;
+                if (!sectionId) return;
+                event.preventDefault();
+                mobileSection.current = null;
+                requestAnimationFrame(() => {
+                  const section = document.getElementById(sectionId);
+                  if (!section) return;
+                  section.tabIndex = -1;
+                  section.focus({ preventScroll: true });
+                  section.scrollIntoView(sectionScroll);
+                });
+              }}
+            >
               <SheetTitle className="sr-only">Navegação do Flux Menu</SheetTitle>
               <div className="mb-10 mt-4">
                 <FluxLogo />
               </div>
               <nav className="flex flex-col gap-2">
                 {nav.map((item) => (
-                  <a
+                  <Link
                     key={item.href}
-                    href={item.href}
-                    onClick={() => setMobileOpen(false)}
+                    to="/"
+                    hash={item.href.slice(1)}
+                    resetScroll={false}
+                    hashScrollIntoView={sectionScroll}
+                    onClick={() => {
+                      mobileSection.current = item.href.slice(1);
+                      setMobileOpen(false);
+                    }}
                     className="rounded-xl px-4 py-4 text-sm hover:bg-surface"
                   >
                     {item.label}
-                  </a>
+                  </Link>
                 ))}
                 <Link
                   to="/demo"
@@ -254,13 +291,16 @@ function LandingPage() {
                 <span key={label}>{label}</span>
               ))}
             </div>
-            <a
-              href="#experience"
+            <Link
+              to="/"
+              hash="experience"
+              resetScroll={false}
+              hashScrollIntoView={sectionScroll}
               aria-label="Conhecer a experiência"
               className="hidden h-8 w-8 items-center justify-center rounded-full border border-border sm:flex"
             >
               <ArrowDown className="h-3.5 w-3.5" />
-            </a>
+            </Link>
           </div>
         </div>
         <section id="experience" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
