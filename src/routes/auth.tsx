@@ -1,5 +1,10 @@
+import { useAuth } from "@/features/auth/use-auth";
+import {
+  registerWithEmail,
+  resendConfirmation,
+  safeAuthDestination,
+} from "@/features/auth/email-confirmation";
 import { FluxLogo } from "@/components/brand/logo";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
@@ -38,8 +43,8 @@ function friendlyError(message: string): string {
   if (m.includes("invalid") && m.includes("email"))
     return "Email inválido. Verifique e tente novamente.";
   if (m.includes("token") && (m.includes("invalid") || m.includes("expired")))
-    return "Código inválido ou expirado. Solicite um novo.";
-  if (m.includes("otp") && m.includes("expired")) return "Código expirado. Solicite um novo.";
+    return "Link inválido ou expirado. Solicite um novo e-mail.";
+  if (m.includes("otp") && m.includes("expired")) return "Link expirado. Solicite um novo e-mail.";
   if (m.includes("network") || m.includes("failed to fetch"))
     return "Falha de conexão. Verifique sua internet.";
   return "Não foi possível concluir. Tente novamente em alguns instantes.";
@@ -48,15 +53,16 @@ function friendlyError(message: string): string {
 function AuthPage() {
   const { mode: initialMode, redirect: redirectTo } = Route.useSearch();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const destination = safeAuthDestination(redirectTo);
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
-  const [step, setStep] = useState<"form" | "otp">("form");
+  const [step, setStep] = useState<"form" | "confirm-email">("form");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
@@ -87,15 +93,20 @@ function AuthPage() {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: redirectTo ?? "/dashboard" });
-    });
-  }, [navigate, redirectTo]);
+    if (user) void navigate({ to: destination, replace: true });
+  }, [user, navigate, destination]);
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setTimeout(
+      () => setResendCooldown((value) => Math.max(0, value - 1)),
+      1000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
 
   useEffect(() => {
     setMode(initialMode);
     setStep("form");
-    setOtp("");
   }, [initialMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -104,22 +115,26 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
+        const result = await registerWithEmail({
           email,
           password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
-            data: { display_name: displayName || email.split("@")[0] },
-          },
+          displayName,
+          origin: window.location.origin,
         });
-        if (error) throw error;
-        toast.success("Enviamos um código de 6 dígitos para o seu email.");
-        setStep("otp");
+        setPassword("");
+        if (!result.confirmationRequired) {
+          toast.success("Conta criada. Bem-vindo ao Flux Menu.");
+          void navigate({ to: destination });
+          return;
+        }
+        toast.success("Confira seu e-mail para confirmar o cadastro.");
+        setResendCooldown(60);
+        setStep("confirm-email");
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Bem-vindo de volta.");
-        navigate({ to: redirectTo ?? "/dashboard" });
+        navigate({ to: destination });
       }
     } catch (err) {
       toast.error(friendlyError(err instanceof Error ? err.message : ""));
@@ -128,33 +143,13 @@ function AuthPage() {
     }
   };
 
-  const handleVerifyOtp = async (code: string) => {
-    if (verifying) return;
-    setVerifying(true);
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token: code,
-        type: "email",
-      });
-      if (error) throw error;
-      toast.success("Email confirmado. Vamos configurar seu restaurante.");
-      navigate({ to: redirectTo ?? "/dashboard" });
-    } catch (err) {
-      toast.error(friendlyError(err instanceof Error ? err.message : ""));
-      setOtp("");
-    } finally {
-      setVerifying(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (resending) return;
+  const handleResendConfirmation = async () => {
+    if (resending || resendCooldown > 0) return;
     setResending(true);
     try {
-      const { error } = await supabase.auth.resend({ type: "signup", email });
-      if (error) throw error;
-      toast.success("Novo código enviado para o seu email.");
+      await resendConfirmation({ email, origin: window.location.origin });
+      setResendCooldown(60);
+      toast.success("Solicitamos um novo link. Confira seu e-mail.");
     } catch (err) {
       toast.error(friendlyError(err instanceof Error ? err.message : ""));
     } finally {
@@ -236,9 +231,9 @@ function AuthPage() {
 
         <div className="rounded-3xl border border-border bg-surface/80 p-8 shadow-[0_60px_120px_-40px_oklch(0_0_0_/_0.8)] backdrop-blur">
           <AnimatePresence mode="wait">
-            {step === "otp" ? (
+            {step === "confirm-email" ? (
               <motion.div
-                key="otp"
+                key="confirm-email"
                 initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -16 }}
@@ -253,54 +248,53 @@ function AuthPage() {
                   Confirme seu email
                 </h1>
                 <p className="mt-2 text-center text-sm text-muted-foreground">
-                  Digite o código de 6 dígitos que enviamos para
+                  Abra o link de confirmação enviado para
                   <br />
                   <span className="text-foreground">{email}</span>
                 </p>
 
-                <div className="mt-8 flex justify-center">
-                  <InputOTP
-                    maxLength={6}
-                    value={otp}
-                    onChange={(val) => {
-                      setOtp(val);
-                      if (val.length === 6) handleVerifyOtp(val);
-                    }}
-                    disabled={verifying}
-                  >
-                    <InputOTPGroup>
-                      {[0, 1, 2, 3, 4, 5].map((i) => (
-                        <InputOTPSlot
-                          key={i}
-                          index={i}
-                          className="h-12 w-12 text-lg font-semibold"
-                        />
-                      ))}
-                    </InputOTPGroup>
-                  </InputOTP>
+                <div className="mt-6 rounded-2xl border border-border bg-background/50 p-4 text-sm leading-6 text-muted-foreground">
+                  No e-mail, clique em “Confirm email address” para concluir seu cadastro. Você será
+                  levado ao aplicativo. Confira também a pasta de spam.
                 </div>
-
-                {verifying && (
-                  <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Verificando código…
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPassword("");
+                    setMode("login");
+                    setStep("form");
+                    void navigate({
+                      to: "/auth",
+                      search: { mode: "login", redirect: destination },
+                      replace: true,
+                    });
+                  }}
+                  className="flux-button mt-5 w-full bg-primary text-primary-foreground"
+                >
+                  Já confirmei. Entrar
+                </button>
+                <p className="mt-3 text-center text-xs text-muted-foreground">
+                  Se o link abrir em outro navegador, entre com seu e-mail e senha.
+                </p>
 
                 <div className="mt-8 space-y-3 text-center">
                   <button
                     type="button"
-                    onClick={handleResendOtp}
-                    disabled={resending}
+                    onClick={handleResendConfirmation}
+                    disabled={resending || resendCooldown > 0}
                     className="text-sm text-foreground underline-offset-4 hover:underline disabled:opacity-60"
                   >
-                    {resending ? "Enviando…" : "Reenviar código"}
+                    {resending
+                      ? "Enviando…"
+                      : resendCooldown > 0
+                        ? `Reenviar em ${resendCooldown}s`
+                        : "Reenviar link de confirmação"}
                   </button>
                   <div>
                     <button
                       type="button"
                       onClick={() => {
                         setStep("form");
-                        setOtp("");
                       }}
                       className="text-xs text-muted-foreground transition hover:text-foreground"
                     >

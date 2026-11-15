@@ -60,3 +60,5 @@ Busca por nome/descrição/categoria, filtros, ordenação e favoritos foram adi
 ## Banco Supabase novo
 
 Siga [o guia de conexão e primeira instalação](docs/SUPABASE-SETUP.md). `npm run db:bootstrap` gera um instalador único para um projeto novo e vazio; credenciais e o SQL gerado ficam fora do Git. O script reúne as migrações em uma transação e bloqueia uma reaplicação sobre as tabelas já existentes.
+
+O cadastro usa o link de confirmação do template padrão do Supabase, sem exigir OTP ou personalização do e-mail. SMTP próprio continua necessário para enviar e-mails aos clientes fora da equipe do projeto.

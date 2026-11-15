@@ -17,7 +17,7 @@ Este instalador reconstrói a estrutura, funções, permissões, bucket de image
 ## Autenticação, após instalar as tabelas
 
 - Em Authentication → URL Configuration, para desenvolvimento configure Site URL `http://localhost:5187` e permita os redirects `http://localhost:5187/dashboard` e `http://localhost:5187/reset-password`. Em produção use o domínio HTTPS publicado.
-- O fluxo de cadastro usa um código de confirmação por e-mail. Em Email Templates → Confirm signup, inclua `{{ .Token }}` para o usuário receber o código esperado pela tela; o link `{{ .ConfirmationURL }}` pode continuar disponível. Configure SMTP próprio antes do uso em produção.
+- O cadastro usa confirmação por link, compatível com o template padrão do Supabase. Não é necessário editar o e-mail para o primeiro teste. O envio padrão aceita apenas endereços da equipe da organização e tem limites baixos; use o e-mail da sua conta Supabase no teste inicial. Para enviar a clientes e personalizar assunto/conteúdo, configure SMTP próprio. Mantenha `{{ .ConfirmationURL }}` nos templates personalizados de confirmação.
 - Crie a primeira conta pelo aplicativo somente depois de instalar a estrutura. Os triggers criam o perfil e o restaurante vinculados ao usuário.
 - O login Google é separado: habilite o provedor no Supabase e configure o cliente OAuth na sua conta Google Cloud, seguindo `INDEPENDENT-INTEGRATIONS.md`.
 - `SUPABASE_SERVICE_ROLE_KEY` continua exclusiva do servidor e será necessária para receber eventos de cobrança. Não é necessária para começar a testar cadastro e operação. Não a compartilhe no chat nem a coloque em variáveis VITE\_\*.
@@ -27,3 +27,7 @@ Este instalador reconstrói a estrutura, funções, permissões, bucket de image
 Após usar este instalador, aplique somente as migrações novas. Não rode novamente o instalador nem reaplique o histórico inteiro. Se adotar o Supabase CLI depois da instalação manual, primeiro reconcilie o histórico com `supabase migration repair` após confirmar as versões realmente aplicadas; o instalador não modifica o schema interno de controle do CLI.
 
 O instalador combinado foi validado em PostgreSQL descartável com o mesmo teste de integridade, isolamento, autenticação da equipe, cobrança e RA do projeto. Isso não substitui a verificação no projeto remoto depois da execução pelo proprietário.
+
+## Confirmação por link
+
+Depois do cadastro, abra o e-mail e clique no link de confirmação. Ele retorna ao aplicativo no endereço permitido. A sessão é reconhecida automaticamente no mesmo navegador. Se o e-mail abrir em outro navegador, use “Já confirmei. Entrar” na tela original e faça login com sua senha. O aplicativo não pede um código de seis dígitos. Reenvios têm espera local de 60 segundos, além dos limites impostos pelo Supabase. Não é preciso desativar a confirmação por e-mail.

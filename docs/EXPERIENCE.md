@@ -18,7 +18,7 @@ Sem configuração do Supabase, página inicial e demonstração continuam dispo
 
 ## Verificação
 
-- 81 testes aprovados; 25 testes remotos continuam desativados por configuração.
+- 94 testes aprovados; 25 testes remotos continuam desativados por configuração.
 - TypeScript, lint, formatação e build de produção aprovados.
 - Todas as migrações reaplicadas em PostgreSQL local; validações existentes de pedidos, isolamento, PINs, cobrança e RA aprovadas.
 - Teste no navegador: navegação, avanço do preparo, busca sem acento, favoritos e persistência após recarga, seleção, divisão de R$ 29 em três pessoas e pedido simulado.
