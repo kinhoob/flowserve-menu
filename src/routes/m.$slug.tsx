@@ -1,9 +1,10 @@
-import { lazy, Suspense } from "react";
-import type { DishModel } from "@/features/ar/model-assets";
-const DishModelDialog = lazy(() => import("@/features/ar/dish-model-dialog"));
 import { FluxLogo, FluxMark } from "@/components/brand/logo";
+import type { DishModel } from "@/features/ar/model-assets";
+import { discoverMenu, type MenuFilter, type MenuSort } from "@/features/menu/discovery";
+import { MenuDiscovery } from "@/features/menu/menu-discovery";
 import { ModifierPicker } from "@/features/menu/modifier-picker";
 import { fetchModifiersForRestaurant } from "@/features/menu/modifier-queries";
+import { useMenuFavorites } from "@/features/menu/use-menu-favorites";
 import { callWaiter } from "@/features/waiter/waiter-queries";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorDetails } from "@/lib/errors";
@@ -11,10 +12,21 @@ import { formatPrice } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Check, Loader2, Minus, Plus, ShoppingBag, UtensilsCrossed, X } from "lucide-react";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Bell,
+  Check,
+  Heart,
+  Loader2,
+  Minus,
+  Plus,
+  ShoppingBag,
+  UtensilsCrossed,
+  X,
+} from "lucide-react";
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+const DishModelDialog = lazy(() => import("@/features/ar/dish-model-dialog"));
 
 const searchSchema = z.object({
   table: z.string().optional(),
@@ -43,6 +55,7 @@ type CartLine = {
 };
 
 type PublicItem = DishModel & {
+  dietary_tags: string[];
   id: string;
   name: string;
   description: string | null;
@@ -109,6 +122,10 @@ function PublicMenuPage() {
     },
   });
 
+  const [query, setQuery] = useState("");
+  const [menuFilter, setMenuFilter] = useState<MenuFilter>("all");
+  const [menuSort, setMenuSort] = useState<MenuSort>("featured");
+  const { favorites, toggleFavorite } = useMenuFavorites(slug);
   const [modelItem, setModelItem] = useState<PublicItem | null>(null);
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -151,16 +168,29 @@ function PublicMenuPage() {
     if (data?.categories.length && !activeCat) setActiveCat(data.categories[0].id);
   }, [data, activeCat]);
 
+  const visibleItems = useMemo(
+    () =>
+      discoverMenu(
+        (data?.items ?? []).map((item) => ({
+          ...item,
+          category_name: data?.categories.find((category) => category.id === item.category_id)
+            ?.name,
+        })),
+        { query, filter: menuFilter, sort: menuSort, favorites },
+      ),
+    [data, query, menuFilter, menuSort, favorites],
+  );
   const itemsByCat = useMemo(() => {
     const map = new Map<string, PublicItem[]>();
-    data?.items.forEach((i) => {
-      const arr = map.get(i.category_id) ?? [];
-      arr.push(i);
-      map.set(i.category_id, arr);
-    });
+    for (const item of visibleItems) {
+      const group = map.get(item.category_id) ?? [];
+      group.push(item);
+      map.set(item.category_id, group);
+    }
     return map;
-  }, [data]);
+  }, [visibleItems]);
 
+  const isDiscovering = !!query.trim() || menuFilter !== "all" || menuSort !== "featured";
   const total = cart.reduce((s, c) => s + c.unitPrice * c.qty, 0);
   const totalQty = cart.reduce((s, c) => s + c.qty, 0);
 
@@ -524,40 +554,82 @@ function PublicMenuPage() {
           )}
         </motion.div>
 
-        <nav className="sticky top-0 z-10 -mx-px overflow-x-auto border-t border-border bg-background/90 backdrop-blur">
-          <div className="mx-auto flex max-w-3xl gap-1 px-3 py-2">
-            {categories.map((c) => {
-              const active = c.id === activeCat;
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => {
-                    setActiveCat(c.id);
-                    document
-                      .getElementById(`cat-${c.id}`)
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                  className={
-                    "whitespace-nowrap rounded-full px-4 py-1.5 text-xs transition " +
-                    (active
-                      ? "bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.4)]"
-                      : "text-muted-foreground hover:text-foreground")
-                  }
-                >
-                  {c.name}
-                </button>
-              );
-            })}
-          </div>
-        </nav>
+        {!isDiscovering && (
+          <nav className="sticky top-0 z-10 -mx-px overflow-x-auto border-t border-border bg-background/90 backdrop-blur">
+            <div className="mx-auto flex max-w-3xl gap-1 px-3 py-2">
+              {categories.map((c) => {
+                const active = c.id === activeCat;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setActiveCat(c.id);
+                      document
+                        .getElementById(`cat-${c.id}`)
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className={
+                      "whitespace-nowrap rounded-full px-4 py-1.5 text-xs transition " +
+                      (active
+                        ? "bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.4)]"
+                        : "text-muted-foreground hover:text-foreground")
+                    }
+                  >
+                    {c.name}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+        )}
       </div>
 
       <main className="mx-auto max-w-3xl px-5 pb-32 pt-6">
+        <div className="mb-8">
+          <MenuDiscovery
+            query={query}
+            onQuery={setQuery}
+            filter={menuFilter}
+            onFilter={setMenuFilter}
+            sort={menuSort}
+            onSort={setMenuSort}
+            count={visibleItems.length}
+          />
+        </div>
+        {data.items.length > 0 && visibleItems.length === 0 && (
+          <div className="flux-panel mb-8 p-8 text-center">
+            <Heart className="mx-auto mb-3 h-6 w-6 text-primary" />
+            <h2 className="font-display text-xl">
+              {menuFilter === "favorites"
+                ? "Seus favoritos começam aqui"
+                : "Nenhuma opção encontrada"}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {menuFilter === "favorites"
+                ? "Toque no coração de um prato para salvar neste dispositivo."
+                : "Experimente outro termo ou remova os filtros."}
+            </p>
+            <button
+              onClick={() => {
+                setQuery("");
+                setMenuFilter("all");
+              }}
+              className="flux-button mt-3 text-primary"
+            >
+              Ver o cardápio completo
+            </button>
+          </div>
+        )}
         {categories.length === 0 || data.items.length === 0 ? (
           <EmptyMenu />
         ) : (
-          categories.map((cat) => {
-            const items = itemsByCat.get(cat.id) ?? [];
+          (isDiscovering
+            ? [{ id: "discovery-results", name: "Sua próxima escolha", description: null }]
+            : categories
+          ).map((cat) => {
+            const items =
+              cat.id === "discovery-results" ? visibleItems : (itemsByCat.get(cat.id) ?? []);
+            if (!items.length) return null;
             return (
               <section key={cat.id} id={`cat-${cat.id}`} className="mb-10 scroll-mt-20">
                 <h2 className="font-display text-2xl tracking-tight">{cat.name}</h2>
@@ -573,11 +645,12 @@ function PublicMenuPage() {
                         whileTap={{ scale: 0.99 }}
                         className="group flex gap-3 overflow-hidden rounded-2xl border border-border bg-surface p-3 transition hover:border-[oklch(0.78_0.13_84_/_0.3)]"
                       >
-                        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-background/60">
+                        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-background/60 sm:h-28 sm:w-28">
                           {it.image_url ? (
                             <img
                               src={it.image_url}
-                              alt=""
+                              alt={it.name}
+                              loading="lazy"
                               className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                             />
                           ) : (
@@ -587,9 +660,20 @@ function PublicMenuPage() {
                           )}
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col">
+                          <button
+                            onClick={() => toggleFavorite(it.id)}
+                            aria-label={`${favorites.has(it.id) ? "Remover" : "Salvar"} ${it.name} ${favorites.has(it.id) ? "dos" : "nos"} favoritos`}
+                            aria-pressed={favorites.has(it.id)}
+                            className="mb-1 ml-auto rounded-lg p-1.5 text-primary"
+                          >
+                            <Heart
+                              className="h-4 w-4"
+                              fill={favorites.has(it.id) ? "currentColor" : "none"}
+                            />
+                          </button>
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-1.5">
-                              <h3 className="truncate text-sm font-medium">{it.name}</h3>
+                              <h3 className="text-sm font-semibold leading-snug">{it.name}</h3>
                               {it.is_promo && (
                                 <span
                                   className="shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"

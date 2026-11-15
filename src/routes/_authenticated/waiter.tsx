@@ -1,5 +1,6 @@
 import { FeatureLocked } from "@/features/billing/trial-guard";
 import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
+import { SplitBillDialog } from "@/features/experience/split-bill-dialog";
 import { useOrders, type Order } from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
@@ -688,6 +689,7 @@ function BillModal({
             </div>
           </div>
           <div className="flex flex-col gap-2">
+            <SplitBillDialog total={total} currency={currency} />
             <div className="flex gap-2">
               <button
                 onClick={onAddItems}

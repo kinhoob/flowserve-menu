@@ -1,62 +1,16 @@
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  Armchair,
-  BarChart3,
-  Bell,
-  ClipboardList,
-  HandPlatter,
-  LayoutDashboard,
-  Lock,
-  LogOut,
-  Menu,
-  QrCode,
-  Search,
-  Settings,
-  UtensilsCrossed,
-} from "lucide-react";
+import { Bell, Lock, LogOut, Menu } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { CommandPalette } from "./command-palette";
+import { NAV } from "./navigation";
 
 import { FluxLogo } from "@/components/brand/logo";
 import { useAuth } from "@/features/auth/use-auth";
-import { canAccess, useTrialStatus, type FeatureKey } from "@/features/billing/trial-status";
+import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
 import { UpgradeProModal } from "@/features/billing/upgrade-modal";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-
-type NavItem = {
-  label: string;
-  to:
-    | "/dashboard"
-    | "/menu"
-    | "/qrcodes"
-    | "/kitchen"
-    | "/analytics"
-    | "/waiter"
-    | "/settings"
-    | "/tables";
-  icon: typeof LayoutDashboard;
-  soon?: boolean;
-  id?: string;
-  feature?: FeatureKey;
-};
-
-const NAV: NavItem[] = [
-  { label: "Visão geral", to: "/dashboard", icon: LayoutDashboard, id: "nav-dashboard" },
-  { label: "Pedidos", to: "/kitchen", icon: ClipboardList, id: "nav-kitchen", feature: "kitchen" },
-  { label: "Garçom", to: "/waiter", icon: HandPlatter, id: "nav-waiter", feature: "waiter" },
-  { label: "Cardápio", to: "/menu", icon: UtensilsCrossed, id: "nav-menu", feature: "menu" },
-  { label: "Mesas", to: "/tables", icon: Armchair, id: "nav-tables", feature: "tables" },
-  { label: "QR Codes", to: "/qrcodes", icon: QrCode, id: "nav-qrcodes" },
-  {
-    label: "Análises",
-    to: "/analytics",
-    icon: BarChart3,
-    id: "nav-analytics",
-    feature: "analytics",
-  },
-  { label: "Configurações", to: "/settings", icon: Settings, id: "nav-settings" },
-];
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
@@ -168,13 +122,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
             </SheetContent>
           </Sheet>
 
-          <div className="relative hidden w-full max-w-md md:block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              placeholder="Buscar pedidos, itens, mesas…"
-              className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-3 text-sm outline-none transition placeholder:text-muted-foreground/60 focus:border-[oklch(0.78_0.13_84_/_0.5)]"
-            />
-          </div>
+          <CommandPalette trial={trial} onLocked={setLockedLabel} />
 
           <div className="md:hidden">
             <FluxLogo />
@@ -193,9 +141,9 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         <main className="flex-1 px-4 py-6 md:px-6 md:py-8">
           <motion.div
             key={pathname}
-            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
           >
             {!trial && pathname !== "/settings" ? (
               <div

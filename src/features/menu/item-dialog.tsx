@@ -1,8 +1,8 @@
-import { modelAssetFields } from "@/features/ar/model-assets";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { modelAssetFields } from "@/features/ar/model-assets";
 import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorDetails } from "@/lib/errors";

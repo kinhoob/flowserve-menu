@@ -1,6 +1,6 @@
 import { FluxLogo } from "@/components/brand/logo";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Loader2, Mail } from "lucide-react";
@@ -181,6 +181,33 @@ function AuthPage() {
       setOauthLoading(false);
     }
   };
+
+  if (!isSupabaseConfigured())
+    return (
+      <main className="flex min-h-screen items-center justify-center px-5 py-12">
+        <div className="flux-panel max-w-lg p-8 sm:p-12">
+          <FluxLogo />
+          <p className="flux-eyebrow mt-10 text-primary">O próximo passo começa aqui</p>
+          <h1 className="mt-4 font-display text-3xl leading-tight">
+            Enquanto preparamos seu ambiente, conheça o fluxo.
+          </h1>
+          <p className="mt-5 text-sm leading-7 text-muted-foreground">
+            O acesso às contas ainda está em configuração. A demonstração já está disponível para
+            explorar o cardápio e a operação, sem cadastro nem cobranças.
+          </p>
+          <Link
+            to="/demo"
+            search={{ view: "operation" }}
+            className="flux-button mt-7 w-full bg-primary text-primary-foreground"
+          >
+            Explorar demonstração
+          </Link>
+          <Link to="/" className="flux-button mt-2 w-full text-muted-foreground">
+            Voltar ao início
+          </Link>
+        </div>
+      </main>
+    );
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12">

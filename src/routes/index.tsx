@@ -2,792 +2,608 @@ import { FluxLogo } from "@/components/brand/logo";
 import { FadeIn } from "@/components/motion/page-transition";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { DEMO_DISHES } from "@/features/demo/demo-data";
+import { OperationPreview } from "@/features/demo/operation-preview";
+import { plans } from "@/features/experience/plan-catalog";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import {
+  ArrowDown,
+  ArrowRight,
   ArrowUpRight,
-  BarChart3,
+  Box,
   Check,
   ChefHat,
-  Clock,
+  Command,
+  Heart,
+  Leaf,
   Menu as MenuIcon,
+  Plus,
   QrCode,
-  Radio,
-  ShieldCheck,
-  Smartphone,
   Sparkles,
-  Zap,
+  Users,
+  UtensilsCrossed,
 } from "lucide-react";
 import { useState } from "react";
-
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Flux Menu — A evolução do atendimento" },
+      { title: "Flux Menu — Do primeiro toque à última mesa" },
       {
         name: "description",
         content:
-          "O sistema operacional da hospitalidade moderna. Reduza o tempo de espera, transforme seu salão em uma engrenagem perfeita.",
+          "Um cardápio que dá vontade de escolher. Uma operação que deixa o salão fluir. Explore o Flux Menu para bares e restaurantes.",
       },
     ],
   }),
   component: LandingPage,
 });
-
-const partners = ["BARES", "RESTAURANTES", "CAFÉS", "BISTRÔS", "PUBS", "LANCHONETES"];
-
-type Plan = {
-  name: string;
-  price: string;
-  period: string;
-  description: string;
-  features: string[];
-  cta: string;
-  featured: boolean;
-  badge: string | null;
-  comingSoon: boolean;
-  slug?: "basic" | "essential" | "pro";
-};
-
-const plans: Plan[] = [
-  {
-    name: "Basic",
-    price: "R$ 30",
-    period: "/mês",
-    description: "Cardápio Digital Essencial. Apenas visualização — sem pedidos ou chamados.",
-    features: [
-      "Cardápio digital ilimitado",
-      "QR Code para o salão",
-      "Atualizações em tempo real",
-      "Sem pedidos ou chamado de garçom",
-    ],
-    cta: "Começar agora",
-    featured: false,
-    badge: null,
-    comingSoon: false,
-    slug: "basic",
-  },
-  {
-    name: "Essential",
-    price: "R$ 99",
-    period: "/mês",
-    description: "Operação Digital. Pedidos via QR Code e Painel da Cozinha.",
-    features: [
-      "Pedidos por QR Code",
-      "KDS para cozinha e bar",
-      "Cardápio digital ilimitado",
-      "Até 5 QR Codes",
-      "Suporte por email",
-    ],
-    cta: "Começar grátis",
-    featured: false,
-    badge: null,
-    comingSoon: false,
-    slug: "essential",
-  },
-  {
-    name: "Pro",
-    price: "R$ 199",
-    period: "/mês",
-    description: "Gestão Total. Tudo do Essential mais a operação de salão.",
-    features: [
-      "QR Codes ilimitados",
-      "Rota do Garçom (lançamento rápido)",
-      "Análises de pico e ticket médio",
-      "Alertas sonoros em tempo real",
-      "Suporte prioritário",
-    ],
-    cta: "Iniciar teste grátis",
-    featured: true,
-    badge: "Mais Popular",
-    comingSoon: false,
-    slug: "pro",
-  },
-  {
-    name: "Enterprise",
-    price: "Personalizado",
-    period: "",
-    description: "Soluções Customizadas para redes e operações multi-unidade.",
-    features: [
-      "Multi-unidades centralizado",
-      "Integrações sob medida",
-      "SLA dedicado e onboarding",
-      "Gerente de conta exclusivo",
-    ],
-    cta: "Entrar na Lista de Espera",
-    featured: false,
-    badge: "Em breve",
-    comingSoon: true,
-  },
+const nav = [
+  { href: "#experience", label: "A experiência" },
+  { href: "#operation", label: "A operação" },
+  { href: "#pricing", label: "Planos" },
 ];
-
 function LandingPage() {
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
-      {/* Ambient glows */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-grid-faint [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-40 left-1/2 h-[560px] w-[920px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.22),transparent)] blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute top-[40%] -left-40 h-[420px] w-[420px] rounded-full bg-[radial-gradient(closest-side,oklch(0.55_0.18_25_/_0.12),transparent)] blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute top-[70%] -right-40 h-[480px] w-[480px] rounded-full bg-[radial-gradient(closest-side,oklch(0.6_0.15_220_/_0.1),transparent)] blur-3xl"
-      />
-
-      <motion.header
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-20 mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6"
+    <div className="relative min-h-screen overflow-x-clip bg-background text-foreground">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:p-3 focus:text-primary-foreground"
       >
-        <div className="flex items-center gap-2">
+        Pular para o conteúdo
+      </a>
+      <div
+        aria-hidden
+        className="flux-dot-grid pointer-events-none absolute inset-x-0 top-0 h-[900px] opacity-40 [mask-image:linear-gradient(black,transparent)]"
+      />
+      <header className="relative z-30 mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-6 sm:px-8 lg:py-8">
+        <Link to="/" aria-label="Flux Menu, início">
           <FluxLogo />
-          <span className="inline-flex items-center rounded-full border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-            Beta
-          </span>
-        </div>
-        <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-          <a href="#features" className="transition hover:text-foreground">
-            Produto
-          </a>
-          <a href="#why" className="transition hover:text-foreground">
-            Por que Flux Menu?
-          </a>
-          <a href="#pricing" className="transition hover:text-foreground">
-            Planos
-          </a>
-          <a href="#faq" className="transition hover:text-foreground">
-            FAQ
-          </a>
-          <Link to="/privacidade" className="transition hover:text-foreground">
-            Privacidade
-          </Link>
-          <Link to="/termos" className="transition hover:text-foreground">
-            Termos
+        </Link>
+        <nav
+          aria-label="Principal"
+          className="hidden items-center gap-8 text-xs text-muted-foreground lg:flex"
+        >
+          {nav.map((item) => (
+            <a key={item.href} href={item.href} className="hover:text-foreground">
+              {item.label}
+            </a>
+          ))}
+          <Link
+            to="/demo"
+            search={{ view: "operation" }}
+            className="inline-flex items-center gap-1.5 text-foreground"
+          >
+            Explorar produto
+            <ArrowUpRight className="h-3 w-3" />
           </Link>
         </nav>
         <div className="flex items-center gap-2">
           <Link
             to="/auth"
             search={{ mode: "login" }}
-            className="hidden rounded-xl px-4 py-2 text-sm text-muted-foreground transition hover:text-foreground sm:inline-flex"
+            className="hidden rounded-xl px-4 py-3 text-xs text-muted-foreground hover:text-foreground sm:inline-flex"
           >
             Entrar
           </Link>
           <Link
             to="/auth"
             search={{ mode: "signup" }}
-            className="group hidden items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-[0_10px_30px_-12px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-12px_oklch(0.78_0.13_84_/_0.7)] hover:opacity-95 sm:inline-flex"
+            className="flux-button hidden border border-border bg-surface/70 text-foreground sm:inline-flex"
           >
             Começar agora
-            <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+            <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
-          <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <button
-                aria-label="Abrir menu"
-                className="inline-flex items-center justify-center rounded-xl border border-border bg-surface p-2.5 text-muted-foreground transition hover:text-foreground md:hidden"
+                aria-label="Abrir navegação"
+                className="rounded-xl border border-border p-3 lg:hidden"
               >
-                <MenuIcon className="h-5 w-5" />
+                <MenuIcon className="h-4 w-4" />
               </button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-72 bg-background">
-              <SheetTitle className="sr-only">Menu</SheetTitle>
-              <nav className="mt-8 flex flex-col gap-1 text-sm">
-                {[
-                  { href: "#features", label: "Produto" },
-                  { href: "#why", label: "Por que Flux Menu?" },
-                  { href: "#pricing", label: "Planos" },
-                  { href: "#faq", label: "FAQ" },
-                ].map((l) => (
+            <SheetContent className="border-border bg-background">
+              <SheetTitle className="sr-only">Navegação do Flux Menu</SheetTitle>
+              <div className="mb-10 mt-4">
+                <FluxLogo />
+              </div>
+              <nav className="flex flex-col gap-2">
+                {nav.map((item) => (
                   <a
-                    key={l.href}
-                    href={l.href}
-                    onClick={() => setMobileNavOpen(false)}
-                    className="rounded-lg px-3 py-3 text-foreground transition hover:bg-surface"
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="rounded-xl px-4 py-4 text-sm hover:bg-surface"
                   >
-                    {l.label}
+                    {item.label}
                   </a>
                 ))}
                 <Link
-                  to="/privacidade"
-                  onClick={() => setMobileNavOpen(false)}
-                  className="rounded-lg px-3 py-3 text-muted-foreground transition hover:bg-surface hover:text-foreground"
+                  to="/demo"
+                  search={{ view: "operation" }}
+                  onClick={() => setMobileOpen(false)}
+                  className="flux-button mt-4 bg-primary text-primary-foreground"
                 >
-                  Privacidade
+                  Explorar demonstração
+                  <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
-                  to="/termos"
-                  onClick={() => setMobileNavOpen(false)}
-                  className="rounded-lg px-3 py-3 text-muted-foreground transition hover:bg-surface hover:text-foreground"
+                  to="/auth"
+                  search={{ mode: "login" }}
+                  className="flux-button border border-border"
                 >
-                  Termos
+                  Entrar na minha conta
                 </Link>
-                <div className="mt-4 flex flex-col gap-2 border-t border-border pt-4">
-                  <Link
-                    to="/auth"
-                    search={{ mode: "login" }}
-                    onClick={() => setMobileNavOpen(false)}
-                    className="rounded-xl border border-border px-4 py-2.5 text-center text-sm text-foreground transition hover:bg-surface"
-                  >
-                    Entrar
-                  </Link>
-                  <Link
-                    to="/auth"
-                    search={{ mode: "signup" }}
-                    onClick={() => setMobileNavOpen(false)}
-                    className="rounded-xl bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground"
-                  >
-                    Começar agora
-                  </Link>
-                </div>
               </nav>
             </SheetContent>
           </Sheet>
         </div>
-      </motion.header>
-
-      <main className="relative z-10 mx-auto w-full max-w-7xl px-6">
-        {/* HERO */}
-        <section className="pb-12 pt-8 md:pb-24 md:pt-20">
-          <motion.div
-            initial="hidden"
-            animate="show"
-            variants={{
-              hidden: {},
-              show: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
-            }}
-            className="mx-auto max-w-3xl text-center"
-          >
-            <motion.span
-              variants={{ hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } }}
-              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-              className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 text-xs text-muted-foreground backdrop-blur"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-primary" />A plataforma escolhida pela
-              hospitalidade moderna
-            </motion.span>
-            <motion.h1
-              variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-6 font-display text-4xl leading-[1.12] tracking-tight md:text-7xl"
-            >
-              Cardápio digital e pedidos por QR Code{" "}
-              <span className="text-gradient-gold italic">para bares e restaurantes.</span>
-            </motion.h1>
-            <motion.p
-              variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-              className="mx-auto mt-6 max-w-xl text-balance text-base text-muted-foreground md:text-lg"
-            >
-              Do celular do cliente à cozinha: organize pedidos, acompanhe mesas e gerencie seu
-              cardápio em um só lugar.
-            </motion.p>
-            <motion.div
-              variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row"
-            >
-              <Link
-                to="/auth"
-                search={{ mode: "signup" }}
-                className="group inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-[0_18px_40px_-15px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_60px_-18px_oklch(0.78_0.13_84_/_0.75)]"
-              >
-                Iniciar teste grátis
-                <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-              </Link>
-              <a
-                href="#features"
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface/60 px-6 py-3 text-sm text-foreground/90 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-[oklch(0.78_0.13_84_/_0.4)] hover:bg-surface"
-              >
-                Conhecer o produto
-              </a>
-            </motion.div>
-          </motion.div>
-        </section>
-
-        <section
-          aria-label="Como funciona o Flux Menu"
-          className="mb-12 rounded-2xl border border-border bg-surface p-5 md:p-8"
-        >
-          <p className="text-xs uppercase tracking-wider text-primary">
-            Exemplo ilustrativo do fluxo
-          </p>
-          <div className="mt-4 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl border border-border p-4">
-              <h2 className="font-semibold">Cardápio no celular</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Batata frita · 1 unidade
+      </header>
+      <main id="main">
+        <section className="relative mx-auto grid max-w-7xl items-center gap-8 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1fr_1.08fr] lg:gap-14 lg:pb-24 lg:pt-16">
+          <div className="relative z-10 max-w-xl">
+            <FadeIn y={10}>
+              <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#48634c]/40 bg-[#233328]/65 px-3 py-1.5 text-[10px] font-medium tracking-wide text-[#b3c9ac]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#b8ce9b]" />
+                Seu salão, em sintonia.
+              </div>
+              <h1 className="font-display text-[clamp(2.65rem,5.1vw,4.65rem)] font-semibold leading-[1.08] tracking-[-.065em]">
+                Mais sabor
                 <br />
-                Observação: sem sal
+                na escolha.
+                <br />
+                <span className="text-primary">Mais fluidez</span>
+                <br />
+                no salão.
+              </h1>
+              <p className="mt-6 max-w-md text-sm leading-7 text-muted-foreground sm:text-base">
+                Um cardápio que convida. Pedidos que chegam à cozinha. Uma equipe que sabe o próximo
+                passo. Tudo no mesmo fluxo.
               </p>
-            </div>
-            <div className="rounded-xl border border-border p-4">
-              <h2 className="font-semibold">Pedido na cozinha</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Mesa 1 · Novo → Preparando → Pronto
-              </p>
-            </div>
-            <div className="rounded-xl border border-border p-4">
-              <h2 className="font-semibold">Atendimento no salão</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Equipe acompanha a entrega e o fechamento da conta.
-              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  to="/demo"
+                  search={{ view: "operation" }}
+                  className="flux-button bg-primary text-primary-foreground shadow-[0_10px_30px_-15px_#e7bc7080]"
+                >
+                  Explorar demonstração
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  to="/auth"
+                  search={{ mode: "signup" }}
+                  className="flux-button border border-border bg-surface/60"
+                >
+                  Criar minha conta
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+              <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Check className="h-3 w-3 text-[#b3c9ac]" />
+                  Feito para o celular
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Check className="h-3 w-3 text-[#b3c9ac]" />
+                  Do pedido à mesa
+                </span>
+              </div>
+            </FadeIn>
+          </div>
+          <div className="relative mx-auto w-full max-w-[610px] pb-16 pt-8 sm:pb-20 lg:pt-0">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -inset-12 rounded-full bg-[radial-gradient(ellipse_at_center,#47644730,transparent_65%)]"
+            />
+            <FadeIn delay={0.08} y={18}>
+              <div className="relative sm:-rotate-1">
+                <OperationPreview compact />
+              </div>
+            </FadeIn>
+            <motion.div
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.3 }}
+              className="absolute -bottom-2 right-2 w-[168px] rotate-3 rounded-[25px] border-[5px] border-[#485248] bg-[#f1efe4] p-2.5 text-[#1c2a20] shadow-[0_20px_70px_-20px_#000a] sm:right-5 sm:w-[195px]"
+            >
+              <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-[#1b261e]" />
+              <div className="mb-2 flex items-center justify-between px-1 text-[8px]">
+                <span className="font-semibold">Casa do Flux</span>
+                <span className="rounded-full bg-[#dce3d3] px-1.5 py-0.5">Mesa 01</span>
+              </div>
+              <div className="relative h-24 overflow-hidden rounded-xl sm:h-28">
+                <img
+                  src={DEMO_DISHES[0].image_url}
+                  alt="Foto ilustrativa de um burger no exemplo de cardápio"
+                  className="h-full w-full object-cover"
+                />
+                <span className="absolute right-2 top-2 rounded-full bg-[#faf8ee] p-1.5">
+                  <Heart className="h-2.5 w-2.5" />
+                </span>
+              </div>
+              <p className="mt-2 text-[10px] font-semibold">Burger da casa</p>
+              <p className="mt-1 text-[8px] text-[#6d776c]">Feito para dar vontade.</p>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-xs font-bold">R$ 36,00</span>
+                <span className="rounded-lg bg-[#253d2c] p-1.5 text-[#f0eddd]">
+                  <Plus className="h-3 w-3" />
+                </span>
+              </div>
+              <p className="mt-2 text-[7px] text-[#788273]">Cardápio ilustrativo</p>
+            </motion.div>
+            <div className="absolute -left-1 bottom-10 hidden items-center gap-3 rounded-2xl border border-[#566b52]/40 bg-[#26352a] px-4 py-3 shadow-lg sm:flex">
+              <div className="rounded-xl bg-[#9ab38d]/15 p-2">
+                <Check className="h-4 w-4 text-[#c0d1ad]" />
+              </div>
+              <div>
+                <p className="text-[11px] font-medium text-[#e3eadb]">Tudo conversando.</p>
+                <p className="mt-0.5 text-[9px] text-[#a4b7a0]">Cliente, cozinha e equipe.</p>
+              </div>
             </div>
           </div>
         </section>
-        {/* TYPES OF ESTABLISHMENT */}
-        <section className="border-y border-border/60 py-12">
-          <FadeIn>
-            <p className="text-center text-xs uppercase tracking-[0.22em] text-muted-foreground">
-              Feito para diferentes tipos de estabelecimento
+        <div className="mx-auto max-w-7xl px-5 sm:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-y border-border/80 py-6">
+            <p className="text-[10px] uppercase tracking-[.2em] text-muted-foreground">
+              Feito para quem serve bem
             </p>
-            <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 md:grid-cols-6">
-              {partners.map((name) => (
-                <div
-                  key={name}
-                  className="flex items-center justify-center font-display text-sm tracking-[0.25em] text-muted-foreground/60 transition hover:text-foreground"
-                >
-                  {name}
-                </div>
+            <div className="flex flex-wrap gap-5 text-xs font-medium text-[#a6b2a5] sm:gap-9">
+              {["Restaurantes", "Bares", "Cafés", "Bistrôs"].map((label) => (
+                <span key={label}>{label}</span>
               ))}
             </div>
-          </FadeIn>
-        </section>
-
-        {/* BENTO FEATURES */}
-        <section id="features" className="py-24">
-          <FadeIn>
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="text-xs uppercase tracking-[0.18em] text-primary">
-                Feito para o serviço
-              </p>
-              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-                Cada bloco. Uma vantagem competitiva.
-              </h2>
-              <p className="mt-4 text-muted-foreground">
-                Tudo o que o seu salão precisa para operar como uma máquina silenciosa — e elegante.
-              </p>
-            </div>
-          </FadeIn>
-
-          <div className="mt-14 grid auto-rows-[12rem] grid-cols-1 gap-4 md:grid-cols-3 md:auto-rows-[14rem]">
-            {/* Big card */}
-            <FadeIn className="md:col-span-2 md:row-span-2">
-              <BentoCard
-                icon={QrCode}
-                title="Pedidos por QR Code"
-                body="O cliente escaneia, navega e pede em segundos. Sem app, sem fricção, sem fila no caixa."
-                size="lg"
-                accent
-              />
-            </FadeIn>
-
-            <FadeIn delay={0.05}>
-              <BentoCard
-                icon={Clock}
-                title="Agilize o atendimento"
-                body="Pedidos vão direto à cozinha. O garçom volta a ser anfitrião."
-              />
-            </FadeIn>
-
-            <FadeIn delay={0.1}>
-              <BentoCard
-                icon={ChefHat}
-                title="KDS em tempo real"
-                body="Kanban ao vivo para bar e cozinha. Pedidos organizados por etapa."
-              />
-            </FadeIn>
-
-            <FadeIn delay={0.15}>
-              <BentoCard
-                icon={Radio}
-                title="Sincronia instantânea"
-                body="Acompanhe atualizações de pedidos e mantenha a equipe informada."
-              />
-            </FadeIn>
-
-            <FadeIn delay={0.2}>
-              <BentoCard
-                icon={BarChart3}
-                title="Analytics de pico"
-                body="Veja o ticket médio, horários quentes e itens campeões em tempo real."
-              />
-            </FadeIn>
-
-            <FadeIn delay={0.25}>
-              <BentoCard
-                icon={Smartphone}
-                title="Modo garçom"
-                body="Lançamento rápido com uma mão. Pensado para tablets e celulares."
-              />
-            </FadeIn>
-
-            <FadeIn delay={0.3}>
-              <BentoCard
-                icon={ShieldCheck}
-                title="Multi-tenant seguro"
-                body="Uma conta por estabelecimento. Dados isolados, infraestrutura premium."
-              />
-            </FadeIn>
+            <a
+              href="#experience"
+              aria-label="Conhecer a experiência"
+              className="hidden h-8 w-8 items-center justify-center rounded-full border border-border sm:flex"
+            >
+              <ArrowDown className="h-3.5 w-3.5" />
+            </a>
           </div>
-        </section>
-
-        {/* WHY */}
-        <section id="why" className="py-24">
-          <div className="grid items-center gap-12 md:grid-cols-2">
-            <FadeIn>
+        </div>
+        <section id="experience" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
+          <FadeIn>
+            <div className="mb-9 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
               <div>
-                <p className="text-xs uppercase tracking-[0.18em] text-primary">
-                  Por que Flux Menu?
-                </p>
-                <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-                  A hospitalidade merece um software à sua altura.
+                <p className="flux-eyebrow text-primary">Cada toque importa</p>
+                <h2 className="mt-4 font-display text-3xl leading-tight sm:text-5xl">
+                  A experiência começa
+                  <br />
+                  <span className="text-[#97aa95]">antes da primeira garfada.</span>
                 </h2>
-                <p className="mt-5 text-muted-foreground">
-                  Construímos o Flux Menu como se fosse parte do seu salão — silencioso, rápido,
-                  bem-acabado. Não é uma ferramenta corporativa adaptada. É um produto pensado para
-                  a mesa.
-                </p>
-                <ul className="mt-8 space-y-3 text-sm text-muted-foreground">
-                  {[
-                    "Arquitetura dedicada por estabelecimento",
-                    "Acompanhamento de pedidos em tempo real",
-                    "Otimizado para tablets, celulares e desktop",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-3">
-                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+              </div>
+              <p className="max-w-xs text-sm leading-6 text-muted-foreground">
+                Menos dúvida para escolher. Mais espaço para aproveitar o momento.
+              </p>
+            </div>
+          </FadeIn>
+          <div className="grid gap-4 md:grid-cols-3">
+            <FadeIn className="md:col-span-2">
+              <div className="flux-panel grid h-full overflow-hidden sm:grid-cols-2">
+                <div className="flex flex-col p-7">
+                  <span className="mb-6 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <UtensilsCrossed className="h-5 w-5" />
+                  </span>
+                  <span className="flux-eyebrow text-muted-foreground">
+                    Escolher também é aproveitar
+                  </span>
+                  <h3 className="mt-3 font-display text-2xl">
+                    Um cardápio
+                    <br />
+                    com apetite.
+                  </h3>
+                  <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                    Fotos, descrição da porção e adicionais. Busca inteligente, favoritos e filtros
+                    para encontrar o prato certo.
+                  </p>
+                  <Link
+                    to="/demo"
+                    search={{ view: "menu" }}
+                    className="mt-7 inline-flex w-fit items-center gap-2 text-xs font-medium text-primary"
+                  >
+                    Abrir o cardápio demonstrativo
+                    <ArrowUpRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+                <div className="relative m-3 flex min-h-72 flex-col justify-end overflow-hidden rounded-2xl bg-[#2a382a]">
+                  <img
+                    loading="lazy"
+                    src={DEMO_DISHES[2].image_url}
+                    alt="Foto ilustrativa de um bowl com vegetais"
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#101a14]/95 via-transparent to-transparent" />
+                  <div className="relative p-5">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#dce7c9] px-2.5 py-1 text-[9px] font-medium text-[#2a3d27]">
+                      <Leaf className="h-3 w-3" />
+                      Leve, fresco, do seu jeito.
+                    </span>
+                    <p className="mt-3 font-display text-xl text-white">Bowl da estação</p>
+                    <p className="mt-1 text-[10px] text-white/70">
+                      Foto e porção ilustrativas · 350 g
+                    </p>
+                  </div>
+                </div>
               </div>
             </FadeIn>
-            <FadeIn delay={0.15}>
-              <div className="relative rounded-3xl border border-border bg-surface p-8 transition-all duration-300 hover:-translate-y-1 hover:border-[oklch(0.78_0.13_84_/_0.4)]">
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 rounded-3xl bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.08),transparent_70%)]"
-                />
-                <p className="relative text-xs uppercase tracking-wider text-primary">
-                  Do QR Code ao atendimento
+            <FadeIn delay={0.08}>
+              <div className="flux-panel flex h-full flex-col p-7">
+                <span className="mb-6 flex h-10 w-10 items-center justify-center rounded-xl bg-[#9aad92]/10 text-[#bdcbb4]">
+                  <Box className="h-5 w-5" />
+                </span>
+                <span className="flux-eyebrow text-muted-foreground">Uma nova perspectiva</span>
+                <h3 className="mt-3 font-display text-2xl">
+                  O prato pode
+                  <br />
+                  ganhar a mesa.
+                </h3>
+                <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                  Visualização 3D e realidade aumentada para aproximar a escolha da experiência de
+                  servir.
                 </p>
-                <ol className="relative mt-5 space-y-4 text-sm">
-                  <li>
-                    <strong>1. Cliente</strong> — navega pelo cardápio e monta o pedido.
-                  </li>
-                  <li>
-                    <strong>2. Cozinha e bar</strong> — acompanham e preparam os itens.
-                  </li>
-                  <li>
-                    <strong>3. Equipe</strong> — entrega, confere a conta e libera a mesa.
-                  </li>
-                </ol>
+                <div className="mt-6 flex min-h-24 items-center justify-center rounded-2xl border border-dashed border-[#577050]/50 bg-[#263426]/40">
+                  <div className="relative flex h-16 w-24 items-center justify-center rounded-[50%] border border-[#a6ba92]/30 bg-[#a6ba92]/10">
+                    <Box className="h-7 w-7 text-[#b5c6a5]" />
+                    <span className="absolute -right-5 -top-2 rounded-md border border-[#617951]/40 bg-[#23311f] px-2 py-1 text-[8px] text-[#c4d4b4]">
+                      3D + RA
+                    </span>
+                  </div>
+                </div>
+                <p className="mt-4 text-[10px] leading-relaxed text-muted-foreground">
+                  Disponível para itens com modelos 3D cadastrados e medidas conferidas, em
+                  aparelhos compatíveis.
+                </p>
               </div>
             </FadeIn>
           </div>
         </section>
-
-        {/* PRICING */}
-        <section id="pricing" className="py-24">
-          <FadeIn>
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="text-xs uppercase tracking-[0.18em] text-primary">Planos</p>
-              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-                Escolha o tamanho do seu salão.
+        <section id="operation" className="border-y border-border bg-[#141a16]">
+          <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:gap-20 lg:py-24">
+            <FadeIn>
+              <p className="flux-eyebrow text-primary">Bastidores em harmonia</p>
+              <h2 className="mt-4 font-display text-3xl leading-tight sm:text-5xl">
+                O salão acontece.
+                <br />
+                <span className="text-[#97aa95]">Você acompanha.</span>
               </h2>
-              <p className="mt-4 text-muted-foreground">
-                Sem fidelidade, sem taxa de setup. Cancele quando quiser.
+              <p className="mt-5 text-sm leading-7 text-muted-foreground">
+                Pedidos organizados por etapa. Mesas com status claro. Cozinha e atendimento olhando
+                para o mesmo fluxo.
+              </p>
+              <div className="mt-7 space-y-4">
+                {[
+                  {
+                    icon: ChefHat,
+                    title: "Cozinha no ritmo certo",
+                    text: "Novos pedidos, preparo e prontos para servir.",
+                  },
+                  {
+                    icon: Users,
+                    title: "Equipe com direção",
+                    text: "Chamados e lançamentos vinculados às mesas.",
+                  },
+                  {
+                    icon: Command,
+                    title: "Menos cliques no caminho",
+                    text: "Busca de páginas e atalhos de teclado no painel.",
+                  },
+                ].map(({ icon: Icon, title, text }) => (
+                  <div key={title} className="flex items-start gap-3">
+                    <div className="mt-0.5 rounded-lg border border-border bg-surface p-2">
+                      <Icon className="h-4 w-4 text-[#b7c7b0]" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-semibold">{title}</h3>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">{text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <Link
+                to="/demo"
+                search={{ view: "operation" }}
+                className="flux-button mt-8 border border-border bg-surface"
+              >
+                Testar o fluxo de pedidos
+                <ArrowUpRight className="h-4 w-4" />
+              </Link>
+            </FadeIn>
+            <FadeIn delay={0.08}>
+              <OperationPreview compact />
+            </FadeIn>
+          </div>
+        </section>
+        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:py-24">
+          <div className="grid gap-8 sm:grid-cols-3">
+            {[
+              {
+                n: "01",
+                icon: QrCode,
+                title: "Aponte. Explore. Escolha.",
+                text: "O cliente abre o cardápio pelo QR Code e encontra o que procura.",
+              },
+              {
+                n: "02",
+                icon: ChefHat,
+                title: "O pedido encontra o caminho.",
+                text: "Os itens chegam organizados à operação, com adicionais e observações.",
+              },
+              {
+                n: "03",
+                icon: Heart,
+                title: "A hospitalidade continua sua.",
+                text: "Sua equipe cuida do que faz diferença: a experiência de estar à mesa.",
+              },
+            ].map(({ n, icon: Icon, title, text }, index) => (
+              <FadeIn key={n} delay={index * 0.06}>
+                <div className="flex items-center gap-3">
+                  <span className="font-display text-3xl text-[#556450]">{n}</span>
+                  <div className="h-px flex-1 bg-border" />
+                  <Icon className="h-4 w-4 text-[#a1b39b]" />
+                </div>
+                <h3 className="mt-5 font-display text-lg">{title}</h3>
+                <p className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">{text}</p>
+              </FadeIn>
+            ))}
+          </div>
+        </section>
+        <section id="pricing" className="mx-auto max-w-7xl px-5 pb-20 pt-5 sm:px-8 lg:pb-28">
+          <FadeIn>
+            <div className="mx-auto mb-10 max-w-xl text-center">
+              <p className="flux-eyebrow text-primary">Encontre seu ritmo</p>
+              <h2 className="mt-4 font-display text-3xl sm:text-5xl">Seu tamanho. Seu fluxo.</h2>
+              <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                Do cardápio digital à operação completa do salão. Escolha o que faz sentido para o
+                seu restaurante.
               </p>
             </div>
           </FadeIn>
-
-          <div className="mt-14 grid gap-6 md:grid-cols-2 md:items-stretch lg:grid-cols-4">
-            {plans.map((plan, i) => (
-              <FadeIn key={plan.name} delay={0.08 * i}>
-                <div className="relative h-full">
-                  {plan.featured && (
-                    <>
-                      <div
-                        aria-hidden
-                        className="pointer-events-none absolute -inset-1 rounded-[2rem] bg-[conic-gradient(from_180deg_at_50%_50%,oklch(0.78_0.13_84_/_0.55),oklch(0.55_0.1_60_/_0.2),oklch(0.78_0.13_84_/_0.55))] opacity-80 blur-md"
-                      />
-                      <motion.div
-                        aria-hidden
-                        animate={{ opacity: [0.35, 0.75, 0.35] }}
-                        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-                        className="pointer-events-none absolute -inset-2 rounded-[2.25rem] bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.45),transparent_70%)] blur-2xl"
-                      />
-                    </>
-                  )}
-                  <div
-                    className={`group relative flex h-full flex-col rounded-3xl border p-8 transition-all duration-300 hover:-translate-y-1 ${
-                      plan.featured
-                        ? "border-[oklch(0.78_0.13_84_/_0.5)] bg-gradient-to-b from-[oklch(0.78_0.13_84_/_0.12)] to-surface shadow-[0_40px_80px_-30px_oklch(0.78_0.13_84_/_0.5)]"
-                        : plan.comingSoon
-                          ? "border-dashed border-border bg-surface/60"
-                          : "border-border bg-surface/80 hover:border-[oklch(0.78_0.13_84_/_0.3)] hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.6)]"
-                    }`}
+          <div className="grid items-stretch gap-4 md:grid-cols-3">
+            {plans
+              .filter((plan) => !plan.comingSoon)
+              .map((plan, index) => (
+                <FadeIn key={plan.name} delay={index * 0.06}>
+                  <article
+                    className={`relative flex h-full flex-col rounded-3xl border p-6 sm:p-8 ${plan.featured ? "border-[#e5dfca] bg-[#eee9d9] text-[#1f2a21]" : "border-border bg-surface"}`}
                   >
-                    {plan.badge && (
-                      <div
-                        className={`absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] shadow-[0_10px_30px_-10px_oklch(0_0_0_/_0.6)] ${
-                          plan.featured
-                            ? "bg-primary text-primary-foreground"
-                            : "border border-border bg-background text-muted-foreground"
-                        }`}
-                      >
-                        {plan.badge}
-                      </div>
+                    {plan.featured && (
+                      <span className="absolute -top-3 right-6 inline-flex items-center gap-1.5 rounded-full bg-[#738368] px-3 py-1 text-[9px] font-semibold text-white">
+                        <Sparkles className="h-3 w-3" />
+                        Operação completa
+                      </span>
                     )}
-
-                    <div>
-                      <h3 className="font-display text-2xl tracking-tight">{plan.name}</h3>
-                      <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
+                    <h3 className="font-display text-lg">{plan.name}</h3>
+                    <p
+                      className={`mt-3 min-h-10 text-xs leading-5 ${plan.featured ? "text-[#64705f]" : "text-muted-foreground"}`}
+                    >
+                      {plan.description}
+                    </p>
+                    <div className="my-6">
+                      <span className="font-display text-4xl tracking-[-.06em]">{plan.price}</span>
+                      <span
+                        className={`ml-1 text-xs ${plan.featured ? "text-[#64705f]" : "text-muted-foreground"}`}
+                      >
+                        {plan.period}
+                      </span>
                     </div>
-
-                    <div className="mt-6 flex items-baseline gap-1">
-                      <span className="font-display text-4xl tracking-tight">{plan.price}</span>
-                      {plan.period && (
-                        <span className="text-sm text-muted-foreground">{plan.period}</span>
-                      )}
-                    </div>
-
-                    <ul className="mt-8 space-y-3 text-sm">
-                      {plan.features.map((f) => (
-                        <li key={f} className="flex items-start gap-3">
-                          <span
-                            className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full ${
-                              plan.featured
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]"
-                            }`}
-                          >
-                            <Check className="h-3 w-3" />
-                          </span>
-                          <span className="text-foreground/85">{f}</span>
+                    <Link
+                      to="/auth"
+                      search={{ mode: "signup", redirect: `/settings?plan=${plan.slug}` }}
+                      className={`flux-button w-full ${plan.featured ? "bg-[#233529] text-[#f7f4ea]" : "border border-border bg-background/40 text-foreground"}`}
+                    >
+                      Escolher {plan.name}
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                    <div className={`my-6 h-px ${plan.featured ? "bg-[#d4d5c3]" : "bg-border"}`} />
+                    <ul className="space-y-3">
+                      {plan.features.map((feature) => (
+                        <li
+                          key={feature}
+                          className={`flex items-start gap-2 text-xs leading-5 ${plan.featured ? "text-[#52604c]" : "text-muted-foreground"}`}
+                        >
+                          <Check
+                            className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${plan.featured ? "text-[#506c49]" : "text-[#a8bf9e]"}`}
+                          />
+                          {feature}
                         </li>
                       ))}
                     </ul>
-
-                    <div className="mt-auto pt-10">
-                      {plan.comingSoon ? (
-                        <button
-                          type="button"
-                          disabled
-                          aria-disabled="true"
-                          className="inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-background/40 px-5 py-3 text-sm font-medium text-muted-foreground"
-                        >
-                          {plan.cta}
-                        </button>
-                      ) : (
-                        <a
-                          href="/auth?mode=signup"
-                          className={`group/btn inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-300 hover:-translate-y-0.5 ${
-                            plan.featured
-                              ? "bg-primary text-primary-foreground shadow-[0_15px_35px_-12px_oklch(0.78_0.13_84_/_0.6)] hover:shadow-[0_22px_45px_-15px_oklch(0.78_0.13_84_/_0.75)]"
-                              : "border border-border bg-background text-foreground hover:border-[oklch(0.78_0.13_84_/_0.5)] hover:bg-surface"
-                          }`}
-                        >
-                          {plan.cta}
-                          <ArrowUpRight className="h-4 w-4 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </FadeIn>
-            ))}
+                  </article>
+                </FadeIn>
+              ))}
           </div>
+          <p className="mt-6 text-center text-[10px] text-muted-foreground">
+            Escolha do plano e condições de cobrança são confirmadas no checkout. Soluções para
+            redes estão em planejamento.
+          </p>
         </section>
-
-        {/* FAQ */}
-        <section id="faq" className="py-24">
+        <section className="mx-auto grid max-w-7xl gap-8 px-5 pb-20 sm:px-8 lg:grid-cols-[.8fr_1.2fr]">
           <FadeIn>
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="text-xs uppercase tracking-[0.18em] text-primary">FAQ</p>
-              <h2 className="mt-3 font-display text-4xl tracking-tight md:text-5xl">
-                Perguntas frequentes.
-              </h2>
-              <p className="mt-4 text-muted-foreground">
-                Tudo o que você precisa saber antes de começar. Não achou sua dúvida?{" "}
-                <a href="mailto:contato@flux.app" className="text-primary hover:underline">
-                  fale com a gente
-                </a>
-                .
-              </p>
-            </div>
+            <p className="flux-eyebrow text-primary">Antes de sentar à mesa</p>
+            <h2 className="mt-4 font-display text-3xl">Ficou alguma dúvida?</h2>
+            <p className="mt-4 max-w-sm text-sm leading-6 text-muted-foreground">
+              Explore a demonstração para conhecer a experiência antes de configurar seu
+              estabelecimento.
+            </p>
           </FadeIn>
-
-          <div className="mx-auto mt-12 max-w-3xl space-y-3">
+          <div className="space-y-2">
             {[
               {
-                q: "Preciso instalar algum aplicativo?",
-                a: "Não. O Flux Menu roda 100% no navegador, tanto para o cliente final (via QR Code) quanto para o salão, cozinha e administração. Funciona em celular, tablet e desktop.",
+                q: "O cliente precisa baixar um aplicativo?",
+                a: "O cardápio e o pedido funcionam pelo navegador do celular, a partir do QR Code. Não é necessário instalar um aplicativo próprio do Flux.",
               },
               {
-                q: "Quanto tempo leva para colocar no ar?",
-                a: "Em média 10 minutos. Você cria a conta, cadastra o cardápio (ou importa), gera seus QR Codes e já pode receber pedidos.",
+                q: "A realidade aumentada funciona com qualquer foto?",
+                a: "A visualização na mesa precisa de um modelo 3D do prato, com medidas conferidas, e de um aparelho compatível. Uma foto comum continua sendo exibida normalmente no cardápio.",
               },
               {
-                q: "Tem fidelidade ou taxa de setup?",
-                a: "Não. Os planos são mensais, sem fidelidade e sem taxa de setup. Cancele quando quiser direto no painel.",
+                q: "A demonstração faz pedidos de verdade?",
+                a: "Não. Ela usa dados ilustrativos e simula o fluxo localmente. Você pode escolher pratos, calcular uma divisão e avançar o preparo sem enviar pedidos ou realizar cobranças.",
               },
               {
-                q: "Qual a diferença entre Basic, Essential e Pro?",
-                a: "Basic é só cardápio digital (visualização). Essential libera pedidos por QR Code e KDS de cozinha, com até 5 QR Codes. Pro inclui QR Codes ilimitados, Rota do Garçom, análises de pico e suporte prioritário.",
+                q: "O Flux substitui meu sistema fiscal?",
+                a: "O Flux organiza cardápio, pedidos e atendimento. Emissão de documentos fiscais e integrações com outros sistemas não estão incluídas nesta versão.",
               },
-              {
-                q: "Os dados do meu estabelecimento ficam seguros?",
-                a: "Sim. Cada estabelecimento opera em ambiente multi-tenant isolado, com criptografia em trânsito, controle de acesso por função e backups contínuos. Conformidade com a LGPD.",
-              },
-              {
-                q: "Posso testar antes de pagar?",
-                a: "Sim. Todos os planos pagos começam com período de teste grátis. Você só é cobrado se decidir continuar.",
-              },
-              {
-                q: "O Flux Menu emite nota fiscal?",
-                a: "A emissão de NFC-e/SAT está no roadmap. Hoje o Flux Menu opera como sistema de comanda, pedidos e KDS — e exporta os dados para o seu sistema fiscal.",
-              },
-              {
-                q: "Como funciona o suporte?",
-                a: "Essential tem suporte por email em horário comercial. Pro tem suporte prioritário com tempo de resposta menor. Enterprise tem gerente de conta dedicado.",
-              },
-            ].map((item, i) => (
-              <FadeIn key={item.q} delay={0.04 * i}>
-                <details className="group rounded-2xl border border-border bg-surface/60 px-5 py-4 transition-all hover:border-[oklch(0.78_0.13_84_/_0.3)] open:border-[oklch(0.78_0.13_84_/_0.4)] open:bg-surface">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium text-foreground">
-                    <span>{item.q}</span>
-                    <span
-                      aria-hidden
-                      className="flex h-6 w-6 flex-none items-center justify-center rounded-full border border-border text-muted-foreground transition-transform group-open:rotate-45"
-                    >
-                      +
-                    </span>
-                  </summary>
-                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.a}</p>
-                </details>
-              </FadeIn>
+            ].map((item) => (
+              <details
+                key={item.q}
+                className="group rounded-2xl border border-border bg-surface/60 px-5 py-4"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium">
+                  <span>{item.q}</span>
+                  <Plus className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-45" />
+                </summary>
+                <p className="mt-3 pr-6 text-sm leading-6 text-muted-foreground">{item.a}</p>
+              </details>
             ))}
           </div>
         </section>
-
-        {/* CTA FINAL */}
-        <section className="py-24">
+        <section className="mx-auto max-w-7xl px-5 pb-12 sm:px-8">
           <FadeIn>
-            <div className="relative overflow-hidden rounded-3xl border border-border bg-surface p-12 text-center">
+            <div className="relative overflow-hidden rounded-[2rem] border border-[#516048]/40 bg-[#233026] px-6 py-12 sm:px-12 sm:py-16">
               <div
                 aria-hidden
-                className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,oklch(0.78_0.13_84_/_0.22),transparent_60%)]"
+                className="flux-dot-grid pointer-events-none absolute inset-0 opacity-50"
               />
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -bottom-32 left-1/2 h-64 w-[120%] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,oklch(0.55_0.1_60_/_0.18),transparent)] blur-3xl"
-              />
-              <div className="relative">
-                <div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
-                  <Zap className="h-3.5 w-3.5 text-primary" />
-                  Pronto em menos de 10 minutos
+              <div className="relative flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-end">
+                <div>
+                  <span className="flux-eyebrow text-[#b9c9a8]">
+                    Bom atendimento tem seu ritmo.
+                  </span>
+                  <h2 className="mt-5 max-w-2xl font-display text-3xl leading-tight text-[#f2f0df] sm:text-5xl">
+                    Deixe a operação fluir.
+                    <br />
+                    <span className="text-[#a1b192]">O resto é hospitalidade.</span>
+                  </h2>
                 </div>
-                <h2 className="mt-6 font-display text-4xl tracking-tight md:text-5xl">
-                  A evolução do atendimento. <br className="hidden md:block" />
-                  Onde a agilidade encontra a hospitalidade.
-                </h2>
-                <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-                  Comece com um teste grátis. Traga seu cardápio, sua equipe e suas mesas e o resto
-                  deixa que a gente cuida.
-                </p>
-                <div className="mt-8">
-                  <Link
-                    to="/auth"
-                    search={{ mode: "signup" }}
-                    className="group inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-[0_18px_40px_-15px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_60px_-18px_oklch(0.78_0.13_84_/_0.75)]"
-                  >
-                    Criar minha conta
-                    <ArrowUpRight className="h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                  </Link>
-                </div>
+                <Link
+                  to="/demo"
+                  search={{ view: "menu" }}
+                  className="flux-button shrink-0 bg-[#e8c784] text-[#1c2d20]"
+                >
+                  Conhecer o Flux Menu
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
               </div>
             </div>
           </FadeIn>
         </section>
       </main>
-
-      <footer className="relative z-10 mx-auto w-full max-w-7xl px-6 py-10">
-        <div className="flex flex-col gap-6 border-t border-border pt-8 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <FluxLogo className="text-base" />
-          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            <a href="#faq" className="transition hover:text-foreground">
-              FAQ
-            </a>
-            <Link to="/privacidade" className="transition hover:text-foreground">
-              Política de Privacidade
-            </Link>
-            <Link to="/termos" className="transition hover:text-foreground">
-              Termos de Uso
-            </Link>
-            <a href="mailto:contato@flux.app" className="transition hover:text-foreground">
-              Contato
-            </a>
-          </nav>
-          <p>© {new Date().getFullYear()} Flux Menu. Feito para a hospitalidade.</p>
-        </div>
+      <footer className="mx-auto flex max-w-7xl flex-col justify-between gap-6 px-5 py-8 text-[10px] text-muted-foreground sm:px-8 md:flex-row md:items-center">
+        <FluxLogo />
+        <p>Feito para quem cuida de cada detalhe.</p>
+        <nav aria-label="Informações legais" className="flex gap-5">
+          <Link to="/privacidade" className="hover:text-foreground">
+            Privacidade
+          </Link>
+          <Link to="/termos" className="hover:text-foreground">
+            Termos de uso
+          </Link>
+        </nav>
       </footer>
-
       <ScrollToTop />
-    </div>
-  );
-}
-
-function BentoCard({
-  icon: Icon,
-  title,
-  body,
-  size = "md",
-  accent = false,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  body: string;
-  size?: "md" | "lg";
-  accent?: boolean;
-}) {
-  return (
-    <div
-      className={`group relative h-full overflow-hidden rounded-3xl border p-6 transition-all duration-300 hover:-translate-y-1 ${
-        accent
-          ? "border-[oklch(0.78_0.13_84_/_0.35)] bg-gradient-to-br from-[oklch(0.78_0.13_84_/_0.12)] via-surface to-surface"
-          : "border-border bg-surface/80 hover:border-[oklch(0.78_0.13_84_/_0.35)]"
-      } hover:shadow-[0_30px_60px_-25px_oklch(0_0_0_/_0.7)]`}
-    >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.18),transparent)] opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"
-      />
-      <div className="relative flex h-full flex-col">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-          <Icon className="h-5 w-5" />
-        </div>
-        <h3
-          className={`mt-5 font-display tracking-tight ${size === "lg" ? "text-3xl md:text-4xl" : "text-xl"}`}
-        >
-          {title}
-        </h3>
-        <p
-          className={`mt-2 leading-relaxed text-muted-foreground ${size === "lg" ? "text-base max-w-md" : "text-sm"}`}
-        >
-          {body}
-        </p>
-      </div>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+@import "@fontsource-variable/dm-sans";
+@import "@fontsource-variable/manrope";
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -10,8 +12,9 @@
  */
 
 @theme inline {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Instrument Serif", "Cormorant Garamond", ui-serif, Georgia, serif;
+  --font-sans:
+    "DM Sans Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Manrope Variable", "DM Sans Variable", ui-sans-serif, sans-serif;
 
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 2px);
@@ -64,13 +67,13 @@
 :root {
   --radius: 1rem;
 
-  --background: oklch(0.165 0 0);
+  --background: #101312;
   --foreground: oklch(0.96 0.012 80);
 
-  --surface: oklch(0.21 0 0);
-  --surface-2: oklch(0.255 0 0);
+  --surface: #191e1b;
+  --surface-2: #232b25;
 
-  --card: oklch(0.21 0 0);
+  --card: #191e1b;
   --card-foreground: var(--foreground);
 
   --popover: oklch(0.21 0 0);
@@ -97,7 +100,7 @@
   --success: oklch(0.66 0.13 152);
   --success-foreground: oklch(0.12 0 0);
 
-  --border: oklch(0.295 0 0);
+  --border: #2c352e;
   --input: oklch(0.295 0 0);
   --ring: oklch(0.78 0.13 84 / 0.5);
 
@@ -134,7 +137,8 @@
   }
   .font-display {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.045em;
+    font-weight: 650;
   }
   ::selection {
     background: oklch(0.78 0.13 84 / 0.35);
@@ -277,4 +281,84 @@
   .stagger > *:nth-child(8) {
     animation-delay: 390ms;
   }
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
+  }
+  button:not(:disabled),
+  summary,
+  select {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  ::-webkit-scrollbar {
+    width: 7px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #3c463f;
+    border-radius: 8px;
+  }
+  html {
+    scroll-padding-top: 96px;
+  }
+}
+@layer utilities {
+  .flux-panel {
+    border: 1px solid var(--border);
+    border-radius: 1.5rem;
+    background: var(--surface);
+    box-shadow:
+      inset 0 1px 0 #ffffff04,
+      0 16px 50px -35px #0009;
+  }
+  .flux-eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .flux-button:hover {
+    transform: translateY(-2px);
+  }
+  .flux-dot-grid {
+    background-image: radial-gradient(#6b7c6535 0.8px, transparent 0.8px);
+    background-size: 22px 22px;
+  }
+  .menu-discovery {
+    border: 1px solid var(--border);
+    border-radius: 1.25rem;
+    background: var(--surface);
+    padding: 1rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@utility flux-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 46px;
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
 }

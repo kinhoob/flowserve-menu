@@ -1,18 +1,26 @@
 import { cn } from "@/lib/utils";
-import { QrCode } from "lucide-react";
+export function FluxMark({ className }: { className?: string }) {
+  return (
+    <svg aria-hidden viewBox="0 0 36 36" fill="none" className={cn("h-8 w-8 shrink-0", className)}>
+      <rect x="1" y="1" width="34" height="34" rx="11" fill="#e7bc70" />
+      <path d="M12 11h13v4H16v4h7v4h-7v5h-4V11Z" fill="#18241c" />
+      <circle cx="26.5" cy="26.5" r="2.5" fill="#45644a" />
+    </svg>
+  );
+}
 export function FluxLogo({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 font-display text-2xl tracking-tight",
+        "inline-flex items-center gap-2.5 font-display text-xl font-bold tracking-tight",
         className,
       )}
     >
-      <QrCode aria-hidden className="h-10 w-10 text-primary" />
-      <span>Flux Menu</span>
+      <FluxMark />
+      <span>
+        flux<span className="ml-1 font-normal text-muted-foreground">menu</span>
+        <span className="text-primary">.</span>
+      </span>
     </span>
   );
-}
-export function FluxMark({ className }: { className?: string }) {
-  return <QrCode aria-hidden className={cn("inline-block h-5 w-5 text-primary", className)} />;
 }

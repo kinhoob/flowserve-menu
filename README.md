@@ -50,3 +50,9 @@ Leia [a migração das integrações](docs/INDEPENDENT-INTEGRATIONS.md), [a prod
 As telas de configuração usam componentes próprios de estabelecimento e equipe. O lançamento rápido de pedidos é compartilhado entre dono e funcionários, mantendo RPCs distintos para cada autorização. Formatação monetária, normalização de mesas, sessão de autenticação e regras de planos ficam em módulos compartilhados. TypeScript rejeita variáveis e parâmetros sem uso, e o CI executa lint antes dos testes e do build.
 
 O cadastro de itens aceita modelos GLB/USDZ e descrição de porção. A RA fica disponível somente após confirmação de escala pelo estabelecimento e em aparelhos compatíveis. Ainda é necessário produzir os modelos reais, configurar as contas próprias e homologar em celulares. As migrações históricas permanecem para reconstrução do banco.
+
+## Nova experiência
+
+Abra `/demo` para explorar a operação e o cardápio com dados ilustrativos, sem configurar um banco. A página inicial e a demonstração funcionam mesmo sem credenciais. O uso com dados reais exige o novo Supabase e a configuração de autenticação.
+
+Busca por nome/descrição/categoria, filtros, ordenação e favoritos foram adicionados ao cardápio. O painel tem navegação com Ctrl/Cmd+K e acessos rápidos. As contas têm calculadora de divisão igual com distribuição exata dos centavos, sem registro de pagamento. Leia [o guia de recursos e validação](docs/EXPERIENCE.md).

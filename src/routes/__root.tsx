@@ -6,6 +6,7 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
+import { MotionConfig } from "framer-motion";
 import { Toaster } from "sonner";
 
 import { AuthProvider } from "@/features/auth/auth-provider";
@@ -76,18 +77,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [
-      { rel: "stylesheet", href: appCss },
-      {
-        rel: "preconnect",
-        href: "https://fonts.gstatic.com",
-        crossOrigin: "anonymous",
-      },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap",
-      },
-    ],
+    links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -113,20 +103,22 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <Toaster
-          theme="dark"
-          position="top-right"
-          toastOptions={{
-            style: {
-              background: "oklch(0.21 0 0)",
-              border: "1px solid oklch(0.295 0 0)",
-              color: "oklch(0.96 0.012 80)",
-            },
-          }}
-        />
-      </AuthProvider>
+      <MotionConfig reducedMotion="user" transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}>
+        <AuthProvider>
+          <Outlet />
+          <Toaster
+            theme="dark"
+            position="top-right"
+            toastOptions={{
+              style: {
+                background: "oklch(0.21 0 0)",
+                border: "1px solid oklch(0.295 0 0)",
+                color: "oklch(0.96 0.012 80)",
+              },
+            }}
+          />
+        </AuthProvider>
+      </MotionConfig>
     </QueryClientProvider>
   );
 }

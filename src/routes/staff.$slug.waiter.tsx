@@ -1,3 +1,4 @@
+import { SplitBillDialog } from "@/features/experience/split-bill-dialog";
 import type { StaffOrder } from "@/features/staff/staff-rpc";
 import {
   staffArchiveOrders,
@@ -519,6 +520,7 @@ function BillModal({
               </span>
             </div>
           </div>
+          <SplitBillDialog total={total} currency={currency} />
           <div className="flex gap-2">
             <button
               onClick={onAddItems}

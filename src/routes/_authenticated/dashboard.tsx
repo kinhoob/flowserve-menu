@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/use-auth";
 import { TrialBanner, TrialExpiredBlock } from "@/features/billing/trial-guard";
-import { isTrialExpired, useTrialStatus } from "@/features/billing/trial-status";
+import { canAccess, isTrialExpired, useTrialStatus } from "@/features/billing/trial-status";
 import { AdminTour } from "@/features/onboarding/admin-tour";
 import { STATUS_LABELS, useOrders, type Order } from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
@@ -156,12 +156,12 @@ function DashboardPage() {
           {trial && <TrialBanner info={trial} />}
           <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-primary">Visão geral</p>
-              <h1 className="mt-2 font-display text-4xl tracking-tight">
-                {greeting}, <span className="text-gradient-gold italic">{name}</span>
-              </h1>
+              <p className="flux-eyebrow text-[#b2c4aa]">
+                {greeting}, {name}
+              </p>
+              <h1 className="mt-2 font-display text-4xl tracking-tight">Seu salão, em um olhar.</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                Veja como o seu estabelecimento está performando hoje.
+                Pedidos, mesas e equipe no mesmo fluxo.
               </p>
             </div>
             <Link
@@ -250,10 +250,7 @@ function DashboardPage() {
 
           <div className="grid gap-4 stagger sm:grid-cols-3">
             {STATS.map(({ label, value, delta, icon: Icon }) => (
-              <div
-                key={label}
-                className="rounded-2xl border border-border bg-surface p-5 hover-lift hover:border-[oklch(0.78_0.13_84_/_0.3)]"
-              >
+              <div key={label} className="flux-panel p-6 transition-colors hover:border-primary/30">
                 <div className="flex items-center justify-between">
                   <span className="text-xs uppercase tracking-wider text-muted-foreground">
                     {label}
@@ -264,6 +261,41 @@ function DashboardPage() {
                 <div className="mt-1 text-xs text-muted-foreground">{delta}</div>
               </div>
             ))}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3" aria-label="Acessos rápidos">
+            <Link
+              to="/menu"
+              className="group flex items-center justify-between rounded-2xl border border-border bg-surface/50 p-4"
+            >
+              <div>
+                <p className="text-xs font-semibold">Seu cardápio, do seu jeito</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Editar pratos e adicionais</p>
+              </div>
+              <ArrowUpRight className="h-4 w-4 text-primary transition-transform group-hover:-translate-y-0.5" />
+            </Link>
+            <Link
+              to="/qrcodes"
+              className="group flex items-center justify-between rounded-2xl border border-border bg-surface/50 p-4"
+            >
+              <div>
+                <p className="text-xs font-semibold">O primeiro toque</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Gerenciar seus QR Codes</p>
+              </div>
+              <ArrowUpRight className="h-4 w-4 text-primary transition-transform group-hover:-translate-y-0.5" />
+            </Link>
+            {canAccess(trial, "kitchen") && (
+              <Link
+                to="/kitchen"
+                className="group flex items-center justify-between rounded-2xl border border-border bg-surface/50 p-4"
+              >
+                <div>
+                  <p className="text-xs font-semibold">Bastidores no ritmo</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground">Acompanhar a cozinha</p>
+                </div>
+                <ArrowUpRight className="h-4 w-4 text-primary transition-transform group-hover:-translate-y-0.5" />
+              </Link>
+            )}
           </div>
 
           <div className="rounded-2xl border border-border bg-surface p-6 animate-fade-up">
