@@ -4,6 +4,7 @@ import path from "node:path";
 import assert from "node:assert/strict";
 import { verifyServiceOperations } from "./verify-service-operations.mjs";
 import { betaUpgradeSQL } from "./build-beta-upgrade.mjs";
+import { verifyPlatformManagement } from "./verify-platform-management.mjs";
 const root = path.resolve(import.meta.dirname, "..");
 const pg = new EmbeddedPostgres({
   databaseDir: path.resolve(import.meta.dirname, "../.db-tests/data-" + Date.now()),
@@ -567,6 +568,7 @@ try {
     option,
     staffToken: oldLinkLogin.token,
   });
+  await verifyPlatformManagement(client, { rid, other });
 } finally {
   if (client) await client.end();
   await pg.stop();

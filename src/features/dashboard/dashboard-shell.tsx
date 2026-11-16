@@ -1,9 +1,10 @@
 import { AdminTour } from "@/features/onboarding/admin-tour";
+import { usePlatformAccess } from "@/features/platform/platform-api";
 import { NotificationBell } from "./notification-bell";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Lock, LogOut, Menu } from "lucide-react";
+import { Lock, LogOut, Menu, ShieldCheck } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { CommandPalette } from "./command-palette";
 import { NAV } from "./navigation";
@@ -17,6 +18,7 @@ import { motion } from "framer-motion";
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   const { user, signOut } = useAuth();
+  const platformAccess = usePlatformAccess();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: trial, isPending: planLoading, refetch: refetchPlan } = useTrialStatus();
   const [lockedLabel, setLockedLabel] = useState<string | null>(null);
@@ -68,6 +70,15 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </Link>
         );
       })}
+      {platformAccess.data === true && (
+        <Link
+          to="/gestao"
+          className="mt-4 flex items-center gap-3 rounded-xl border border-primary/30 bg-gold-soft px-3 py-3 text-sm text-primary"
+        >
+          <ShieldCheck className="h-4 w-4" />
+          Gestão Flux
+        </Link>
+      )}
     </nav>
   );
 

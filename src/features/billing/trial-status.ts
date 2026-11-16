@@ -1,12 +1,14 @@
 import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { entitlementSchema } from "./entitlement";
 
 export type PlanType = "trial" | "essential" | "pro" | "enterprise" | string;
 
 export type TrialInfo = {
   plan_type: PlanType;
   trial_ends_at: string;
+  plan_source?: "manual" | "billing";
 };
 
 export type FeatureKey = "analytics" | "waiter" | "menu" | "kitchen" | "dashboard" | "tables";
@@ -34,8 +36,13 @@ export function useTrialStatus() {
     queryKey: ["trial-status", user?.id],
     enabled: !!user?.id,
     retry: false,
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<TrialInfo | null> => {
       try {
+        const entitlement = await supabase.rpc("get_my_entitlement");
+        if (!entitlement.error) return entitlementSchema.nullable().parse(entitlement.data);
+        if (!["PGRST202", "42883"].includes(entitlement.error.code)) throw entitlement.error;
         const { data, error } = await supabase
           .from("profiles")
           .select("plan_type, trial_ends_at")
@@ -51,7 +58,6 @@ export function useTrialStatus() {
         return null;
       }
     },
-    refetchOnWindowFocus: false,
   });
 }
 

@@ -28,7 +28,7 @@ import {
   Sparkles,
   Store,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -123,6 +123,17 @@ function SettingsPage() {
   const { openCheckout, closeCheckout, isOpen, checkoutElement } = useStripeCheckout();
   const paymentsReady = isPaymentsConfigured();
   const [justUpgraded, setJustUpgraded] = useState<string | null>(null);
+  const previousEffectivePlan = useRef<string | null>(null);
+  useEffect(() => {
+    if (!trialInfo) return;
+    const previous = previousEffectivePlan.current;
+    previousEffectivePlan.current = trialInfo.plan_type;
+    if (previous === "trial" && trialInfo.plan_type !== "trial") {
+      const label = trialInfo.plan_type.charAt(0).toUpperCase() + trialInfo.plan_type.slice(1);
+      setJustUpgraded(label);
+      toast.success(`Plano ${label} ativo`, { description: "Seu acesso foi atualizado." });
+    }
+  }, [trialInfo]);
 
   // Load current active subscription (if any)
   const { data: subscription } = useQuery({
@@ -152,22 +163,13 @@ function SettingsPage() {
   useEffect(() => {
     if (!user?.id) return;
     const channel = supabase
-      .channel(`profile-plan-${user.id}`)
+      .channel(`profile-plan-${user.id}-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${user.id}` },
-        (payload) => {
-          const prevPlan = payload.old?.plan_type;
-          const newPlan = payload.new?.plan_type;
-          if (newPlan && newPlan !== prevPlan && newPlan !== "trial") {
-            const label = newPlan.charAt(0).toUpperCase() + newPlan.slice(1);
-            setJustUpgraded(label);
-            toast.success(`Parabéns! Plano ${label} ativo`, {
-              description: "Seus recursos foram liberados.",
-            });
-            qc.invalidateQueries({ queryKey: ["trial-status"] });
-            qc.invalidateQueries({ queryKey: ["subscription"] });
-          }
+        () => {
+          qc.invalidateQueries({ queryKey: ["trial-status"] });
+          qc.invalidateQueries({ queryKey: ["subscription"] });
         },
       )
       .subscribe();
@@ -302,6 +304,8 @@ function SettingsPage() {
 
   // Resolve current paid plan from active subscription (price_id) → fallback to profile plan_type.
   const currentPlanId: PlanId | null = (() => {
+    if (trialInfo?.plan_source === "manual")
+      return profilePlan === "trial" ? null : (profilePlan as PlanId);
     if (subscription?.price_id) {
       const found = PLANS.find((p) => p.priceId === subscription.price_id);
       if (found) return found.id;

@@ -713,6 +713,24 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      is_platform_admin: { Args: Record<string, never>; Returns: boolean };
+      get_my_entitlement: { Args: Record<string, never>; Returns: Json };
+      platform_list_restaurants: {
+        Args: { p_search?: string; p_status?: string; p_page?: number };
+        Returns: Json;
+      };
+      platform_restaurant_detail: { Args: { p_restaurant_id: string }; Returns: Json };
+      platform_change_entitlement: {
+        Args: {
+          p_restaurant_id: string;
+          p_action: string;
+          p_plan: string | null;
+          p_days: number | null;
+          p_reason: string;
+          p_expected_version: number;
+        };
+        Returns: Json;
+      };
       get_service_status: { Args: { p_restaurant_id: string }; Returns: Json };
       table_order_code: {
         Args: { p_table_id: string; p_staff_token?: string | null; p_rotate?: boolean };

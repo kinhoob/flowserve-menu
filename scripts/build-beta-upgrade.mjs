@@ -14,7 +14,7 @@ export function betaUpgradeSQL() {
     );
   return `-- Flux: atualização do banco EXISTENTE, preservando restaurantes, produtos e pedidos.
 -- Execute o arquivo completo no SQL Editor, no projeto FluxQr, com o papel postgres.
--- Inclui personalização, links personalizados pendentes, horários, códigos e notificações.
+-- Inclui personalização, links, horários, códigos, notificações e a central de gestão.
 -- Após sucesso, atualize a página do Flux e configure a agenda em Configurações > Operação.
 BEGIN;
 SET LOCAL statement_timeout='120s';
@@ -31,10 +31,12 @@ DO $links$ BEGIN
  END IF;
 END $links$;
 ${read("20261116000500_service_hours_notifications.sql")}
+${read("20261116000600_platform_management.sql")}
 COMMIT;
 NOTIFY pgrst,'reload schema';
-SELECT 'Flux atualizado: tutorial, horários, códigos de mesa, notificações e links personalizados prontos' AS resultado,
- EXISTS(SELECT 1 FROM pg_extension WHERE extname='pg_cron') AS agendador_automatico_ativo;
+SELECT 'Flux atualizado: gestão de clientes, horários, códigos, notificações e links prontos' AS resultado,
+ EXISTS(SELECT 1 FROM pg_extension WHERE extname='pg_cron') AS agendador_automatico_ativo,
+ (SELECT count(*) FROM public.platform_admins WHERE active) AS administradores_ativos;
 `;
 }
 if (process.argv[1] === import.meta.filename) {
