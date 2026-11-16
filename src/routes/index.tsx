@@ -1,3 +1,5 @@
+import { ArPreview } from "@/features/landing/ar-preview";
+import { BetaBadge } from "@/components/brand/beta-badge";
 import { FluxLogo } from "@/components/brand/logo";
 import { FadeIn } from "@/components/motion/page-transition";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
@@ -6,7 +8,7 @@ import { DEMO_DISHES } from "@/features/demo/demo-data";
 import { OperationPreview } from "@/features/demo/operation-preview";
 import { plans } from "@/features/experience/plan-catalog";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
 import {
   ArrowDown,
   ArrowRight,
@@ -42,17 +44,25 @@ const nav = [
   { href: "#experience", label: "A experiência" },
   { href: "#operation", label: "A operação" },
   { href: "#pricing", label: "Planos" },
+  { href: "#faq", label: "Dúvidas" },
 ];
 function LandingPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const mobileSection = useRef<string | null>(null);
   const reducedMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll();
+  const progress = useSpring(scrollYProgress, { stiffness: 110, damping: 28 });
   const sectionScroll: ScrollIntoViewOptions = {
     behavior: reducedMotion ? "auto" : "smooth",
     block: "start",
   };
   return (
     <div className="relative min-h-screen overflow-x-clip bg-background text-foreground">
+      <motion.div
+        aria-hidden
+        style={{ scaleX: progress }}
+        className="fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-primary"
+      />
       <Link
         to="/"
         hash="main"
@@ -68,7 +78,10 @@ function LandingPage() {
       />
       <header className="relative z-30 mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-6 sm:px-8 lg:py-8">
         <Link to="/" aria-label="Flux Menu, início">
-          <FluxLogo />
+          <span className="flex items-center gap-3">
+            <FluxLogo />
+            <BetaBadge />
+          </span>
         </Link>
         <nav
           aria-label="Principal"
@@ -179,12 +192,18 @@ function LandingPage() {
         </div>
       </header>
       <main id="main">
-        <section className="relative mx-auto grid max-w-7xl items-center gap-8 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1fr_1.08fr] lg:gap-14 lg:pb-24 lg:pt-16">
+        <motion.section
+          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.06 }}
+          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
+          className="relative mx-auto grid max-w-7xl items-center gap-8 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1fr_1.08fr] lg:gap-14 lg:pb-24 lg:pt-16"
+        >
           <div className="relative z-10 max-w-xl">
             <FadeIn y={10}>
               <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#48634c]/40 bg-[#233328]/65 px-3 py-1.5 text-[10px] font-medium tracking-wide text-[#b3c9ac]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#b8ce9b]" />
-                Seu salão, em sintonia.
+                Beta aberto · Vamos evoluir seu salão juntos.
               </div>
               <h1 className="font-display text-[clamp(2.65rem,5.1vw,4.65rem)] font-semibold leading-[1.08] tracking-[-.065em]">
                 Mais sabor
@@ -235,14 +254,14 @@ function LandingPage() {
               className="pointer-events-none absolute -inset-12 rounded-full bg-[radial-gradient(ellipse_at_center,#47644730,transparent_65%)]"
             />
             <FadeIn delay={0.08} y={18}>
-              <div className="relative sm:-rotate-1">
+              <div className="relative rounded-3xl shadow-[0_35px_100px_-35px_#000b] sm:-rotate-1">
                 <OperationPreview compact />
               </div>
             </FadeIn>
             <motion.div
-              initial={{ opacity: 0, y: 18 }}
+              initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 18 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, delay: 0.3 }}
+              transition={{ duration: reducedMotion ? 0 : 0.65, delay: reducedMotion ? 0 : 0.3 }}
               className="absolute -bottom-2 right-2 w-[168px] rotate-3 rounded-[25px] border-[5px] border-[#485248] bg-[#f1efe4] p-2.5 text-[#1c2a20] shadow-[0_20px_70px_-20px_#000a] sm:right-5 sm:w-[195px]"
             >
               <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-[#1b261e]" />
@@ -280,7 +299,7 @@ function LandingPage() {
               </div>
             </div>
           </div>
-        </section>
+        </motion.section>
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
           <div className="flex flex-wrap items-center justify-between gap-4 border-y border-border/80 py-6">
             <p className="text-[10px] uppercase tracking-[.2em] text-muted-foreground">
@@ -303,7 +322,14 @@ function LandingPage() {
             </Link>
           </div>
         </div>
-        <section id="experience" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
+        <motion.section
+          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.06 }}
+          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
+          id="experience"
+          className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28"
+        >
           <FadeIn>
             <div className="mb-9 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
               <div>
@@ -321,7 +347,7 @@ function LandingPage() {
           </FadeIn>
           <div className="grid gap-4 md:grid-cols-3">
             <FadeIn className="md:col-span-2">
-              <div className="flux-panel grid h-full overflow-hidden sm:grid-cols-2">
+              <div className="flux-panel transition-[border-color,box-shadow] duration-500 hover:border-primary/30 hover:shadow-[0_16px_60px_-30px_#e7bc7030] grid h-full overflow-hidden sm:grid-cols-2">
                 <div className="flex flex-col p-7">
                   <span className="mb-6 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <UtensilsCrossed className="h-5 w-5" />
@@ -383,14 +409,7 @@ function LandingPage() {
                   Visualização 3D e realidade aumentada para aproximar a escolha da experiência de
                   servir.
                 </p>
-                <div className="mt-6 flex min-h-24 items-center justify-center rounded-2xl border border-dashed border-[#577050]/50 bg-[#263426]/40">
-                  <div className="relative flex h-16 w-24 items-center justify-center rounded-[50%] border border-[#a6ba92]/30 bg-[#a6ba92]/10">
-                    <Box className="h-7 w-7 text-[#b5c6a5]" />
-                    <span className="absolute -right-5 -top-2 rounded-md border border-[#617951]/40 bg-[#23311f] px-2 py-1 text-[8px] text-[#c4d4b4]">
-                      3D + RA
-                    </span>
-                  </div>
-                </div>
+                <ArPreview />
                 <p className="mt-4 text-[10px] leading-relaxed text-muted-foreground">
                   Disponível para itens com modelos 3D cadastrados e medidas conferidas, em
                   aparelhos compatíveis.
@@ -398,8 +417,15 @@ function LandingPage() {
               </div>
             </FadeIn>
           </div>
-        </section>
-        <section id="operation" className="border-y border-border bg-[#141a16]">
+        </motion.section>
+        <motion.section
+          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.06 }}
+          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
+          id="operation"
+          className="border-y border-border bg-[#141a16]"
+        >
           <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:gap-20 lg:py-24">
             <FadeIn>
               <p className="flux-eyebrow text-primary">Bastidores em harmonia</p>
@@ -454,8 +480,14 @@ function LandingPage() {
               <OperationPreview compact />
             </FadeIn>
           </div>
-        </section>
-        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:py-24">
+        </motion.section>
+        <motion.section
+          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.06 }}
+          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
+          className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:py-24"
+        >
           <div className="grid gap-8 sm:grid-cols-3">
             {[
               {
@@ -488,8 +520,15 @@ function LandingPage() {
               </FadeIn>
             ))}
           </div>
-        </section>
-        <section id="pricing" className="mx-auto max-w-7xl px-5 pb-20 pt-5 sm:px-8 lg:pb-28">
+        </motion.section>
+        <motion.section
+          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.06 }}
+          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
+          id="pricing"
+          className="mx-auto max-w-7xl px-5 pb-20 pt-5 sm:px-8 lg:pb-28"
+        >
           <FadeIn>
             <div className="mx-auto mb-10 max-w-xl text-center">
               <p className="flux-eyebrow text-primary">Encontre seu ritmo</p>
@@ -558,8 +597,15 @@ function LandingPage() {
             Escolha do plano e condições de cobrança são confirmadas no checkout. Soluções para
             redes estão em planejamento.
           </p>
-        </section>
-        <section className="mx-auto grid max-w-7xl gap-8 px-5 pb-20 sm:px-8 lg:grid-cols-[.8fr_1.2fr]">
+        </motion.section>
+        <motion.section
+          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.06 }}
+          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
+          id="faq"
+          className="mx-auto grid max-w-7xl gap-8 px-5 pb-20 sm:px-8 lg:grid-cols-[.8fr_1.2fr]"
+        >
           <FadeIn>
             <p className="flux-eyebrow text-primary">Antes de sentar à mesa</p>
             <h2 className="mt-4 font-display text-3xl">Ficou alguma dúvida?</h2>
@@ -568,8 +614,32 @@ function LandingPage() {
               estabelecimento.
             </p>
           </FadeIn>
-          <div className="space-y-2">
+          <FadeIn className="space-y-2">
             {[
+              {
+                q: "O que significa estar em beta?",
+                a: "O Flux está em evolução. Recursos e telas podem mudar e podem ocorrer falhas. Teste o fluxo de pedidos antes de usar no salão e mantenha uma alternativa de atendimento durante interrupções.",
+              },
+              {
+                q: "Posso personalizar o cardápio com a minha marca?",
+                a: "Sim. Ajuste cores, fontes, imagens e apresentação dos produtos na personalização. Confira a prévia e salve para publicar as alterações.",
+              },
+              {
+                q: "Como começo no meu restaurante?",
+                a: "Crie sua conta, cadastre categorias e produtos, personalize o cardápio e configure mesas e horários. Abra o QR Code em outro celular e faça um pedido de teste antes de disponibilizá-lo aos clientes.",
+              },
+              {
+                q: "É possível pedir fora do restaurante?",
+                a: "O QR Code abre o cardápio. O envio respeita os horários configurados e o código temporário da mesa quando exigido. Essas medidas reduzem pedidos indevidos, mas não comprovam a localização física do cliente.",
+              },
+              {
+                q: "Preciso de internet?",
+                a: "Sim. Cliente e equipe precisam de conexão para enviar e acompanhar pedidos. Em caso de interrupção, confirme o recebimento com a equipe antes de reenviar.",
+              },
+              {
+                q: "Como funcionam teste e contratação?",
+                a: "O prazo de teste aparece na conta. Preços, recursos e condições de renovação são apresentados antes de confirmar a contratação. A demonstração pública pode ser explorada sem contratar.",
+              },
               {
                 q: "O cliente precisa baixar um aplicativo?",
                 a: "O cardápio e o pedido funcionam pelo navegador do celular, a partir do QR Code. Não é necessário instalar um aplicativo próprio do Flux.",
@@ -598,40 +668,10 @@ function LandingPage() {
                 <p className="mt-3 pr-6 text-sm leading-6 text-muted-foreground">{item.a}</p>
               </details>
             ))}
-          </div>
-        </section>
-        <section className="mx-auto max-w-7xl px-5 pb-12 sm:px-8">
-          <FadeIn>
-            <div className="relative overflow-hidden rounded-[2rem] border border-[#516048]/40 bg-[#233026] px-6 py-12 sm:px-12 sm:py-16">
-              <div
-                aria-hidden
-                className="flux-dot-grid pointer-events-none absolute inset-0 opacity-50"
-              />
-              <div className="relative flex flex-col items-start justify-between gap-8 lg:flex-row lg:items-end">
-                <div>
-                  <span className="flux-eyebrow text-[#b9c9a8]">
-                    Bom atendimento tem seu ritmo.
-                  </span>
-                  <h2 className="mt-5 max-w-2xl font-display text-3xl leading-tight text-[#f2f0df] sm:text-5xl">
-                    Deixe a operação fluir.
-                    <br />
-                    <span className="text-[#a1b192]">O resto é hospitalidade.</span>
-                  </h2>
-                </div>
-                <Link
-                  to="/demo"
-                  search={{ view: "menu" }}
-                  className="flux-button shrink-0 bg-[#e8c784] text-[#1c2d20]"
-                >
-                  Conhecer o Flux Menu
-                  <ArrowUpRight className="h-4 w-4" />
-                </Link>
-              </div>
-            </div>
           </FadeIn>
-        </section>
+        </motion.section>
       </main>
-      <footer className="mx-auto flex max-w-7xl flex-col justify-between gap-6 px-5 py-8 text-[10px] text-muted-foreground sm:px-8 md:flex-row md:items-center">
+      <footer className="mx-auto flex max-w-7xl flex-col border-t border-border/70 justify-between gap-6 px-5 py-8 text-[10px] text-muted-foreground sm:px-8 md:flex-row md:items-center">
         <FluxLogo />
         <p>Feito para quem cuida de cada detalhe.</p>
         <nav aria-label="Informações legais" className="flex gap-5">

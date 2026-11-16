@@ -1,3 +1,4 @@
+import { BetaBadge } from "@/components/brand/beta-badge";
 import { AdminTour } from "@/features/onboarding/admin-tour";
 import { NotificationBell } from "./notification-bell";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
@@ -132,11 +133,17 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
+            <BetaBadge />
             <NotificationBell />
           </div>
         </header>
         <main className="flex-1 px-4 py-6 md:px-6 md:py-8">
           <ConnectionNotice />
+          <p className="mb-5 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-xs leading-5 text-muted-foreground">
+            <strong className="font-medium text-primary">Flux em beta.</strong> Estamos evoluindo a
+            experiência. Teste as configurações antes de usar no salão e mantenha uma alternativa
+            para possíveis interrupções.
+          </p>
           <motion.div
             key={pathname}
             initial={{ opacity: 0, y: 6 }}
