@@ -226,6 +226,10 @@ export type Database = {
       };
       order_items: {
         Row: {
+          product_id_snapshot: string | null;
+          category_id_snapshot: string | null;
+          category_name_snapshot: string | null;
+          department_snapshot: string | null;
           created_at: string;
           id: string;
           menu_item_id: string | null;
@@ -237,6 +241,10 @@ export type Database = {
           quantity: number;
         };
         Insert: {
+          product_id_snapshot?: string | null;
+          category_id_snapshot?: string | null;
+          category_name_snapshot?: string | null;
+          department_snapshot?: string | null;
           created_at?: string;
           id?: string;
           menu_item_id?: string | null;
@@ -248,6 +256,10 @@ export type Database = {
           quantity?: number;
         };
         Update: {
+          product_id_snapshot?: string | null;
+          category_id_snapshot?: string | null;
+          category_name_snapshot?: string | null;
+          department_snapshot?: string | null;
           created_at?: string;
           id?: string;
           menu_item_id?: string | null;

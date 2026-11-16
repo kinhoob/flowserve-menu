@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { verifyServiceOperations } from "./verify-service-operations.mjs";
 import { betaUpgradeSQL } from "./build-beta-upgrade.mjs";
 import { verifyPlatformManagement } from "./verify-platform-management.mjs";
+import { verifyAnalyticsHistory } from "./verify-analytics-history.mjs";
 const root = path.resolve(import.meta.dirname, "..");
 const pg = new EmbeddedPostgres({
   databaseDir: path.resolve(import.meta.dirname, "../.db-tests/data-" + Date.now()),
@@ -569,6 +570,7 @@ try {
     staffToken: oldLinkLogin.token,
   });
   await verifyPlatformManagement(client, { rid, other });
+  await verifyAnalyticsHistory(client, { rid, other });
 } finally {
   if (client) await client.end();
   await pg.stop();

@@ -1,741 +1,541 @@
-import { orderPerformance } from "@/features/orders/performance";
-import { downloadCsv } from "@/features/menu/catalog-csv";
+import { orderCsv } from "@/features/analytics/report-export";
+import { useEffect, useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { Download, RefreshCw } from "lucide-react";
 import { FeatureLocked } from "@/features/billing/trial-guard";
 import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
-import {
-  STATUS_LABELS,
-  useOrders,
-  type Order,
-  type OrderStatus,
-} from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
-import { supabase } from "@/integrations/supabase/client";
-import { formatPrice } from "@/lib/format";
-import { dateOrdinal, fetchAllPages, restaurantHour } from "@/lib/operations";
-import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { motion } from "framer-motion";
+import { downloadCsv } from "@/features/menu/catalog-csv";
+import { ReportOverview } from "@/features/analytics/report-overview";
+import { ReportHistory, ReportProducts } from "@/features/analytics/report-tables";
+import { useReportOrders } from "@/features/analytics/use-report-orders";
 import {
-  BarChart3,
-  CheckCircle2,
-  Clock,
-  Download,
-  Loader2,
-  Receipt,
-  TrendingUp,
-  Trophy,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-
+  buildReport,
+  businessDay,
+  dayInput,
+  dayLabel,
+  defaultCutoff,
+  parseDay,
+  timeMinutes,
+  type Department,
+} from "@/features/analytics/report";
 export const Route = createFileRoute("/_authenticated/analytics")({
   head: () => ({ meta: [{ title: "Análises — Flux Menu" }] }),
   component: AnalyticsPage,
 });
-
-type Range = "7d" | "30d" | "90d";
-
-const RANGE_DAYS: Record<Range, number> = { "7d": 7, "30d": 30, "90d": 90 };
-const RANGE_LABELS: Record<Range, string> = {
-  "7d": "Últimos 7 dias",
-  "30d": "Últimos 30 dias",
-  "90d": "Últimos 90 dias",
+const PRESETS = [
+  { value: "today", label: "Hoje", days: 1 },
+  { value: "7d", label: "7 dias", days: 7 },
+  { value: "30d", label: "30 dias", days: 30 },
+  { value: "90d", label: "90 dias", days: 90 },
+];
+const SHIFTS: Record<string, { label: string; from: number | null; to: number | null }> = {
+  all: { label: "Todos os horários", from: null, to: null },
+  lunch: { label: "Almoço · 11h–17h", from: 660, to: 1020 },
+  evening: { label: "Noite · 17h–00h", from: 1020, to: 0 },
+  overnight: { label: "Madrugada · 00h–06h", from: 0, to: 360 },
+  custom: { label: "Horário personalizado", from: null, to: null },
 };
-
+const DEPARTMENTS: Record<Department, string> = {
+  all: "Cozinha e bar",
+  food: "Somente cozinha",
+  drink: "Somente bar",
+  unknown: "Sem classificação",
+};
 function AnalyticsPage() {
-  const { data: restaurant, isLoading: rLoading } = useRestaurant();
-  const {
-    data: orders = [],
-    isLoading: oLoading,
-    isError: orderError,
-    refetch: refetchOrders,
-  } = useOrders(restaurant?.id);
-  const { data: trial } = useTrialStatus();
+  const restaurantQuery = useRestaurant();
+  const restaurant = restaurantQuery.data;
+  const plan = useTrialStatus();
   const timezone = restaurant?.timezone ?? "America/Sao_Paulo";
-  const [range, setRange] = useState<Range>("7d");
-  const [selected, setSelected] = useState<Order | null>(null);
-
-  // Pedidos arquivados (concluidos/realizados) — não vêm via useOrders.
-  const {
-    data: archivedOrders = [],
-    isError: archiveError,
-    isLoading: archiveLoading,
-    refetch: refetchArchived,
-  } = useQuery({
-    queryKey: ["orders-archived", restaurant?.id, range, timezone],
-    enabled: !!restaurant?.id,
-    queryFn: async (): Promise<Order[]> => {
-      const since = new Date(
-        (dateOrdinal(new Date(), timezone) - RANGE_DAYS[range] - 1) * 86400000,
-      );
-      return fetchAllPages<Order>((from, to) =>
-        supabase
-          .from("orders")
-          .select("*, order_items(*)")
-          .eq("restaurant_id", restaurant!.id)
-          .eq("archived", true)
-          .gte("created_at", since.toISOString())
-          .order("created_at", { ascending: false })
-          .order("id")
-          .range(from, to),
-      );
-    },
-  });
-
-  // Restaurant is auto-created on signup; no redirect needed.
-
-  const stats = useMemo(() => {
-    const days = RANGE_DAYS[range];
-    const sinceOrdinal = dateOrdinal(new Date(), timezone) - (days - 1);
-    const since = new Date(sinceOrdinal * 86400000);
-
-    // Universo completo (ativos + arquivados) para o período.
-    const all: Order[] = [
-      ...new Map([...orders, ...archivedOrders].map((o) => [o.id, o])).values(),
-    ];
-    const paid = all.filter(
-      (o) =>
-        o.status !== "cancelled" &&
-        dateOrdinal(o.created_at, timezone) >= sinceOrdinal &&
-        dateOrdinal(o.created_at, timezone) <= dateOrdinal(new Date(), timezone),
-    );
-
-    // Receita Realizada = pedido finalizado (concluded ≡ archived=true)
-    // Receita Provisionada = entregue (status=served) porém ainda não fechado.
-    const realizedRevenue = paid
-      .filter((o) => o.archived === true)
-      .reduce((s, o) => s + Number(o.subtotal || 0), 0);
-    const provisionedRevenue = paid
-      .filter((o) => o.archived !== true && o.status === "served")
-      .reduce((s, o) => s + Number(o.subtotal || 0), 0);
-    const revenue = realizedRevenue + provisionedRevenue;
-    const count = paid.length;
-    const completed = paid.filter((o) => o.archived || o.status === "served");
-    const avg = completed.length ? revenue / completed.length : 0;
-
-    const customers = new Set(paid.map((o) => `${o.table_label ?? "-"}|${o.customer_name ?? "-"}`))
-      .size;
-
-    // Per-day buckets (separa realizada vs provisionada)
-    const perDay = Array.from({ length: days }, (_, i) => {
-      const d = new Date(since);
-      d.setUTCDate(d.getUTCDate() + i);
-      return { date: d, revenue: 0, realized: 0, provisioned: 0, count: 0 };
-    });
-    paid.forEach((o) => {
-      const idx = Math.floor(dateOrdinal(o.created_at, timezone) - sinceOrdinal);
-      if (idx >= 0 && idx < perDay.length) {
-        const v = Number(o.subtotal || 0);
-        if (o.archived || o.status === "served") perDay[idx].revenue += v;
-        perDay[idx].count += 1;
-        if (o.archived === true) perDay[idx].realized += v;
-        else if (o.status === "served") perDay[idx].provisioned += v;
-      }
-    });
-
-    // Top items
-    const itemMap = new Map<string, { name: string; qty: number; revenue: number }>();
-    completed.forEach((o) =>
-      o.order_items.forEach((it) => {
-        const key = it.name_snapshot;
-        const cur = itemMap.get(key) ?? { name: key, qty: 0, revenue: 0 };
-        cur.qty += it.quantity;
-        cur.revenue += Number(it.price_snapshot) * it.quantity;
-        itemMap.set(key, cur);
-      }),
-    );
-    const topItems = Array.from(itemMap.values())
-      .sort((a, b) => b.qty - a.qty)
-      .slice(0, 8);
-
-    // Hour heatmap (0-23)
-    const perHour = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0 }));
-    paid.forEach((o) => {
-      const h = restaurantHour(o.created_at, timezone);
-      perHour[h].count += 1;
-    });
-    const maxHour = Math.max(1, ...perHour.map((h) => h.count));
-
-    // Status breakdown across the range
-    const statusCount: Record<OrderStatus, number> = {
-      pending: 0,
-      accepted: 0,
-      preparing: 0,
-      ready: 0,
-      served: 0,
-      cancelled: 0,
-    };
-    all
-      .filter((o) => dateOrdinal(o.created_at, timezone) >= sinceOrdinal)
-      .forEach((o) => {
-        statusCount[o.status] += 1;
-      });
-
-    return {
-      revenue,
-      realizedRevenue,
-      provisionedRevenue,
-      count,
-      avg,
-      customers,
-      perDay,
-      topItems,
-      perHour,
-      maxHour,
-      statusCount,
-      since,
-    };
-  }, [orders, archivedOrders, range, timezone]);
-
-  const allOrders = useMemo(
-    () => orderPerformance([...orders, ...archivedOrders], RANGE_DAYS[range], timezone).orders,
-    [orders, archivedOrders, range, timezone],
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  const [preset, setPreset] = useState("7d");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  const [cutoffOverride, setCutoffOverride] = useState<string | null>(null);
+  const cutoffInput = cutoffOverride ?? defaultCutoff(restaurant?.operating_hours);
+  const cutoff = timeMinutes(cutoffInput);
+  const today = businessDay(now, timezone, cutoff ?? 0);
+  const presetDays = PRESETS.find((p) => p.value === preset)?.days ?? 7;
+  const startInput = preset === "custom" ? customStart : dayInput(today - presetDays + 1),
+    endInput = preset === "custom" ? customEnd : dayInput(today);
+  const start = parseDay(startInput),
+    end = parseDay(endInput);
+  const [department, setDepartment] = useState<Department>("all");
+  const [category, setCategory] = useState("all");
+  const [shift, setShift] = useState("all");
+  const [shiftFrom, setShiftFrom] = useState("18:00");
+  const [shiftTo, setShiftTo] = useState("02:00");
+  const [targetInput, setTargetInput] = useState("20");
+  const shiftStart = shift === "custom" ? timeMinutes(shiftFrom) : SHIFTS[shift].from,
+    shiftEnd = shift === "custom" ? timeMinutes(shiftTo) : SHIFTS[shift].to;
+  const target = Number(targetInput);
+  const error =
+    start === null || end === null
+      ? "Preencha as datas inicial e final."
+      : end < start
+        ? "A data final deve ser igual ou posterior à inicial."
+        : end - start >= 93
+          ? "Selecione até 93 dias para analisar e comparar com o período anterior."
+          : end > today
+            ? "A data final não pode ultrapassar o dia de operação atual."
+            : cutoff === null
+              ? "Preencha a hora em que o dia de operação muda."
+              : shift === "custom" &&
+                  (shiftStart === null || shiftEnd === null || shiftStart === shiftEnd)
+                ? "Escolha horários de início e fim diferentes para o turno."
+                : !Number.isInteger(target) || target < 1 || target > 180
+                  ? "A meta de atendimento deve estar entre 1 e 180 minutos."
+                  : null;
+  const filters = useMemo(
+    () => ({
+      start: start ?? today,
+      end: end ?? today,
+      timezone,
+      cutoff: cutoff ?? 0,
+      department,
+      category,
+      shiftStart,
+      shiftEnd,
+      targetMinutes: Number.isInteger(target) && target >= 1 && target <= 180 ? target : 20,
+    }),
+    [start, end, today, timezone, cutoff, department, category, shiftStart, shiftEnd, target],
   );
-
-  const performance = useMemo(
-    () => orderPerformance([...orders, ...archivedOrders], RANGE_DAYS[range], timezone),
-    [orders, archivedOrders, range, timezone],
+  const authorized = !!plan.data && canAccess(plan.data, "analytics");
+  const query = useReportOrders(
+    restaurant?.id,
+    filters.start - (filters.end - filters.start + 1),
+    filters.end,
+    !error && authorized,
   );
-  if (rLoading || !restaurant) {
+  const report = useMemo(
+    () => (!error && query.data ? buildReport(query.data, filters, now) : null),
+    [error, query.data, filters, now],
+  );
+  function setDate(field: "start" | "end", value: string) {
+    setCustomStart(field === "start" ? value : startInput);
+    setCustomEnd(field === "end" ? value : endInput);
+    setPreset("custom");
+  }
+  if (restaurantQuery.isLoading || plan.isPending)
     return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <p role="status" className="py-20 text-center text-sm text-muted-foreground">
+        Preparando suas análises…
+      </p>
+    );
+  if (!restaurant || !plan.data)
+    return (
+      <div className="p-8 text-center">
+        <p>Não foi possível verificar o restaurante e seu plano.</p>
+        <button
+          onClick={() => void Promise.all([restaurantQuery.refetch(), plan.refetch()])}
+          className="mt-4 underline"
+        >
+          Tentar novamente
+        </button>
       </div>
     );
+  if (!authorized) return <FeatureLocked feature="analytics" />;
+  const currency = restaurant.currency ?? "BRL";
+  const filename = `flux-${restaurant.slug}-${startInput}-${endInput}`;
+  const ready = !!report && !query.isError && !query.isFetching;
+  const categories = report?.categories ?? [];
+  const selectionKey = [
+    filters.start,
+    filters.end,
+    cutoff,
+    department,
+    category,
+    shift,
+    shiftFrom,
+    shiftTo,
+  ].join(":");
+  function exportSummary() {
+    if (!report) return;
+    const c = report.current,
+      p = report.previous;
+    downloadCsv(`${filename}-resumo.csv`, [
+      ["Indicador", "Atual", "Anterior"],
+      ["Início", startInput, dayInput(report.previousStart)],
+      ["Fim", endInput, dayInput(report.previousEnd)],
+      ["Fuso", timezone, timezone],
+      ["Dia começa às", cutoffInput, cutoffInput],
+      ["Setor", DEPARTMENTS[department], DEPARTMENTS[department]],
+      [
+        "Categoria",
+        category === "all"
+          ? "Todas"
+          : (categories.find((c) => c.id === category)?.name ?? category),
+        "Mesma seleção",
+      ],
+      [
+        "Horário",
+        shift === "custom" ? `${shiftFrom}–${shiftTo}` : SHIFTS[shift].label,
+        "Mesma seleção",
+      ],
+      [
+        "Comparação parcial",
+        report.partial ? "Até o horário local atual" : "Período completo",
+        "Mesmo critério",
+      ],
+      ["Moeda", currency, currency],
+      ["Vendas de itens entregues", (c.cents / 100).toFixed(2), (p.cents / 100).toFixed(2)],
+      [
+        "Itens em contas encerradas",
+        (c.closedCents / 100).toFixed(2),
+        (p.closedCents / 100).toFixed(2),
+      ],
+      [
+        "Itens entregues com conta aberta",
+        (c.deliveredCents / 100).toFixed(2),
+        (p.deliveredCents / 100).toFixed(2),
+      ],
+      [
+        "Taxas de pedidos entregues",
+        report.feesApplicable ? (c.feesCents / 100).toFixed(2) : "Não rateadas",
+        report.feesApplicable ? (p.feesCents / 100).toFixed(2) : "Não rateadas",
+      ],
+      ["Pedidos recebidos", c.total, p.total],
+      ["Pedidos entregues", c.sold, p.sold],
+      ["Pedidos em andamento", c.open, p.open],
+      ["Contas encerradas sem entrega registrada", c.unconfirmed, p.unconfirmed],
+      [
+        "Itens encerrados sem entrega (fora das vendas)",
+        (c.unconfirmedCents / 100).toFixed(2),
+        (p.unconfirmedCents / 100).toFixed(2),
+      ],
+      [
+        "Ticket de itens por pedido entregue",
+        (c.ticketCents / 100).toFixed(2),
+        (p.ticketCents / 100).toFixed(2),
+      ],
+      ["Pedidos cancelados", c.cancelled, p.cancelled],
+      ["Taxa de cancelamento (%)", c.cancellationRate.toFixed(2), p.cancellationRate.toFixed(2)],
+      [
+        "Preparo médio (min)",
+        c.preparation.mean ?? "Sem medição",
+        p.preparation.mean ?? "Sem medição",
+      ],
+      ["Amostras de preparo", c.preparation.samples, p.preparation.samples],
+      [
+        "Mediana de preparo (min)",
+        c.preparation.median ?? "Sem medição",
+        p.preparation.median ?? "Sem medição",
+      ],
+      [
+        "P90 de preparo (min)",
+        c.preparation.p90 ?? "Sem medição",
+        p.preparation.p90 ?? "Sem medição",
+      ],
+      ["Observação", "Vendas e contas encerradas não comprovam pagamento.", "Mesma definição"],
+    ]);
   }
-
-  const currency = restaurant.currency || "BRL";
-  const maxRevenue = Math.max(1, ...stats.perDay.map((d) => d.revenue));
-
-  // Universo completo usado nas tabelas e exportação.
-
-  const exportCsv = () => {
-    const rows = [
-      ["Data", "Mesa", "Cliente", "Status", "Receita", "Subtotal", "Itens", "Motivo cancelamento"],
-      ...allOrders
-        .filter((o) => dateOrdinal(o.created_at, timezone) >= dateOrdinal(stats.since, "UTC"))
-        .map((o) => [
-          new Date(o.created_at).toLocaleString("pt-BR", { timeZone: timezone }),
-          o.table_label ?? "",
-          o.customer_name ?? "",
-          STATUS_LABELS[o.status],
-          o.status === "cancelled"
-            ? "Cancelada"
-            : o.archived === true
-              ? "Realizada"
-              : o.status === "served"
-                ? "Provisionada"
-                : "Em aberto",
-          String(o.subtotal),
-          o.order_items.map((i) => `${i.quantity}x ${i.name_snapshot}`).join(" | "),
-          o.cancellation_reason ?? "",
-        ]),
-    ];
-    downloadCsv(`flux-${restaurant.slug}-${range}.csv`, rows);
-  };
-
-  if (trial && !canAccess(trial, "analytics")) {
-    return (
-      <div className="mx-auto w-full max-w-4xl py-10">
-        <FeatureLocked feature="analytics" />
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-8">
-      {/* Header */}
-      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+    <div className="mx-auto max-w-7xl space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-[0.18em] text-primary">Análises</p>
-          <h1 className="mt-2 font-display text-4xl tracking-tight">
-            Pulso do <span className="text-gradient-gold italic">negócio</span>
+          <p className="text-xs uppercase tracking-[0.18em] text-primary">
+            Análises do restaurante
+          </p>
+          <h1 className="mt-2 font-display text-3xl tracking-tight md:text-4xl">
+            Decisões com <span className="text-gradient-gold italic">mais clareza.</span>
           </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Receita, pedidos e horários de pico em tempo real.
+          <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+            Compare suas vendas, acompanhe o atendimento e descubra os produtos e horários que
+            movimentam o salão.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-xl border border-border bg-surface p-1">
-            {(Object.keys(RANGE_LABELS) as Range[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition",
-                  range === r
-                    ? "bg-gold-soft text-foreground ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {RANGE_LABELS[r]}
-              </button>
-            ))}
-          </div>
+        <div className="flex gap-2">
           <button
-            onClick={exportCsv}
-            disabled={stats.count === 0 || archiveError || orderError || archiveLoading}
-            className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground transition hover:-translate-y-0.5 disabled:opacity-50"
+            onClick={() => void query.refetch()}
+            disabled={!!error || query.isFetching}
+            className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2.5 text-xs disabled:opacity-40"
           >
-            <Download className="h-3.5 w-3.5" /> Exportar CSV
+            <RefreshCw className={`h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`} />
+            Atualizar
+          </button>
+          <button
+            onClick={exportSummary}
+            disabled={!ready}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-xs font-medium text-primary-foreground disabled:opacity-40"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Exportar resumo
           </button>
         </div>
-      </div>
-
-      {(archiveError || orderError) && (
-        <p role="alert" className="rounded-xl border border-destructive p-4 text-sm">
-          Não foi possível carregar o histórico. Os totais estão incompletos; tente novamente antes
-          de usar ou exportar os relatórios.{" "}
+      </header>
+      <section
+        aria-label="Filtros das análises"
+        className="space-y-5 rounded-2xl border border-border bg-surface p-4 md:p-5"
+      >
+        <div className="flex flex-wrap gap-2">
+          {PRESETS.map((p) => (
+            <button
+              key={p.value}
+              onClick={() => setPreset(p.value)}
+              aria-pressed={preset === p.value}
+              className={`rounded-xl border px-4 py-2 text-xs transition ${preset === p.value ? "border-primary/40 bg-gold-soft text-primary" : "border-border text-muted-foreground"}`}
+            >
+              {p.label}
+            </button>
+          ))}
           <button
-            className="underline"
-            onClick={() => void Promise.all([refetchOrders(), refetchArchived()])}
+            onClick={() => {
+              setPreset("7d");
+              setDepartment("all");
+              setCategory("all");
+              setShift("all");
+              setCutoffOverride(null);
+              setTargetInput("20");
+            }}
+            className="ml-auto rounded-xl border border-border px-3 py-2 text-xs text-muted-foreground"
           >
+            Restaurar filtros
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <label className="min-w-0 text-xs text-muted-foreground">
+            Data inicial
+            <input
+              type="date"
+              aria-label="Data inicial"
+              value={startInput}
+              max={dayInput(today)}
+              onInput={(e) => setDate("start", e.currentTarget.value)}
+              onChange={(e) => setDate("start", e.target.value)}
+              className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+            />
+          </label>
+          <label className="min-w-0 text-xs text-muted-foreground">
+            Data final
+            <input
+              type="date"
+              aria-label="Data final"
+              value={endInput}
+              max={dayInput(today)}
+              onInput={(e) => setDate("end", e.currentTarget.value)}
+              onChange={(e) => setDate("end", e.target.value)}
+              className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+            />
+          </label>
+          <label className="min-w-0 text-xs text-muted-foreground">
+            Setor
+            <select
+              aria-label="Setor"
+              value={department}
+              onChange={(e) => {
+                setDepartment(e.target.value as Department);
+                setCategory("all");
+              }}
+              className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+            >
+              {Object.entries(DEPARTMENTS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="min-w-0 text-xs text-muted-foreground">
+            Categoria
+            <select
+              aria-label="Categoria"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+            >
+              <option value="all">Todas as categorias</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+              {category !== "all" && !categories.some((c) => c.id === category) && (
+                <option value={category}>Categoria selecionada, sem registros</option>
+              )}
+            </select>
+          </label>
+        </div>
+        <details className="space-y-4 rounded-xl border border-border p-3">
+          <summary className="cursor-pointer text-xs font-medium">
+            Turnos, madrugada e metas
+          </summary>
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <label className="min-w-0 text-xs text-muted-foreground">
+              Horário do pedido
+              <select
+                aria-label="Horário do pedido"
+                value={shift}
+                onChange={(e) => setShift(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+              >
+                {Object.entries(SHIFTS).map(([value, s]) => (
+                  <option key={value} value={value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="min-w-0 text-xs text-muted-foreground">
+              Dia de operação começa às
+              <input
+                type="time"
+                value={cutoffInput}
+                onChange={(e) => setCutoffOverride(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+              />
+            </label>
+            <label className="min-w-0 text-xs text-muted-foreground">
+              Meta de fila/preparo (min)
+              <input
+                type="number"
+                min={1}
+                max={180}
+                step={1}
+                value={targetInput}
+                onChange={(e) => setTargetInput(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+              />
+            </label>
+            <div className="self-end rounded-xl bg-background/60 p-3 text-xs text-muted-foreground">
+              <p>Fuso: {timezone}</p>
+              <p className="mt-1">Histórico atualizado a cada minuto.</p>
+            </div>
+          </div>
+          {shift === "custom" && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="min-w-0 text-xs text-muted-foreground">
+                Turno começa às
+                <input
+                  type="time"
+                  value={shiftFrom}
+                  onChange={(e) => setShiftFrom(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+                />
+              </label>
+              <label className="min-w-0 text-xs text-muted-foreground">
+                Turno termina às
+                <input
+                  type="time"
+                  value={shiftTo}
+                  onChange={(e) => setShiftTo(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+                />
+              </label>
+            </div>
+          )}
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            A hora de virada organiza a madrugada e pode ser ajustada ao seu fechamento. Exemplo:
+            com virada às 04h, um pedido de sábado à 01h conta na operação de sexta. Esse filtro não
+            altera os horários de recebimento de pedidos.
+          </p>
+        </details>
+        <p className="text-xs text-muted-foreground">
+          Fuso: {timezone} · Dia vira às {cutoffInput} ·{" "}
+          {shift === "custom" ? `${shiftFrom}–${shiftTo}` : SHIFTS[shift].label}
+        </p>
+      </section>
+      {error ? (
+        <p role="alert" className="rounded-xl border border-amber-400/40 p-4 text-sm">
+          {error}
+        </p>
+      ) : query.isError ? (
+        <div role="alert" className="rounded-xl border border-amber-400/40 p-5 text-sm">
+          <p>
+            Não foi possível carregar todo o histórico. Os indicadores e as exportações ficam
+            indisponíveis para evitar totais incompletos.
+          </p>
+          <button onClick={() => void query.refetch()} className="mt-3 underline">
             Tentar novamente
           </button>
+        </div>
+      ) : !report ? (
+        <p role="status" className="py-12 text-center text-sm text-muted-foreground">
+          Carregando o período selecionado e sua comparação…
         </p>
-      )}
-      {archiveLoading && (
-        <p role="status" className="text-sm text-muted-foreground">
-          Carregando histórico do período…
-        </p>
-      )}
-      <section className="rounded-2xl border border-border bg-surface p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="font-display text-xl">Desempenho da operação</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Preparo medido entre início do preparo e pronto. Pedidos antigos sem esses registros
-              não entram na média.
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <p>
+              Atual:{" "}
+              <strong className="text-foreground">
+                {dayLabel(filters.start)}–{dayLabel(filters.end)}
+              </strong>{" "}
+              · Anterior equivalente: {dayLabel(report.previousStart)}–
+              {dayLabel(report.previousEnd)}
+              {report.partial ? " · comparação até o mesmo horário local de hoje" : ""}
+            </p>
+            <p role="status">
+              {query.isFetching
+                ? "Atualizando dados…"
+                : `Última consulta: ${new Date(query.dataUpdatedAt).toLocaleTimeString("pt-BR", { timeZone: timezone, hour: "2-digit", minute: "2-digit" })}`}
             </p>
           </div>
-          <button
-            disabled={archiveError || orderError || archiveLoading || !performance.ranking.length}
-            className="rounded-xl border border-border px-3 py-2 text-xs disabled:opacity-40"
-            onClick={() =>
-              downloadCsv("flux-produtos-" + range + ".csv", [
-                ["Prato", "Quantidade", "Valor dos itens"],
-                ...performance.ranking.map((i) => [
-                  i.name,
-                  i.quantity,
-                  (i.revenueCents / 100).toFixed(2),
-                ]),
-              ])
-            }
-          >
-            Exportar ranking de pratos
-          </button>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Preparo médio</p>
-            <p className="mt-1 text-xl">
-              {performance.preparationMean === null
-                ? "Sem medições"
-                : performance.preparationMean.toFixed(1) + " min"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {performance.preparationSamples} pedidos com medição · mediana{" "}
-              {performance.preparationMedian === null
-                ? "—"
-                : performance.preparationMedian.toFixed(1) + " min"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Cancelamentos</p>
-            <p className="mt-1 text-xl">{performance.cancellationRate.toFixed(1)}%</p>
-            <p className="text-xs text-muted-foreground">
-              {performance.cancelled} de {performance.orders.length} pedidos
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Pedidos entregues ou finalizados</p>
-            <p className="mt-1 text-xl">{performance.soldCount}</p>
-            <p className="text-xs text-muted-foreground">
-              Base do ticket médio; valores não confirmam pagamento.
-            </p>
-          </div>
-        </div>
-      </section>
-      {/* KPIs */}
-      <div className="grid gap-3 stagger sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          icon={<CheckCircle2 className="h-4 w-4" />}
-          label="Receita realizada"
-          value={formatPrice(stats.realizedRevenue, currency)}
-          hint="Contas fechadas no período"
-        />
-        <KpiCard
-          icon={<TrendingUp className="h-4 w-4" />}
-          label="Receita provisionada"
-          value={formatPrice(stats.provisionedRevenue, currency)}
-          hint="Entregues, ainda em aberto"
-        />
-        <KpiCard
-          icon={<Receipt className="h-4 w-4" />}
-          label="Pedidos"
-          value={String(stats.count)}
-        />
-        <KpiCard
-          icon={<BarChart3 className="h-4 w-4" />}
-          label="Ticket médio"
-          hint="Pedidos entregues ou finalizados"
-          value={formatPrice(performance.ticket, currency)}
-        />
-        <KpiCard
-          icon={<Users className="h-4 w-4" />}
-          label="Atendimentos identificados"
-          value={String(stats.customers)}
-        />
-      </div>
-
-      {/* Revenue chart */}
-      <section className="rounded-2xl border border-border bg-surface p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-display text-xl tracking-tight">Receita diária</h2>
-            <p className="text-xs text-muted-foreground">{RANGE_LABELS[range]}</p>
-          </div>
-        </div>
-        <div className="mt-6 flex h-56 items-end gap-1.5">
-          {stats.perDay.map((d, i) => {
-            const h = (d.revenue / maxRevenue) * 100;
-            return (
-              <motion.div
-                key={i}
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: `${Math.max(2, h)}%`, opacity: 1 }}
-                transition={{ duration: 0.6, delay: i * 0.02, ease: [0.22, 1, 0.36, 1] }}
-                className="group relative flex-1 rounded-t-md bg-gradient-to-t from-[oklch(0.78_0.13_84_/_0.4)] to-[oklch(0.86_0.14_84)] hover:from-[oklch(0.78_0.13_84_/_0.6)]"
-              >
-                <div className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-background px-2 py-1 text-[10px] opacity-0 ring-1 ring-border transition group-hover:opacity-100">
-                  {formatPrice(d.revenue, currency)} · {d.count}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-        <div className="mt-2 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
-          <span>
-            {stats.perDay[0]?.date.toLocaleDateString("pt-BR", {
-              day: "2-digit",
-              month: "short",
-              timeZone: "UTC",
-            })}
-          </span>
-          <span>
-            {stats.perDay[stats.perDay.length - 1]?.date.toLocaleDateString("pt-BR", {
-              day: "2-digit",
-              month: "short",
-            })}
-          </span>
-        </div>
-      </section>
-
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-        {/* Top items */}
-        <section className="rounded-2xl border border-border bg-surface p-6">
-          <div className="flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-primary" />
-            <h2 className="font-display text-xl tracking-tight">Itens mais vendidos</h2>
-          </div>
-          {stats.topItems.length === 0 ? (
-            <p className="mt-6 text-sm text-muted-foreground">Sem dados no período.</p>
-          ) : (
-            <ul className="mt-4 space-y-2">
-              {stats.topItems.map((it, i) => {
-                const max = stats.topItems[0].qty;
-                const w = (it.qty / max) * 100;
-                return (
-                  <li key={it.name} className="group">
-                    <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-gold-soft text-[11px] font-semibold text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-                          {i + 1}
-                        </span>
-                        <span className="truncate">{it.name}</span>
-                      </div>
-                      <div className="flex items-baseline gap-3 text-xs text-muted-foreground">
-                        <span className="text-foreground">{it.qty}x</span>
-                        <span>{formatPrice(it.revenue, currency)}</span>
-                      </div>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-background">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${w}%` }}
-                        transition={{ duration: 0.7, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] }}
-                        className="h-full rounded-full bg-gradient-to-r from-[oklch(0.78_0.13_84_/_0.5)] to-[oklch(0.86_0.14_84)]"
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+          {(report.current.legacy > 0 ||
+            report.current.unknown > 0 ||
+            report.unclassifiedInPeriod > report.current.unknown ||
+            report.current.missingItems > 0) && (
+            <div className="rounded-xl border border-border bg-surface p-4 text-xs leading-relaxed text-muted-foreground">
+              {report.current.legacy > 0 &&
+                `${report.current.legacy} registro(s) de itens antigos usam a classificação do catálogo atual. `}
+              {report.current.unknown > 0 &&
+                `${report.current.unknown} item(ns) sem classificação ficam disponíveis no filtro correspondente. `}
+              {report.unclassifiedInPeriod > report.current.unknown &&
+                `${report.unclassifiedInPeriod} registro(s) sem setor conhecido no período podem estar fora desta seleção; consulte o filtro Sem classificação. `}
+              {report.current.missingItems > 0 &&
+                `${report.current.missingItems} pedido(s) sem itens históricos entram na contagem, mas não nos valores de itens. `}
+              A atualização SQL das análises preserva categoria e setor dos novos pedidos, mesmo se
+              o catálogo mudar depois.
+            </div>
           )}
-        </section>
-
-        {/* Hourly heatmap */}
-        <section className="rounded-2xl border border-border bg-surface p-6">
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-primary" />
-            <h2 className="font-display text-xl tracking-tight">Horários de pico</h2>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">Distribuição de pedidos por hora.</p>
-          <div className="mt-5 grid grid-cols-12 gap-1">
-            {stats.perHour.map((h) => {
-              const intensity = h.count / stats.maxHour;
-              return (
-                <div
-                  key={h.hour}
-                  title={`${h.hour}h — ${h.count} pedidos`}
-                  className="flex aspect-square items-center justify-center rounded-md text-[9px] font-medium ring-1 ring-border"
-                  style={{
-                    background: `oklch(0.78 0.13 84 / ${0.08 + intensity * 0.55})`,
-                    color: intensity > 0.5 ? "oklch(0.18 0.02 70)" : "oklch(0.65 0.02 70)",
-                  }}
-                >
-                  {h.hour}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      </div>
-
-      {/* History table */}
-      <section className="rounded-2xl border border-border bg-surface">
-        <div className="flex items-center justify-between border-b border-border p-6">
-          <div>
-            <h2 className="font-display text-xl tracking-tight">Histórico de pedidos</h2>
-            <p className="text-xs text-muted-foreground">
-              Clique em qualquer linha para ver os detalhes.
+          {report.current.total === 0 && (
+            <p
+              role="status"
+              className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground"
+            >
+              Nenhum pedido encontrado neste período e seleção. Amplie as datas ou restaure os
+              filtros para conferir o movimento.
             </p>
+          )}
+          <ReportOverview
+            report={report}
+            currency={currency}
+            target={filters.targetMinutes}
+            onDay={(day) => {
+              setCustomStart(dayInput(day));
+              setCustomEnd(dayInput(day));
+              setPreset("custom");
+            }}
+          />
+          <ReportProducts
+            key={`products:${selectionKey}`}
+            report={report}
+            currency={currency}
+            filename={filename}
+          />
+          <div className="flex justify-end">
+            <button
+              disabled={!ready || !report.current.rows.length}
+              onClick={() =>
+                downloadCsv(`${filename}-pedidos.csv`, orderCsv(report.current.rows, timezone))
+              }
+              className="rounded-xl border border-border px-4 py-2.5 text-xs disabled:opacity-40"
+            >
+              Exportar todos os pedidos desta seleção
+            </button>
           </div>
-        </div>
-        {oLoading ? (
-          <div className="flex h-32 items-center justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : allOrders.length === 0 ? (
-          <div className="p-12 text-center text-sm text-muted-foreground">
-            Nenhum pedido ainda. Quando seus clientes começarem a pedir, eles aparecerão aqui.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                <tr className="border-b border-border">
-                  <th className="px-6 py-3 text-left font-medium">Quando</th>
-                  <th className="px-6 py-3 text-left font-medium">Mesa</th>
-                  <th className="px-6 py-3 text-left font-medium">Cliente</th>
-                  <th className="px-6 py-3 text-left font-medium">Itens</th>
-                  <th className="px-6 py-3 text-left font-medium">Status</th>
-                  <th className="px-6 py-3 text-left font-medium">Receita</th>
-                  <th className="px-6 py-3 text-right font-medium">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allOrders
-                  .filter(
-                    (o) => dateOrdinal(o.created_at, timezone) >= dateOrdinal(stats.since, "UTC"),
-                  )
-                  .slice(0, 100)
-                  .map((o) => {
-                    const isRealized = o.archived === true;
-                    const isProvisioned = !isRealized && o.status === "served";
-                    return (
-                      <tr
-                        key={o.id}
-                        onClick={() => setSelected(o)}
-                        className="cursor-pointer border-b border-border/60 transition hover:bg-background"
-                      >
-                        <td className="px-6 py-3 text-muted-foreground">
-                          {new Date(o.created_at).toLocaleString("pt-BR", {
-                            day: "2-digit",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </td>
-                        <td className="px-6 py-3">{o.table_label ?? "—"}</td>
-                        <td className="px-6 py-3 truncate">{o.customer_name ?? "—"}</td>
-                        <td className="px-6 py-3 text-muted-foreground">
-                          {o.order_items.reduce((s, i) => s + i.quantity, 0)}
-                        </td>
-                        <td className="px-6 py-3">
-                          <StatusPill status={o.status} />
-                        </td>
-                        <td className="px-6 py-3">
-                          <span
-                            className={cn(
-                              "rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider ring-1",
-                              isRealized
-                                ? "bg-emerald-500/10 text-emerald-400 ring-emerald-400/30"
-                                : isProvisioned
-                                  ? "bg-[oklch(0.78_0.13_84_/_0.15)] text-primary ring-[oklch(0.78_0.13_84_/_0.3)]"
-                                  : "bg-background text-muted-foreground ring-border",
-                            )}
-                          >
-                            {isRealized
-                              ? "Realizada"
-                              : isProvisioned
-                                ? "Provisionada"
-                                : "Em aberto"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-3 text-right font-medium">
-                          {formatPrice(Number(o.subtotal), currency)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      {selected && (
-        <OrderModal order={selected} currency={currency} onClose={() => setSelected(null)} />
+          <ReportHistory
+            key={`history:${selectionKey}`}
+            report={report}
+            currency={currency}
+            timezone={timezone}
+            filename={filename}
+          />
+        </>
       )}
-    </div>
-  );
-}
-
-function KpiCard({
-  icon,
-  label,
-  value,
-  hint,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  hint?: string;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-2xl border border-border bg-surface p-5 hover-lift"
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gold-soft text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-          {icon}
-        </span>
-      </div>
-      <div className="mt-3 font-display text-2xl tracking-tight">{value}</div>
-      {hint && <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div>}
-    </motion.div>
-  );
-}
-
-function StatusPill({ status }: { status: OrderStatus }) {
-  const map: Record<OrderStatus, string> = {
-    pending: "bg-[oklch(0.78_0.13_84_/_0.15)] text-[oklch(0.86_0.14_84)]",
-    accepted: "bg-[oklch(0.65_0.18_250_/_0.15)] text-[oklch(0.78_0.18_250)]",
-    preparing: "bg-[oklch(0.7_0.18_55_/_0.15)] text-[oklch(0.82_0.18_55)]",
-    ready: "bg-[oklch(0.7_0.18_150_/_0.15)] text-[oklch(0.82_0.18_150)]",
-    served: "bg-[oklch(0.5_0.02_60_/_0.2)] text-muted-foreground",
-    cancelled: "bg-[oklch(0.62_0.21_25_/_0.15)] text-[oklch(0.78_0.18_25)]",
-  };
-  return (
-    <span
-      className={cn(
-        "inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
-        map[status],
-      )}
-    >
-      {STATUS_LABELS[status]}
-    </span>
-  );
-}
-
-function OrderModal({
-  order,
-  currency,
-  onClose,
-}: {
-  order: Order;
-  currency: string;
-  onClose: () => void;
-}) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-2xl"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Pedido</p>
-            <h3 className="mt-1 font-display text-2xl tracking-tight">
-              {order.table_label ?? "—"} · {order.customer_name ?? "—"}
-            </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {new Date(order.created_at).toLocaleString("pt-BR")}
-            </p>
-          </div>
-          <StatusPill status={order.status} />
-        </div>
-        {order.status === "cancelled" && order.cancellation_reason && (
-          <p className="mt-4 rounded-xl border border-destructive/30 p-3 text-sm">
-            Motivo: {order.cancellation_reason}
-          </p>
-        )}
-        <ul className="mt-5 max-h-80 space-y-2 overflow-y-auto pr-1">
-          {order.order_items.map((it) => {
-            const mods = (it.modifiers_snapshot as Array<{ name: string }> | null) ?? [];
-            return (
-              <li
-                key={it.id}
-                className="flex items-start justify-between gap-3 rounded-lg border border-border/60 bg-background/40 p-3 text-sm"
-              >
-                <div className="min-w-0">
-                  <div className="truncate">
-                    <span className="text-muted-foreground">{it.quantity}× </span>
-                    {it.name_snapshot}
-                  </div>
-                  {mods.length > 0 && (
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">
-                      {mods.map((m) => m.name).join(" · ")}
-                    </div>
-                  )}
-                  {it.notes && (
-                    <div className="mt-0.5 italic text-[11px] text-muted-foreground">
-                      "{it.notes}"
-                    </div>
-                  )}
-                </div>
-                <span className="shrink-0 text-xs text-muted-foreground">
-                  {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
-        <div className="mt-5 flex items-center justify-between border-t border-border pt-4">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground">Total</span>
-          <span className="font-display text-2xl tracking-tight">
-            {formatPrice(Number(order.subtotal), currency)}
-          </span>
-        </div>
-        <button
-          onClick={onClose}
-          className="mt-5 w-full rounded-xl border border-border bg-background py-2.5 text-sm font-medium transition hover:bg-surface-2"
-        >
-          Fechar
-        </button>
-      </motion.div>
     </div>
   );
 }
