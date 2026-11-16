@@ -6,7 +6,7 @@ import {
   menuThemeStyle,
   menuAppearanceAttributes,
   readAppearance,
-  readColors,
+  readRestaurantColors,
   readableColor,
 } from "@/features/menu/appearance/appearance";
 import { FluxLogo } from "@/components/brand/logo";
@@ -22,7 +22,7 @@ import { getErrorDetails } from "@/lib/errors";
 import { formatPrice } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound } from "@tanstack/react-router";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Bell,
   Check,
@@ -79,6 +79,7 @@ type PublicItem = DishModel & {
 };
 
 function PublicMenuPage() {
+  const reduceMotion = useReducedMotion();
   const { slug } = Route.useParams();
   const { table: rawTable } = Route.useSearch();
   // Normaliza: se o QR vier com "Mesa 1" no parâmetro, evita virar "Mesa Mesa 1"
@@ -391,14 +392,7 @@ function PublicMenuPage() {
   const { restaurant, categories } = data;
   const currency = restaurant.currency;
 
-  const colors = readColors({
-    background: restaurant.brand_color,
-    text: restaurant.brand_text_color,
-    accent: restaurant.brand_accent_color,
-    card: restaurant.brand_card_color,
-    header: restaurant.brand_header_color,
-    button: restaurant.brand_button_color,
-  });
+  const colors = readRestaurantColors(restaurant);
   const appearance = data.appearance;
   const brandAccent = colors.accent;
   const readableOn = (color: string | null) => readableColor(color || colors.accent);
@@ -451,7 +445,7 @@ function PublicMenuPage() {
               <p className="text-xs uppercase tracking-[0.18em] text-primary">
                 {appearance.tagline}
               </p>
-              <h1 className="mt-2 font-display text-4xl tracking-tight">
+              <h1 className="menu-restaurant-name mt-2 font-display text-4xl tracking-tight">
                 <span>{restaurant.name}</span>
               </h1>
             </div>
@@ -580,9 +574,11 @@ function PublicMenuPage() {
                     aria-current={active ? "true" : undefined}
                     onClick={() => {
                       setActiveCat(c.id);
-                      document
-                        .getElementById(`cat-${c.id}`)
-                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      const section = document.getElementById(`cat-${c.id}`);
+                      section?.scrollIntoView({
+                        behavior: reduceMotion ? "instant" : "smooth",
+                        block: "start",
+                      });
                     }}
                     className={
                       "whitespace-nowrap rounded-full px-4 py-1.5 text-xs transition " +
@@ -655,12 +651,20 @@ function PublicMenuPage() {
                   <p className="mt-1 text-xs text-muted-foreground">{cat.description}</p>
                 )}
                 <ul data-menu-grid className="mt-4 space-y-3 stagger">
-                  {items.map((it) => {
+                  {items.map((it, index) => {
                     const hasMods = (data.modifiers.get(it.id)?.length ?? 0) > 0;
                     return (
                       <motion.li
                         key={it.id}
-                        whileTap={{ scale: 0.99 }}
+                        initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, amount: 0.12 }}
+                        transition={{
+                          duration: 0.4,
+                          delay: Math.min(index % 4, 3) * 0.045,
+                          ease: [0.22, 1, 0.36, 1],
+                        }}
+                        whileTap={reduceMotion ? undefined : { scale: 0.99 }}
                         className="menu-card group flex gap-3 overflow-hidden rounded-2xl border border-border bg-surface p-3 transition hover:border-primary/30"
                       >
                         <div className="menu-photo relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-background/60 sm:h-28 sm:w-28">
@@ -677,19 +681,19 @@ function PublicMenuPage() {
                             </div>
                           )}
                         </div>
-                        <div className="flex min-w-0 flex-1 flex-col">
+                        <div className="menu-card-content flex min-w-0 flex-1 flex-col">
                           <button
                             onClick={() => toggleFavorite(it.id)}
                             aria-label={`${favorites.has(it.id) ? "Remover" : "Salvar"} ${it.name} ${favorites.has(it.id) ? "dos" : "nos"} favoritos`}
                             aria-pressed={favorites.has(it.id)}
-                            className="mb-1 ml-auto rounded-lg p-1.5 text-primary"
+                            className="menu-favorite rounded-full p-2 text-primary"
                           >
                             <Heart
                               className="h-4 w-4"
                               fill={favorites.has(it.id) ? "currentColor" : "none"}
                             />
                           </button>
-                          <div className="flex items-start justify-between gap-2">
+                          <div className="menu-card-heading flex items-start justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-1.5">
                               <h3 className="text-sm font-semibold leading-snug">{it.name}</h3>
                               {it.is_promo && (
@@ -704,7 +708,7 @@ function PublicMenuPage() {
                                 </span>
                               )}
                             </div>
-                            <div className="flex flex-col items-end">
+                            <div className="menu-price flex flex-col items-end">
                               {it.is_promo && it.original_price ? (
                                 <span className="text-[10px] text-muted-foreground line-through">
                                   {formatPrice(Number(it.original_price), currency)}
@@ -723,7 +727,7 @@ function PublicMenuPage() {
                               {it.description}
                             </p>
                           )}
-                          <div className="mt-auto flex flex-wrap items-center justify-end gap-2 pt-2">
+                          <div className="menu-card-actions mt-auto flex flex-wrap items-center justify-end gap-2 pt-3">
                             {it.model_3d_url && (
                               <button
                                 onClick={() => setModelItem(it)}
@@ -736,7 +740,7 @@ function PublicMenuPage() {
                               <button
                                 onClick={() => handleAdd(it)}
                                 style={menuButtonStyle(colors, appearance)}
-                                className="inline-flex items-center gap-1 rounded-lg bg-primary/90 px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary"
+                                className="menu-add-button inline-flex items-center justify-center gap-1 rounded-lg bg-primary/90 px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary"
                               >
                                 <Plus className="h-3.5 w-3.5" />{" "}
                                 {hasMods ? "Personalizar" : appearance.buttonLabel}

@@ -38,7 +38,7 @@ Aplique somente `supabase/migrations/20261115000100_menu_appearance.sql` no SQL 
 
 Em Configurações → Personalização, cada restaurante escolhe a própria paleta, fonte, disposição dos pratos, cantos, fotos, enquadramento, alinhamento do cabeçalho, estilo/texto dos botões e exibição de descrições/porções. A prévia utiliza as mesmas regras visuais do cardápio público e os primeiros pratos disponíveis; sem produtos, exibe exemplos identificados. Os contrastes são ajustados para leitura. Nome, descrição, logo e banner permanecem em Estabelecimento. O botão do banner leva ao catálogo.
 
-Alterações são locais à prévia até “Publicar personalização”; “Descartar” recupera a configuração publicada e “Restaurar padrão na prévia” também exige publicação. Ao sair da aba, alterações não publicadas são descartadas. As preferências são gravadas junto às cores em uma atualização única sob RLS. Antes da migração, a publicação fica bloqueada e o cardápio continua com as preferências padrão, preservando a paleta já existente. A demonstração `/demo?view=customize` não grava nada no banco.
+Alterações são locais à prévia até “Salvar e publicar”; “Descartar” recupera a configuração publicada e “Restaurar padrão na prévia” também exige publicação. O rascunho fica no armazenamento local deste navegador por restaurante, sem credenciais, até publicar ou descartar. As preferências são gravadas junto às cores em uma atualização única sob RLS. Antes da migração, a publicação fica bloqueada e o cardápio continua com as preferências padrão, preservando a paleta já existente. A demonstração `/demo?view=customize` não grava nada no banco.
 
 ### Identidade completa do restaurante
 
@@ -49,3 +49,9 @@ O editor oferece capa por URL HTTPS ou envio de JPG/PNG/WEBP de até 5 MB, altur
 ## Gestão, operação e relatórios
 
 A atualização incremental `20261116000200_restaurant_operations.sql` habilita importação CSV atômica, edição em lote, promoções por período e registro de preparo/cancelamento. Execute uma vez no banco existente e consulte `OPERATIONS-UPGRADE.md` para formatos, limites e uso. Não execute o bootstrap para atualizar um projeto com dados.
+
+## Salvamento bloqueado e padrão visual
+
+A atualização de operação não cria a coluna de aparência. Se o editor mostrar “Ativação do salvamento pendente”, aplique a migração completa `20261116000100_complete_menu_identity.sql` e a de padrão `20261116000300_menu_black_gold.sql`. O SQL de reparação entregue reúne as duas numa transação. O teste do banco reproduz a coluna ausente e confirma a reparação sem recriar o restaurante. Depois, clique em “Verificar novamente”.
+
+O padrão é preto, dourado e branco, com vitrine de pratos e 14 paletas editáveis. A migração altera o padrão dos novos restaurantes e corrige apenas o antigo registro inicial dourado sem personalização. Paletas explicitamente configuradas são preservadas. A barra de salvamento fica no topo durante a edição, valida as entradas e atualiza o estado publicado após a confirmação do servidor. A demonstração oferece acesso ao editor real e não simula publicação. O armazenamento local pode estar indisponível em navegadores com restrições de privacidade; isso não bloqueia a publicação no servidor.

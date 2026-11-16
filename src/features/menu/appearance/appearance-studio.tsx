@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { MenuCover, MenuSignature } from "./menu-identity";
 import { Switch } from "@/components/ui/switch";
 import { DEMO_DISHES } from "@/features/demo/demo-data";
@@ -60,6 +61,13 @@ export function AppearanceStudio({
         : "smooth",
     });
   const safe = readColors(colors);
+  const activePreset = colorsSchema.safeParse(colors).success
+    ? MENU_PRESETS.find((p) =>
+        Object.keys(safe).every(
+          (key) => safe[key as keyof MenuColors] === p.colors[key as keyof MenuColors],
+        ),
+      )
+    : undefined;
   const items = dishes?.length
     ? dishes.slice(0, 3)
     : DEMO_DISHES.slice(0, 2).map((d) => ({ ...d, portion_description: d.portion }));
@@ -102,22 +110,23 @@ export function AppearanceStudio({
           <section className="space-y-4 rounded-2xl border border-border bg-surface p-5">
             <div className="flex items-center gap-2 text-primary">
               <Palette className="h-4 w-4" />
-              <h3 className="font-semibold">A sua identidade, do seu jeito</h3>
+              <h3 className="font-semibold">Uma paleta, muitas possibilidades</h3>
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">
               Comece com uma inspiração ou crie sua própria paleta. Todas as cores abaixo são
-              editáveis.
+              editáveis. São 14 combinações para começar.
             </p>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {MENU_PRESETS.map((p) => (
                 <button
                   type="button"
                   key={p.id}
+                  aria-pressed={activePreset?.id === p.id}
                   onClick={() => onColors({ ...p.colors })}
-                  className="rounded-xl border border-border bg-background p-3 text-left transition hover:border-primary"
+                  className={`menu-preset rounded-xl border bg-background p-3 text-left transition hover:border-primary ${activePreset?.id === p.id ? "border-primary ring-1 ring-primary/30" : "border-border"}`}
                 >
                   <span className="mb-2 flex gap-1">
-                    {[p.colors.background, p.colors.header, p.colors.accent, p.colors.button].map(
+                    {[p.colors.background, p.colors.card, p.colors.text, p.colors.accent].map(
                       (c, i) => (
                         <span
                           key={i}
@@ -127,7 +136,10 @@ export function AppearanceStudio({
                       ),
                     )}
                   </span>
-                  <span className="text-xs">{p.name}</span>
+                  <span className="flex items-center justify-between gap-2 text-xs">
+                    {p.name}
+                    {activePreset?.id === p.id && <Check className="h-3.5 w-3.5 text-primary" />}
+                  </span>
                 </button>
               ))}
             </div>
@@ -371,7 +383,7 @@ export function AppearanceStudio({
           </div>
           <div className="overflow-hidden rounded-[32px] border-4 border-border shadow-2xl">
             <div
-              className="public-menu min-h-[570px]"
+              className="public-menu menu-preview min-h-[570px]"
               style={menuThemeStyle(safe, appearance)}
               {...menuAppearanceAttributes(appearance)}
             >
@@ -446,9 +458,9 @@ export function AppearanceStudio({
                           <UtensilsCrossed className="m-auto h-full w-6" />
                         )}
                       </div>
-                      <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="menu-card-content flex min-w-0 flex-1 flex-col gap-1">
                         <h5 className="text-xs font-semibold break-words">{item.name}</h5>
-                        <span className="text-xs font-semibold text-primary">
+                        <span className="menu-price text-xs font-semibold text-primary">
                           {formatPrice(item.price, currency)}
                         </span>
                         {appearance.showDescription && (
@@ -464,7 +476,7 @@ export function AppearanceStudio({
                           tabIndex={-1}
                           aria-label="Botão ilustrativo na prévia"
                           style={menuButtonStyle(safe, appearance)}
-                          className="mt-2 inline-flex items-center justify-center gap-1 px-2 py-2 text-[10px]"
+                          className="menu-add-button mt-auto inline-flex items-center justify-center gap-1 px-2 py-2 text-[10px]"
                         >
                           <Plus className="h-3 w-3" />
                           {appearance.buttonLabel || "Adicionar"}
@@ -494,8 +506,16 @@ export function AppearanceDemo() {
   return (
     <>
       <p className="mb-6 text-sm text-muted-foreground">
-        Experimente sua identidade. Esta demonstração não altera nenhum restaurante.
+        Experimente sua identidade. Esta é uma demonstração: para salvar e publicar, use o editor do
+        seu restaurante.
       </p>
+      <Link
+        to="/settings"
+        search={{ tab: "appearance" }}
+        className="mb-6 inline-flex items-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+      >
+        Abrir editor do meu restaurante →
+      </Link>
       <AppearanceStudio
         colors={colors}
         onColors={onColors}

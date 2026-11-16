@@ -31,7 +31,7 @@ describe("restaurant appearance", () => {
     expect(readAppearance({ font: "injected", buttonLabel: " ", layout: null })).toMatchObject({
       font: "modern",
       buttonLabel: "Adicionar",
-      layout: "list",
+      layout: "grid",
     });
     expect(readAppearance(null)).toEqual(readAppearance({}));
     expect(readAppearance({ css: "bad" })).not.toHaveProperty("css");

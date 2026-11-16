@@ -1,3 +1,4 @@
+import { useAppearanceDraft } from "./use-appearance-draft";
 import { supabase } from "@/integrations/supabase/client";
 import type { Restaurant } from "@/features/restaurant/use-restaurant";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,7 +13,7 @@ import {
   colorsSchema,
   isCoverUrl,
   readAppearance,
-  readColors,
+  readRestaurantColors,
 } from "./appearance";
 
 export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
@@ -46,21 +47,13 @@ export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
   }
   const incoming = useMemo(
     () => ({
-      colors: readColors({
-        background: restaurant.brand_color,
-        text: restaurant.brand_text_color,
-        accent: restaurant.brand_accent_color,
-        card: restaurant.brand_card_color,
-        header: restaurant.brand_header_color,
-        button: restaurant.brand_button_color,
-      }),
+      colors: readRestaurantColors(restaurant),
       appearance: readAppearance(restaurant.menu_appearance),
     }),
     [restaurant],
   );
-  const [draft, setDraft] = useState(incoming);
+  const { draft, setDraft, dirty } = useAppearanceDraft(restaurant.id, incoming);
   const ready = Object.hasOwn(restaurant, "menu_appearance");
-  const dirty = JSON.stringify(draft) !== JSON.stringify(incoming);
   const valid =
     colorsSchema.safeParse(draft.colors).success &&
     !!draft.appearance.buttonLabel.trim() &&
@@ -80,7 +73,10 @@ export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
     },
   });
   const save = useMutation({
+    networkMode: "always",
     mutationFn: async () => {
+      if (typeof navigator !== "undefined" && navigator.onLine === false)
+        throw new Error("Sem conexão. Seu rascunho foi mantido; reconecte para publicar.");
       if (!ready)
         throw new Error(
           "Aplique a atualização de personalização no Supabase e atualize esta página.",
@@ -93,7 +89,7 @@ export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
         .from("restaurants")
         .update(payload)
         .eq("id", restaurant.id)
-        .select("id")
+        .select("*")
         .single();
       if (error) {
         if (error.code === "23514")
@@ -103,10 +99,16 @@ export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
         throw error;
       }
       if (!data) throw new Error("Não foi possível publicar este cardápio.");
-      return { colors: colorsSchema.parse(draft.colors), appearance: payload.menu_appearance };
+      return {
+        draft: { colors: colorsSchema.parse(draft.colors), appearance: payload.menu_appearance },
+        restaurant: data,
+      };
     },
     onSuccess: async (published) => {
-      setDraft(published);
+      setDraft(published.draft);
+      qc.setQueriesData<Restaurant | null>({ queryKey: ["restaurant"] }, (current) =>
+        current?.id === restaurant.id ? published.restaurant : current,
+      );
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["restaurant"] }),
         qc.invalidateQueries({ queryKey: ["public-menu"] }),
@@ -117,20 +119,79 @@ export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
     onError: (error) => toast.error(getErrorDetails(error).message ?? "Não foi possível publicar"),
   });
   return (
-    <div className="space-y-5">
+    <div className="appearance-editor space-y-5">
       <div>
         <p className="text-xs uppercase tracking-[0.18em] text-primary">Estúdio do cardápio</p>
         <h2 className="mt-2 font-display text-2xl">O cardápio com a sua assinatura.</h2>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
           Escolha cada detalhe e acompanhe o resultado. O cliente só verá as mudanças depois de
-          publicar. Logo, nome e banner ficam na aba Estabelecimento. Salve antes de sair desta aba
-          para manter suas alterações.
+          publicar. Logo, nome e banner ficam na aba Estabelecimento. O rascunho fica salvo neste
+          navegador até você publicar ou descartar.
         </p>
       </div>
       {!ready && (
         <p role="status" className="rounded-xl border border-primary/30 bg-primary/10 p-4 text-sm">
-          A prévia está disponível. Para publicar, aplique a atualização de personalização no
-          Supabase e atualize esta página.
+          Falta ativar o armazenamento de personalização no banco. Suas alterações ficam preservadas
+          como rascunho. Depois de executar a correção SQL, clique em verificar novamente.
+          <button
+            type="button"
+            className="mt-3 block rounded-lg border border-border px-3 py-2 text-xs"
+            onClick={() => void qc.invalidateQueries({ queryKey: ["restaurant"] })}
+          >
+            Verificar novamente
+          </button>
+        </p>
+      )}
+      <div className="appearance-save-bar sticky top-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-4 shadow-xl">
+        <div>
+          <p className="text-sm font-medium" aria-live="polite">
+            {save.isPending
+              ? "Publicando…"
+              : !ready
+                ? "Ativação do salvamento pendente"
+                : !valid
+                  ? "Confira os campos antes de salvar"
+                  : dirty
+                    ? "Você tem alterações para publicar"
+                    : "Seu cardápio está atualizado"}
+          </p>
+          <button
+            disabled={save.isPending || uploadingCover}
+            onClick={() =>
+              setDraft({ colors: { ...DEFAULT_COLORS }, appearance: readAppearance({}) })
+            }
+            className="mt-1 text-xs text-muted-foreground underline underline-offset-4"
+          >
+            Restaurar padrão na prévia
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <button
+            disabled={!dirty || save.isPending || uploadingCover}
+            onClick={() => setDraft(incoming)}
+            className="rounded-xl border border-border px-3 py-2.5 text-xs disabled:opacity-40"
+          >
+            Descartar
+          </button>
+          <button
+            disabled={!ready || !dirty || !valid || save.isPending || uploadingCover}
+            onClick={() => save.mutate()}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
+          >
+            {save.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {ready ? "Salvar e publicar" : "Aguardando ativação"}
+          </button>
+        </div>
+      </div>
+
+      {!valid && (
+        <p role="alert" className="rounded-xl border border-destructive/30 p-3 text-sm">
+          Complete os códigos das seis cores, informe um texto para o botão e use uma URL HTTPS
+          válida para a capa.
         </p>
       )}
       <fieldset disabled={save.isPending || uploadingCover} className="min-w-0">
@@ -158,47 +219,6 @@ export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
           dishes={dishes}
         />
       </fieldset>
-      <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-4 shadow-xl">
-        <div>
-          <p className="text-sm font-medium" aria-live="polite">
-            {save.isPending
-              ? "Publicando…"
-              : dirty
-                ? "Você tem alterações para publicar"
-                : "Seu cardápio está atualizado"}
-          </p>
-          <button
-            disabled={save.isPending}
-            onClick={() =>
-              setDraft({ colors: { ...DEFAULT_COLORS }, appearance: readAppearance({}) })
-            }
-            className="mt-1 text-xs text-muted-foreground underline underline-offset-4"
-          >
-            Restaurar padrão na prévia
-          </button>
-        </div>
-        <div className="flex gap-2">
-          <button
-            disabled={!dirty || save.isPending}
-            onClick={() => setDraft(incoming)}
-            className="rounded-xl border border-border px-3 py-2.5 text-xs disabled:opacity-40"
-          >
-            Descartar
-          </button>
-          <button
-            disabled={!ready || !dirty || !valid || save.isPending || uploadingCover}
-            onClick={() => save.mutate()}
-            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
-          >
-            {save.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Publicar personalização
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

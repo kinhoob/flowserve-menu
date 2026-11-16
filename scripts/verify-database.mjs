@@ -189,6 +189,35 @@ try {
       .menu_appearance,
     beforeReplay,
   );
+  // Reproduce the deployed issue: operations installed, appearance column absent.
+  await client.query("BEGIN");
+  try {
+    await client.query("ALTER TABLE restaurants DROP COLUMN menu_appearance");
+    await client.query(
+      fs.readFileSync(
+        path.join(root, "supabase/migrations/20261116000100_complete_menu_identity.sql"),
+        "utf8",
+      ),
+    );
+    await client.query(
+      fs.readFileSync(
+        path.join(root, "supabase/migrations/20261116000300_menu_black_gold.sql"),
+        "utf8",
+      ),
+    );
+    const repaired = (
+      await client.query(
+        "SELECT menu_appearance,brand_color,brand_text_color FROM restaurants WHERE id=$1",
+        [rid],
+      )
+    ).rows[0];
+    assert.deepEqual(repaired.menu_appearance, {});
+    assert.equal(repaired.brand_color, "#0a0a0a");
+    assert.equal(repaired.brand_text_color, "#ffffff");
+  } finally {
+    await client.query("ROLLBACK");
+  }
+  console.log("PASS: missing appearance column can be repaired without resetting the restaurant");
   console.log("PASS: menu customization owner scope, typed preferences and invalid JSON rejection");
   const otherCat = (
     await client.query(

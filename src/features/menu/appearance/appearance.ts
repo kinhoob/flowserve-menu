@@ -17,7 +17,7 @@ export function isCoverUrl(value: string): boolean {
   }
 }
 export const appearanceSchema = z.object({
-  layout: z.enum(["list", "grid", "compact"]).catch("list"),
+  layout: z.enum(["list", "grid", "compact"]).catch("grid"),
   font: z.enum(["modern", "clean", "classic"]).catch("modern"),
   corners: z.enum(["square", "rounded", "soft"]).catch("rounded"),
   photos: z.enum(["square", "cover", "hidden"]).catch("square"),
@@ -39,7 +39,7 @@ export const appearanceSchema = z.object({
   logoSize: z.enum(["small", "large"]).catch("small"),
   textSize: z.enum(["small", "regular", "large"]).catch("regular"),
   spacing: z.enum(["comfortable", "airy"]).catch("comfortable"),
-  headingStyle: z.enum(["plain", "accent", "centered"]).catch("plain"),
+  headingStyle: z.enum(["plain", "accent", "centered"]).catch("accent"),
   backgroundPattern: z.enum(["none", "dots", "lines"]).catch("none"),
 });
 export type MenuAppearance = z.infer<typeof appearanceSchema>;
@@ -48,12 +48,12 @@ export function readAppearance(value: unknown): MenuAppearance {
   return result.success ? result.data : appearanceSchema.parse({});
 }
 export const DEFAULT_COLORS = {
-  background: "#101a14",
-  text: "#f3f3e9",
-  accent: "#d9b66c",
-  card: "#1b281f",
-  header: "#19291e",
-  button: "#d9b66c",
+  background: "#0a0a0a",
+  text: "#ffffff",
+  accent: "#d7b56d",
+  card: "#151515",
+  header: "#0d0d0d",
+  button: "#d7b56d",
 };
 export type MenuColors = typeof DEFAULT_COLORS;
 export function normalizeHex(value: string): string | null {
@@ -225,7 +225,19 @@ export function brandColumns(colors: MenuColors) {
   };
 }
 export const MENU_PRESETS = [
-  { id: "forest", name: "Floresta", colors: DEFAULT_COLORS },
+  { id: "signature", name: "Preto & Ouro", colors: DEFAULT_COLORS },
+  {
+    id: "forest",
+    name: "Floresta",
+    colors: {
+      background: "#101a14",
+      text: "#f3f3e9",
+      accent: "#d9b66c",
+      card: "#1b281f",
+      header: "#19291e",
+      button: "#d9b66c",
+    },
+  },
   {
     id: "linen",
     name: "Linho",
@@ -286,6 +298,90 @@ export const MENU_PRESETS = [
       button: "#c6b279",
     },
   },
+  {
+    id: "burgundy",
+    name: "Bordeaux",
+    colors: {
+      background: "#190d12",
+      text: "#fff7ee",
+      accent: "#e9ba8d",
+      card: "#2b1520",
+      header: "#220f18",
+      button: "#e9ba8d",
+    },
+  },
+  {
+    id: "navy",
+    name: "Azul Imperial",
+    colors: {
+      background: "#0a1423",
+      text: "#f8fafc",
+      accent: "#d5b875",
+      card: "#142238",
+      header: "#0e1b2e",
+      button: "#d5b875",
+    },
+  },
+  {
+    id: "matcha",
+    name: "Matcha",
+    colors: {
+      background: "#f2f3e9",
+      text: "#293b2b",
+      accent: "#4a6741",
+      card: "#fdfdf8",
+      header: "#e1e7d3",
+      button: "#4a6741",
+    },
+  },
+  {
+    id: "espresso",
+    name: "Espresso",
+    colors: {
+      background: "#1b1410",
+      text: "#fff8ed",
+      accent: "#d9b793",
+      card: "#2b211b",
+      header: "#211812",
+      button: "#d9b793",
+    },
+  },
+  {
+    id: "rose",
+    name: "Rosa Botânico",
+    colors: {
+      background: "#fff6f5",
+      text: "#502e37",
+      accent: "#8a4358",
+      card: "#ffffff",
+      header: "#f1dfe2",
+      button: "#8a4358",
+    },
+  },
+  {
+    id: "citrus",
+    name: "Cítrico",
+    colors: {
+      background: "#fffdf1",
+      text: "#353318",
+      accent: "#69611e",
+      card: "#ffffff",
+      header: "#f1ecc7",
+      button: "#69611e",
+    },
+  },
+  {
+    id: "pearl",
+    name: "Pérola",
+    colors: {
+      background: "#f5f5f3",
+      text: "#222322",
+      accent: "#383d3a",
+      card: "#ffffff",
+      header: "#e7e8e4",
+      button: "#383d3a",
+    },
+  },
 ] satisfies { id: string; name: string; colors: MenuColors }[];
 
 export function menuAppearanceAttributes(appearance: MenuAppearance) {
@@ -302,4 +398,35 @@ export function menuAppearanceAttributes(appearance: MenuAppearance) {
     "data-heading-style": appearance.headingStyle,
     "data-pattern": appearance.backgroundPattern,
   };
+}
+
+export type RestaurantBrand = {
+  brand_color?: string | null;
+  brand_text_color?: string | null;
+  brand_accent_color?: string | null;
+  brand_card_color?: string | null;
+  brand_header_color?: string | null;
+  brand_button_color?: string | null;
+};
+export function readRestaurantColors(restaurant: RestaurantBrand): MenuColors {
+  const others = [
+    restaurant.brand_text_color,
+    restaurant.brand_accent_color,
+    restaurant.brand_card_color,
+    restaurant.brand_header_color,
+    restaurant.brand_button_color,
+  ];
+  if (
+    normalizeHex(restaurant.brand_color ?? "") === "#d4af37" &&
+    others.every((value) => value == null)
+  )
+    return { ...DEFAULT_COLORS };
+  return readColors({
+    background: restaurant.brand_color,
+    text: restaurant.brand_text_color,
+    accent: restaurant.brand_accent_color,
+    card: restaurant.brand_card_color,
+    header: restaurant.brand_header_color,
+    button: restaurant.brand_button_color,
+  });
 }

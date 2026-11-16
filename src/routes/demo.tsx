@@ -1,3 +1,9 @@
+import {
+  DEFAULT_COLORS,
+  menuThemeStyle,
+  menuAppearanceAttributes,
+  readAppearance,
+} from "@/features/menu/appearance/appearance";
 import { AppearanceDemo } from "@/features/menu/appearance/appearance-studio";
 import { FluxLogo } from "@/components/brand/logo";
 import { DEMO_DISHES, DEMO_ORDERS, type DemoOrder } from "@/features/demo/demo-data";
@@ -268,17 +274,21 @@ function DemoPage() {
                 </aside>
               </div>
             ) : (
-              <div className="grid items-start gap-6 lg:grid-cols-[1fr_310px]">
+              <div
+                className="public-menu grid items-start gap-6 lg:grid-cols-[1fr_310px]"
+                style={menuThemeStyle(DEFAULT_COLORS, readAppearance({}))}
+                {...menuAppearanceAttributes(readAppearance({}))}
+              >
                 <div>
                   <div className="flux-panel mb-5 overflow-hidden">
-                    <div className="relative bg-[#223429] px-6 py-7">
-                      <span className="flux-eyebrow text-[#adcaa9]">Restaurante demonstrativo</span>
+                    <div className="menu-header relative px-6 py-7">
+                      <span className="flux-eyebrow text-primary">Restaurante demonstrativo</span>
                       <h2 className="mt-2 font-display text-3xl">Casa do Flux</h2>
-                      <p className="mt-2 text-sm text-[#b8c6b6]">
+                      <p className="mt-2 text-sm text-muted-foreground">
                         Boa comida. Boas escolhas. No seu tempo.
                       </p>
-                      <span className="mt-4 inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1.5 text-[10px] text-[#d5dfd0]">
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#b8d3a1]" />
+                      <span className="mt-4 inline-flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-[10px] text-muted-foreground">
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                         Mesa 01 · cardápio ilustrativo
                       </span>
                     </div>
@@ -301,9 +311,9 @@ function DemoPage() {
                           initial={{ opacity: 0, y: 12 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.97 }}
-                          className="group overflow-hidden rounded-2xl border border-border bg-surface"
+                          className="menu-card group overflow-hidden rounded-2xl border border-border bg-surface"
                         >
-                          <div className="relative h-44 overflow-hidden bg-[#2b352b]">
+                          <div className="relative h-44 overflow-hidden rounded-xl bg-surface">
                             <img
                               loading="lazy"
                               src={dish.image_url}
@@ -333,14 +343,14 @@ function DemoPage() {
                               {dish.dietary_tags.length > 0 && (
                                 <Leaf
                                   aria-label="Opção vegetariana"
-                                  className="h-4 w-4 shrink-0 text-[#b3c6a3]"
+                                  className="h-4 w-4 shrink-0 text-primary"
                                 />
                               )}
                             </div>
                             <p className="mt-2 min-h-10 text-xs leading-relaxed text-muted-foreground">
                               {dish.description}
                             </p>
-                            <p className="mt-3 text-[10px] text-[#b3c6a3]">{dish.portion}</p>
+                            <p className="mt-3 text-xs text-primary">{dish.portion}</p>
                             <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
                               <div>
                                 {dish.original_price && (
