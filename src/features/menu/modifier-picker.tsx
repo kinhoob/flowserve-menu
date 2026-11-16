@@ -87,7 +87,7 @@ export function ModifierPicker({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-x-0 bottom-0 z-[80] max-h-[85vh] overflow-y-auto rounded-t-3xl border-t border-border bg-surface"
+            className="menu-drawer fixed inset-x-0 bottom-0 z-[80] max-h-[85vh] overflow-y-auto rounded-t-3xl border-t border-border bg-surface"
           >
             <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
               <div>

@@ -1,3 +1,4 @@
+import { AppearanceEditor } from "@/features/menu/appearance/appearance-editor";
 import { PaymentTestModeBanner } from "@/components/payments/payment-test-mode-banner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
@@ -324,9 +325,10 @@ function SettingsPage() {
         defaultValue={tab ?? (planParam ? "billing" : "operation")}
         className="w-full"
       >
-        <TabsList className="bg-surface">
+        <TabsList className="max-w-full overflow-x-auto justify-start bg-surface">
           <TabsTrigger value="operation">Operação</TabsTrigger>
           <TabsTrigger value="establishment">Estabelecimento</TabsTrigger>
+          <TabsTrigger value="appearance">Personalização</TabsTrigger>
           <TabsTrigger value="team">Equipe</TabsTrigger>
           <TabsTrigger value="billing">Assinatura</TabsTrigger>
         </TabsList>
@@ -394,16 +396,11 @@ function SettingsPage() {
           <EstablishmentSection
             restaurantId={restaurant.id}
             initialName={restaurant.name}
+            initialDescription={restaurant.description}
             slug={restaurant.slug}
             currency={restaurant.currency}
             timezone={restaurant.timezone}
             initialLogoUrl={restaurant.logo_url ?? null}
-            initialBrandColor={restaurant.brand_color ?? null}
-            initialBrandTextColor={restaurant.brand_text_color ?? null}
-            initialBrandAccentColor={restaurant.brand_accent_color ?? null}
-            initialBrandCardColor={restaurant.brand_card_color ?? null}
-            initialBrandHeaderColor={restaurant.brand_header_color ?? null}
-            initialBrandButtonColor={restaurant.brand_button_color ?? null}
             initialBanner={{
               enabled: restaurant.banner_enabled ?? false,
               title: restaurant.banner_title ?? "",
@@ -414,6 +411,9 @@ function SettingsPage() {
           />
         </TabsContent>
 
+        <TabsContent value="appearance" className="mt-6">
+          <AppearanceEditor key={restaurant.id} restaurant={restaurant} />
+        </TabsContent>
         <TabsContent value="team" className="mt-6">
           <TeamSection restaurantId={restaurant.id} slug={restaurant.slug} />
         </TabsContent>

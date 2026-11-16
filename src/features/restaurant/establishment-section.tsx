@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,30 +11,20 @@ import { toast } from "sonner";
 export function EstablishmentSection({
   restaurantId,
   initialName,
+  initialDescription,
   slug,
   currency,
   timezone,
   initialLogoUrl,
-  initialBrandColor,
-  initialBrandTextColor,
-  initialBrandAccentColor,
-  initialBrandCardColor,
-  initialBrandHeaderColor,
-  initialBrandButtonColor,
   initialBanner,
 }: {
   restaurantId: string;
   initialName: string;
+  initialDescription: string | null;
   slug: string;
   currency: string;
   timezone: string;
   initialLogoUrl: string | null;
-  initialBrandColor: string | null;
-  initialBrandTextColor: string | null;
-  initialBrandAccentColor: string | null;
-  initialBrandCardColor: string | null;
-  initialBrandHeaderColor: string | null;
-  initialBrandButtonColor: string | null;
   initialBanner: {
     enabled: boolean;
     title: string;
@@ -45,34 +36,11 @@ export function EstablishmentSection({
   const qc = useQueryClient();
   const { user } = useAuth();
   const [name, setName] = useState(initialName);
+  const [description, setDescription] = useState(initialDescription ?? "");
   const [selectedTimezone, setSelectedTimezone] = useState(timezone);
   useEffect(() => setSelectedTimezone(timezone), [timezone]);
   const [logoUrl, setLogoUrl] = useState<string | null>(initialLogoUrl);
   const [uploading, setUploading] = useState(false);
-  const DEFAULT_BG = "#0b0b0c";
-  const DEFAULT_TEXT = "#f5f5f4";
-  const DEFAULT_ACCENT = "#d4a017";
-  const DEFAULT_CARD = "#171716";
-  const DEFAULT_HEADER = "#0b0b0c";
-  const DEFAULT_BUTTON = "#d4a017";
-  const [brandColor, setBrandColor] = useState<string>(initialBrandColor || DEFAULT_BG);
-  const [brandTextColor, setBrandTextColor] = useState<string>(
-    initialBrandTextColor || DEFAULT_TEXT,
-  );
-  const [brandAccentColor, setBrandAccentColor] = useState<string>(
-    initialBrandAccentColor || DEFAULT_ACCENT,
-  );
-  const [brandCardColor, setBrandCardColor] = useState<string>(
-    initialBrandCardColor || DEFAULT_CARD,
-  );
-  const [brandHeaderColor, setBrandHeaderColor] = useState<string>(
-    initialBrandHeaderColor || DEFAULT_HEADER,
-  );
-  const [brandButtonColor, setBrandButtonColor] = useState<string>(
-    initialBrandButtonColor || DEFAULT_BUTTON,
-  );
-  const [savingColor, setSavingColor] = useState(false);
-
   // Banner state
   const [bannerEnabled, setBannerEnabled] = useState(initialBanner.enabled);
   const [bannerTitle, setBannerTitle] = useState(initialBanner.title || "");
@@ -84,77 +52,6 @@ export function EstablishmentSection({
 
   useEffect(() => setName(initialName), [initialName]);
   useEffect(() => setLogoUrl(initialLogoUrl), [initialLogoUrl]);
-  useEffect(() => setBrandColor(initialBrandColor || DEFAULT_BG), [initialBrandColor]);
-  useEffect(
-    () => setBrandTextColor(initialBrandTextColor || DEFAULT_TEXT),
-    [initialBrandTextColor],
-  );
-  useEffect(
-    () => setBrandAccentColor(initialBrandAccentColor || DEFAULT_ACCENT),
-    [initialBrandAccentColor],
-  );
-  useEffect(
-    () => setBrandCardColor(initialBrandCardColor || DEFAULT_CARD),
-    [initialBrandCardColor],
-  );
-  useEffect(
-    () => setBrandHeaderColor(initialBrandHeaderColor || DEFAULT_HEADER),
-    [initialBrandHeaderColor],
-  );
-  useEffect(
-    () => setBrandButtonColor(initialBrandButtonColor || DEFAULT_BUTTON),
-    [initialBrandButtonColor],
-  );
-
-  const colorsDirty =
-    brandColor !== (initialBrandColor || DEFAULT_BG) ||
-    brandTextColor !== (initialBrandTextColor || DEFAULT_TEXT) ||
-    brandAccentColor !== (initialBrandAccentColor || DEFAULT_ACCENT) ||
-    brandCardColor !== (initialBrandCardColor || DEFAULT_CARD) ||
-    brandHeaderColor !== (initialBrandHeaderColor || DEFAULT_HEADER) ||
-    brandButtonColor !== (initialBrandButtonColor || DEFAULT_BUTTON);
-
-  const saveBrandColor = async (overrides?: Partial<Record<string, string>>) => {
-    setSavingColor(true);
-    try {
-      const payload = {
-        brand_color: overrides?.brand_color ?? brandColor,
-        brand_text_color: overrides?.brand_text_color ?? brandTextColor,
-        brand_accent_color: overrides?.brand_accent_color ?? brandAccentColor,
-        brand_card_color: overrides?.brand_card_color ?? brandCardColor,
-        brand_header_color: overrides?.brand_header_color ?? brandHeaderColor,
-        brand_button_color: overrides?.brand_button_color ?? brandButtonColor,
-      };
-      const { error } = await supabase.from("restaurants").update(payload).eq("id", restaurantId);
-      if (error) throw error;
-      qc.invalidateQueries({ queryKey: ["restaurant"] });
-      qc.invalidateQueries({ queryKey: ["public-menu"] });
-      toast.success("Cores da marca atualizadas");
-    } catch (caught: unknown) {
-      const e = getErrorDetails(caught);
-      toast.error(e.message ?? "Erro ao salvar cores");
-    } finally {
-      setSavingColor(false);
-    }
-  };
-
-  const resetBrandColors = async () => {
-    setBrandColor(DEFAULT_BG);
-    setBrandTextColor(DEFAULT_TEXT);
-    setBrandAccentColor(DEFAULT_ACCENT);
-    setBrandCardColor(DEFAULT_CARD);
-    setBrandHeaderColor(DEFAULT_HEADER);
-    setBrandButtonColor(DEFAULT_BUTTON);
-    await saveBrandColor({
-      brand_color: DEFAULT_BG,
-      brand_text_color: DEFAULT_TEXT,
-      brand_accent_color: DEFAULT_ACCENT,
-      brand_card_color: DEFAULT_CARD,
-      brand_header_color: DEFAULT_HEADER,
-      brand_button_color: DEFAULT_BUTTON,
-    });
-  };
-
   const uploadBannerImage = async (file: File) => {
     if (!user) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -260,7 +157,11 @@ export function EstablishmentSection({
       new Intl.DateTimeFormat("pt-BR", { timeZone: selectedTimezone }).format();
       const { error } = await supabase
         .from("restaurants")
-        .update({ name: trimmed, timezone: selectedTimezone })
+        .update({
+          name: trimmed,
+          description: description.trim() || null,
+          timezone: selectedTimezone,
+        })
         .eq("id", restaurantId);
       if (error) throw error;
     },
@@ -272,7 +173,10 @@ export function EstablishmentSection({
     onError: (e: Error) => toast.error(e.message ?? "Erro ao salvar"),
   });
 
-  const dirty = name.trim() !== initialName.trim() || selectedTimezone !== timezone;
+  const dirty =
+    description.trim() !== (initialDescription ?? "") ||
+    name.trim() !== initialName.trim() ||
+    selectedTimezone !== timezone;
   const initials = (initialName || "R").slice(0, 2).toUpperCase();
 
   return (
@@ -339,6 +243,17 @@ export function EstablishmentSection({
           </div>
 
           <div className="mt-5 space-y-4">
+            <label className="block text-sm">
+              Descrição do restaurante
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={280}
+                rows={3}
+                className="mt-2 block w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                placeholder="Conte ao cliente o que torna sua cozinha especial."
+              />
+            </label>
             <div>
               <label className="mb-1 block text-[10px] uppercase tracking-wider text-muted-foreground">
                 Nome do estabelecimento
@@ -405,135 +320,13 @@ export function EstablishmentSection({
               </div>
             </dl>
 
-            <div className="rounded-xl border border-border bg-background/40 p-4">
-              <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium">Cores da marca</p>
-                <p className="text-xs text-muted-foreground">
-                  Personalize seu cardápio público com a identidade visual do seu estabelecimento.
-                  Disponível em todos os planos.
-                </p>
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                {[
-                  {
-                    label: "Principal (fundo)",
-                    hint: "Cor de fundo do cardápio",
-                    value: brandColor,
-                    set: setBrandColor,
-                  },
-                  {
-                    label: "Secundária (texto)",
-                    hint: "Cor das letras",
-                    value: brandTextColor,
-                    set: setBrandTextColor,
-                  },
-                  {
-                    label: "Destaque",
-                    hint: "Preços e detalhes",
-                    value: brandAccentColor,
-                    set: setBrandAccentColor,
-                  },
-                  {
-                    label: "Cabeçalho",
-                    hint: "Topo do cardápio",
-                    value: brandHeaderColor,
-                    set: setBrandHeaderColor,
-                  },
-                  {
-                    label: "Cards",
-                    hint: "Fundo dos itens",
-                    value: brandCardColor,
-                    set: setBrandCardColor,
-                  },
-                  {
-                    label: "Botões",
-                    hint: "Cor dos botões",
-                    value: brandButtonColor,
-                    set: setBrandButtonColor,
-                  },
-                ].map((c) => (
-                  <div
-                    key={c.label}
-                    className="rounded-lg border border-border bg-background/60 p-3"
-                  >
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      {c.label}
-                    </p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground/80">{c.hint}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={c.value}
-                        onChange={(e) => c.set(e.target.value)}
-                        className="h-9 w-12 cursor-pointer rounded-lg border border-border bg-background p-1"
-                        aria-label={`Selecionar ${c.label}`}
-                      />
-                      <input
-                        type="text"
-                        value={c.value}
-                        onChange={(e) => c.set(e.target.value)}
-                        className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-mono outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
-                        placeholder="#000000"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div
-                  className="flex flex-1 flex-col gap-2 rounded-xl border border-border p-4"
-                  style={{ backgroundColor: brandColor, color: brandTextColor }}
-                >
-                  <div
-                    className="-mx-2 -mt-2 rounded-lg px-3 py-2 text-xs font-medium"
-                    style={{ backgroundColor: brandHeaderColor, color: brandTextColor }}
-                  >
-                    Cabeçalho
-                  </div>
-                  <div
-                    className="flex items-center justify-between rounded-lg p-3"
-                    style={{ backgroundColor: brandCardColor, color: brandTextColor }}
-                  >
-                    <span className="text-sm">Prato exemplo</span>
-                    <span className="text-sm font-medium" style={{ color: brandAccentColor }}>
-                      R$ 49,90
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="self-start rounded-full px-3 py-1.5 text-xs font-medium"
-                    style={{ backgroundColor: brandButtonColor, color: "#fff" }}
-                  >
-                    Botão
-                  </button>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={() => saveBrandColor()}
-                    disabled={savingColor || !colorsDirty}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
-                  >
-                    {savingColor ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Save className="h-4 w-4" />
-                    )}
-                    Salvar cores
-                  </button>
-                  <button
-                    type="button"
-                    onClick={resetBrandColors}
-                    disabled={savingColor}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-4 py-2.5 text-xs font-medium text-muted-foreground transition hover:text-foreground disabled:opacity-50"
-                  >
-                    Voltar ao padrão
-                  </button>
-                </div>
-              </div>
-            </div>
+            <Link
+              to="/settings"
+              search={{ tab: "appearance" }}
+              className="block rounded-xl border border-border bg-background/40 p-5 text-sm"
+            >
+              Personalizar cores, fontes e visual do cardápio →
+            </Link>
 
             {/* Promotional banner */}
             <div className="rounded-xl border border-border bg-background/40 p-4">

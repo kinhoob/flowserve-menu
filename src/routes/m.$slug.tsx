@@ -1,3 +1,10 @@
+import {
+  menuButtonStyle,
+  menuThemeStyle,
+  readAppearance,
+  readColors,
+  readableColor,
+} from "@/features/menu/appearance/appearance";
 import { FluxLogo, FluxMark } from "@/components/brand/logo";
 import type { DishModel } from "@/features/ar/model-assets";
 import { discoverMenu, type MenuFilter, type MenuSort } from "@/features/menu/discovery";
@@ -23,7 +30,7 @@ import {
   UtensilsCrossed,
   X,
 } from "lucide-react";
-import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 const DishModelDialog = lazy(() => import("@/features/ar/dish-model-dialog"));
@@ -86,7 +93,7 @@ function PublicMenuPage() {
         .maybeSingle();
       if (rErr) throw rErr;
       if (!r) throw notFound();
-      const [cats, items, modifiersMap, planRes] = await Promise.all([
+      const [cats, items, modifiersMap, planRes, appearanceRes] = await Promise.all([
         supabase
           .from("categories")
           .select("*")
@@ -101,6 +108,7 @@ function PublicMenuPage() {
           .order("position"),
         fetchModifiersForRestaurant(r.id),
         supabase.rpc("get_restaurant_plan", { p_slug: slug }),
+        supabase.from("restaurants").select("menu_appearance").eq("id", r.id).maybeSingle(),
       ]);
       if (cats.error) throw cats.error;
       if (items.error) throw items.error;
@@ -113,6 +121,7 @@ function PublicMenuPage() {
       const viewOnly = plan === "basic";
       return {
         restaurant: r,
+        appearance: readAppearance(appearanceRes.data?.menu_appearance),
         categories: cats.data ?? [],
         items: filteredItems as PublicItem[],
         modifiers: modifiersMap,
@@ -372,62 +381,33 @@ function PublicMenuPage() {
   const { restaurant, categories } = data;
   const currency = restaurant.currency;
 
-  const brandBg = restaurant.brand_color as string | null;
-  const brandText = restaurant.brand_text_color as string | null;
-  const brandAccent = restaurant.brand_accent_color as string | null;
-  const brandCard = restaurant.brand_card_color as string | null;
-  const brandHeader = restaurant.brand_header_color as string | null;
-  const brandButton = restaurant.brand_button_color as string | null;
+  const colors = readColors({
+    background: restaurant.brand_color,
+    text: restaurant.brand_text_color,
+    accent: restaurant.brand_accent_color,
+    card: restaurant.brand_card_color,
+    header: restaurant.brand_header_color,
+    button: restaurant.brand_button_color,
+  });
+  const appearance = data.appearance;
+  const brandAccent = colors.accent;
+  const readableOn = (color: string | null) => readableColor(color || colors.accent);
+  const brandStyle = menuThemeStyle(colors, appearance);
   const bannerEnabled = restaurant.banner_enabled === true;
   const bannerTitle = restaurant.banner_title as string | null;
   const bannerDescription = restaurant.banner_description as string | null;
   const bannerImage = restaurant.banner_image_url as string | null;
   const bannerCta = restaurant.banner_cta_label as string | null;
-  const hasBrand = !!(
-    brandBg ||
-    brandText ||
-    brandAccent ||
-    brandCard ||
-    brandHeader ||
-    brandButton
-  );
-
-  // Pick readable foreground for the accent (used as primary-foreground).
-  function readableOn(hex: string | null): string {
-    if (!hex) return "#0b0b0c";
-    const m = hex.replace("#", "");
-    if (m.length !== 6) return "#0b0b0c";
-    const r = parseInt(m.slice(0, 2), 16);
-    const g = parseInt(m.slice(2, 4), 16);
-    const b = parseInt(m.slice(4, 6), 16);
-    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    return lum > 0.6 ? "#0b0b0c" : "#ffffff";
-  }
-
-  const buttonColor = brandButton || brandAccent;
-  const brandStyle = hasBrand
-    ? ({
-        ...(brandBg ? { ["--background"]: brandBg } : {}),
-        ...(brandText ? { ["--foreground"]: brandText } : {}),
-        ...(brandCard ? { ["--card"]: brandCard, ["--surface"]: brandCard } : {}),
-        ...(buttonColor
-          ? {
-              ["--primary"]: buttonColor,
-              ["--primary-foreground"]: readableOn(buttonColor),
-            }
-          : {}),
-        ...(brandAccent ? { ["--accent"]: brandAccent } : {}),
-        backgroundColor: brandBg ?? undefined,
-        color: brandText ?? undefined,
-      } as React.CSSProperties)
-    : undefined;
-
   return (
-    <div className="min-h-screen bg-background text-foreground" style={brandStyle}>
-      <div
-        className="relative overflow-hidden border-b border-border bg-surface"
-        style={brandHeader ? { backgroundColor: brandHeader } : undefined}
-      >
+    <div
+      className="public-menu min-h-screen bg-background text-foreground"
+      style={brandStyle}
+      data-layout={appearance.layout}
+      data-photos={appearance.photos}
+      data-fit={appearance.imageFit}
+      data-align={appearance.headerAlign}
+    >
+      <div className="menu-header relative overflow-hidden border-b border-border bg-surface">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[680px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.15),transparent)] blur-2xl"
@@ -438,7 +418,7 @@ function PublicMenuPage() {
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           className="relative mx-auto max-w-3xl px-5 pb-8 pt-10"
         >
-          <div className="flex items-center gap-4">
+          <div className="menu-identity flex items-center gap-4">
             {restaurant.logo_url ? (
               <img
                 src={restaurant.logo_url}
@@ -449,7 +429,7 @@ function PublicMenuPage() {
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.18em] text-primary">Cardápio digital</p>
               <h1 className="mt-2 font-display text-4xl tracking-tight">
-                <span className="text-gradient-gold italic">{restaurant.name}</span>
+                <span>{restaurant.name}</span>
               </h1>
             </div>
           </div>
@@ -538,7 +518,16 @@ function PublicMenuPage() {
                   )}
                   {bannerDescription && <p className="text-sm opacity-90">{bannerDescription}</p>}
                   {bannerCta && (
-                    <span
+                    <button
+                      type="button"
+                      onClick={() =>
+                        document.getElementById("menu-catalog")?.scrollIntoView({
+                          behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                            ? "instant"
+                            : "smooth",
+                          block: "start",
+                        })
+                      }
                       className="mt-2 inline-flex w-fit items-center rounded-full px-3 py-1.5 text-xs font-medium"
                       style={{
                         backgroundColor: readableOn(brandAccent),
@@ -546,7 +535,7 @@ function PublicMenuPage() {
                       }}
                     >
                       {bannerCta}
-                    </span>
+                    </button>
                   )}
                 </div>
               </div>
@@ -584,7 +573,7 @@ function PublicMenuPage() {
         )}
       </div>
 
-      <main className="mx-auto max-w-3xl px-5 pb-32 pt-6">
+      <main id="menu-catalog" className="mx-auto max-w-3xl scroll-mt-20 px-5 pb-32 pt-6">
         <div className="mb-8">
           <MenuDiscovery
             query={query}
@@ -636,16 +625,16 @@ function PublicMenuPage() {
                 {cat.description && (
                   <p className="mt-1 text-xs text-muted-foreground">{cat.description}</p>
                 )}
-                <ul className="mt-4 space-y-3 stagger">
+                <ul data-menu-grid className="mt-4 space-y-3 stagger">
                   {items.map((it) => {
                     const hasMods = (data.modifiers.get(it.id)?.length ?? 0) > 0;
                     return (
                       <motion.li
                         key={it.id}
                         whileTap={{ scale: 0.99 }}
-                        className="group flex gap-3 overflow-hidden rounded-2xl border border-border bg-surface p-3 transition hover:border-[oklch(0.78_0.13_84_/_0.3)]"
+                        className="menu-card group flex gap-3 overflow-hidden rounded-2xl border border-border bg-surface p-3 transition hover:border-[oklch(0.78_0.13_84_/_0.3)]"
                       >
-                        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-background/60 sm:h-28 sm:w-28">
+                        <div className="menu-photo relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-background/60 sm:h-28 sm:w-28">
                           {it.image_url ? (
                             <img
                               src={it.image_url}
@@ -697,10 +686,10 @@ function PublicMenuPage() {
                               </span>
                             </div>
                           </div>
-                          {it.portion_description && (
+                          {appearance.showPortion && it.portion_description && (
                             <p className="mt-1 text-xs text-primary">{it.portion_description}</p>
                           )}
-                          {it.description && (
+                          {appearance.showDescription && it.description && (
                             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                               {it.description}
                             </p>
@@ -717,10 +706,11 @@ function PublicMenuPage() {
                             {!data.viewOnly && (
                               <button
                                 onClick={() => handleAdd(it)}
+                                style={menuButtonStyle(colors, appearance)}
                                 className="inline-flex items-center gap-1 rounded-lg bg-primary/90 px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:bg-primary"
                               >
                                 <Plus className="h-3.5 w-3.5" />{" "}
-                                {hasMods ? "Personalizar" : "Adicionar"}
+                                {hasMods ? "Personalizar" : appearance.buttonLabel}
                               </button>
                             )}
                           </div>
@@ -749,6 +739,7 @@ function PublicMenuPage() {
             exit={{ y: 80, opacity: 0 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             onClick={() => setOpenCart(true)}
+            style={menuButtonStyle(colors, appearance, colors.background)}
             className="fixed inset-x-4 bottom-4 z-30 mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl border border-[oklch(0.78_0.13_84_/_0.3)] bg-primary px-5 py-3.5 text-primary-foreground shadow-[0_30px_60px_-20px_oklch(0.78_0.13_84_/_0.5)]"
           >
             <span className="flex items-center gap-2 text-sm font-medium">
@@ -787,7 +778,7 @@ function PublicMenuPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-x-0 bottom-0 z-50 max-h-[88vh] overflow-hidden rounded-t-3xl border-t border-border bg-surface"
+              className="menu-drawer fixed inset-x-0 bottom-0 z-50 max-h-[88vh] overflow-hidden rounded-t-3xl border-t border-border bg-surface"
             >
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
                 <div>
@@ -908,6 +899,7 @@ function PublicMenuPage() {
                     </div>
                     <button
                       onClick={placeOrder}
+                      style={menuButtonStyle(colors, appearance)}
                       disabled={
                         submitting ||
                         cart.length === 0 ||
@@ -953,7 +945,21 @@ function PublicMenuPage() {
             </div>
           }
         >
-          <DishModelDialog item={modelItem} onClose={() => setModelItem(null)} />
+          <DishModelDialog
+            item={modelItem}
+            onClose={() => setModelItem(null)}
+            theme={
+              {
+                ...brandStyle,
+                backgroundColor: colors.card,
+                color: brandStyle["--menu-card-text"],
+                "--foreground": brandStyle["--menu-card-text"],
+                "--muted-foreground": brandStyle["--menu-card-muted"],
+                "--primary": brandStyle["--menu-card-accent"],
+                "--primary-foreground": brandStyle["--menu-card-primary-foreground"],
+              } as React.CSSProperties
+            }
+          />
         </Suspense>
       )}
     </div>

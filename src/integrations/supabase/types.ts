@@ -388,6 +388,7 @@ export type Database = {
       };
       restaurants: {
         Row: {
+          menu_appearance: Json;
           banner_cta_label: string | null;
           banner_description: string | null;
           banner_enabled: boolean;
@@ -412,6 +413,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          menu_appearance?: Json;
           banner_cta_label?: string | null;
           banner_description?: string | null;
           banner_enabled?: boolean;
@@ -436,6 +438,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          menu_appearance?: Json;
           banner_cta_label?: string | null;
           banner_description?: string | null;
           banner_enabled?: boolean;

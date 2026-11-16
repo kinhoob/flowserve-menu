@@ -362,3 +362,136 @@
   font-size: 13px;
   font-weight: 600;
 }
+
+/* The editor and public menu share the same presentation rules. */
+.appearance-studio {
+  container-type: inline-size;
+}
+.appearance-studio-layout {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+}
+.appearance-preview {
+  width: min(100%, 340px);
+  margin-inline: auto;
+}
+@container (min-width: 760px) {
+  .appearance-studio-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+  .appearance-preview {
+    position: sticky;
+    top: 100px;
+  }
+}
+.public-menu {
+  overflow-wrap: anywhere;
+}
+.public-menu :is(h1, h2, h3, h4, h5, .font-display) {
+  font-family: var(--menu-font);
+}
+.public-menu .menu-header {
+  background: var(--menu-header);
+  color: var(--menu-header-text);
+  --foreground: var(--menu-header-text);
+  --muted-foreground: var(--menu-header-muted);
+  --primary: var(--menu-header-accent);
+  --primary-foreground: var(--menu-header-primary-foreground);
+}
+.public-menu[data-align="center"] .menu-header {
+  text-align: center;
+}
+.public-menu[data-align="center"] .menu-identity {
+  flex-direction: column;
+  justify-content: center;
+}
+.public-menu[data-align="center"] .menu-header .flex-wrap {
+  justify-content: center;
+}
+.public-menu .menu-card,
+.public-menu .menu-drawer {
+  color: var(--menu-card-text);
+  --foreground: var(--menu-card-text);
+  --muted-foreground: var(--menu-card-muted);
+  --primary: var(--menu-card-accent);
+  --primary-foreground: var(--menu-card-primary-foreground);
+  --border: var(--menu-card-border);
+}
+.public-menu .menu-card {
+  border-radius: var(--menu-radius);
+  min-width: 0;
+}
+.public-menu[data-photos="hidden"] .menu-photo {
+  display: none;
+}
+.public-menu[data-fit="contain"] .menu-photo img {
+  object-fit: contain;
+}
+.public-menu[data-layout="compact"] .menu-photo {
+  width: 64px;
+  height: 64px;
+}
+.public-menu[data-layout="compact"] .menu-card {
+  padding: 10px;
+  gap: 10px;
+}
+.public-menu[data-photos="cover"] .menu-card {
+  flex-direction: column;
+}
+.public-menu[data-photos="cover"] .menu-photo {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+.public-menu[data-layout="grid"] [data-menu-grid] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.public-menu[data-layout="grid"] [data-menu-grid] > * {
+  margin-top: 0;
+}
+.public-menu[data-layout="grid"] .menu-card {
+  flex-direction: column;
+}
+.public-menu[data-layout="grid"] .menu-photo {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+}
+.public-menu[data-layout="grid"][data-photos="cover"] .menu-photo {
+  aspect-ratio: 16 / 9;
+}
+.public-menu[data-layout="grid"] .menu-card h3 {
+  font-size: 0.875rem;
+}
+.public-menu[data-layout="grid"] .menu-card .items-start.justify-between {
+  flex-wrap: wrap;
+}
+.public-menu .menu-photo img {
+  transition: transform 0.3s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .public-menu .menu-photo img {
+    transition: none;
+  }
+}
+
+.public-menu .menu-drawer {
+  --background: var(--surface);
+}
+.public-menu .menu-discovery button:not([aria-pressed="true"]) {
+  color: var(--menu-card-text);
+}
+.public-menu .menu-header :is(.bg-background\/60) {
+  background: transparent;
+}
+.appearance-jump {
+  display: block;
+}
+@container (min-width:760px) {
+  .appearance-jump {
+    display: none;
+  }
+}

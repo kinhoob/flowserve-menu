@@ -131,6 +131,41 @@ try {
       "SELECT id FROM restaurants WHERE owner_id='99999999-9999-4999-8999-999999999999'",
     )
   ).rows[0].id;
+  await client.query("SET ROLE authenticated");
+  await client.query(
+    "SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false)",
+  );
+  const styled = await client.query("UPDATE restaurants SET menu_appearance=$1 WHERE id=$2", [
+    JSON.stringify({
+      layout: "grid",
+      font: "classic",
+      showDescription: false,
+      buttonLabel: "Pedir",
+    }),
+    rid,
+  ]);
+  assert.equal(styled.rowCount, 1);
+  const foreignStyle = await client.query("UPDATE restaurants SET menu_appearance=$1 WHERE id=$2", [
+    JSON.stringify({ layout: "compact" }),
+    other,
+  ]);
+  assert.equal(foreignStyle.rowCount, 0);
+  await client.query("RESET ROLE");
+  for (const invalid of [
+    { layout: null },
+    { font: "injected-font" },
+    { showDescription: "false" },
+    { css: "display:none" },
+    { buttonLabel: " " },
+  ]) {
+    await assert.rejects(
+      client.query("UPDATE restaurants SET menu_appearance=$1 WHERE id=$2", [
+        JSON.stringify(invalid),
+        rid,
+      ]),
+    );
+  }
+  console.log("PASS: menu customization owner scope, typed preferences and invalid JSON rejection");
   const otherCat = (
     await client.query(
       "INSERT INTO categories(restaurant_id,name) VALUES($1,'Other') RETURNING id",

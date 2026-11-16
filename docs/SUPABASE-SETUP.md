@@ -31,3 +31,11 @@ O instalador combinado foi validado em PostgreSQL descartável com o mesmo teste
 ## Confirmação por link
 
 Depois do cadastro, abra o e-mail e clique no link de confirmação. Ele retorna ao aplicativo no endereço permitido. A sessão é reconhecida automaticamente no mesmo navegador. Se o e-mail abrir em outro navegador, use “Já confirmei. Entrar” na tela original e faça login com sua senha. O aplicativo não pede um código de seis dígitos. Reenvios têm espera local de 60 segundos, além dos limites impostos pelo Supabase. Não é preciso desativar a confirmação por e-mail.
+
+## Personalização do cardápio em um banco já instalado
+
+Aplique somente `supabase/migrations/20261115000100_menu_appearance.sql` no SQL Editor do projeto correspondente (ou pelo fluxo de migrações já reconciliado). Não execute novamente o bootstrap. A migração adiciona preferências JSON validadas à tabela de restaurantes, mantém as seis cores existentes e utiliza as mesmas políticas de proprietário. Foram verificados o isolamento entre restaurantes e a rejeição de valores inválidos no PostgreSQL local.
+
+Em Configurações → Personalização, cada restaurante escolhe a própria paleta, fonte, disposição dos pratos, cantos, fotos, enquadramento, alinhamento do cabeçalho, estilo/texto dos botões e exibição de descrições/porções. A prévia utiliza as mesmas regras visuais do cardápio público e os primeiros pratos disponíveis; sem produtos, exibe exemplos identificados. Os contrastes são ajustados para leitura. Nome, descrição, logo e banner permanecem em Estabelecimento. O botão do banner leva ao catálogo.
+
+Alterações são locais à prévia até “Publicar personalização”; “Descartar” recupera a configuração publicada e “Restaurar padrão na prévia” também exige publicação. Ao sair da aba, alterações não publicadas são descartadas. As preferências são gravadas junto às cores em uma atualização única sob RLS. Antes da migração, a publicação fica bloqueada e o cardápio continua com as preferências padrão, preservando a paleta já existente. A demonstração `/demo?view=customize` não grava nada no banco.

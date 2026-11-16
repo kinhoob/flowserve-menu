@@ -1,3 +1,4 @@
+import { AppearanceDemo } from "@/features/menu/appearance/appearance-studio";
 import { FluxLogo } from "@/components/brand/logo";
 import { DEMO_DISHES, DEMO_ORDERS, type DemoOrder } from "@/features/demo/demo-data";
 import { OperationPreview } from "@/features/demo/operation-preview";
@@ -29,7 +30,9 @@ export const Route = createFileRoute("/demo")({
   head: () => ({
     meta: [{ title: "Explore o Flux Menu — Demonstração" }, { name: "robots", content: "noindex" }],
   }),
-  validateSearch: z.object({ view: z.enum(["operation", "menu"]).default("operation") }),
+  validateSearch: z.object({
+    view: z.enum(["operation", "menu", "customize"]).default("operation"),
+  }),
   component: DemoPage,
 });
 function DemoPage() {
@@ -151,16 +154,17 @@ function DemoPage() {
         </div>
         <nav
           aria-label="Visões da demonstração"
-          className="mb-8 flex w-fit gap-1 rounded-2xl border border-border bg-surface p-1.5"
+          className="mb-8 flex max-w-full w-fit flex-wrap gap-1 rounded-2xl border border-border bg-surface p-1.5"
         >
           {[
             { key: "operation", label: "Operação", icon: ChefHat },
             { key: "menu", label: "Cardápio do cliente", icon: UtensilsCrossed },
+            { key: "customize", label: "Personalizar", icon: Sparkles },
           ].map(({ key, label, icon: Icon }) => (
             <Link
               key={key}
               to="/demo"
-              search={{ view: key === "operation" ? "operation" : "menu" }}
+              search={{ view: key as "operation" | "menu" | "customize" }}
               aria-current={view === key ? "page" : undefined}
               className="relative inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-medium"
             >
@@ -183,7 +187,9 @@ function DemoPage() {
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.2 }}
           >
-            {view === "operation" ? (
+            {view === "customize" ? (
+              <AppearanceDemo />
+            ) : view === "operation" ? (
               <div className="grid items-start gap-6 lg:grid-cols-[1fr_320px]">
                 <div>
                   <div

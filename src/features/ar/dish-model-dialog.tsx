@@ -1,13 +1,16 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ModelViewerElement } from "@google/model-viewer";
+import type { CSSProperties } from "react";
 import { createElement, useEffect, useRef, useState } from "react";
 import type { DishModel } from "./model-assets";
 
 export default function DishModelDialog({
   item,
   onClose,
+  theme,
 }: {
   item: DishModel;
+  theme?: CSSProperties;
   onClose: () => void;
 }) {
   const viewer = useRef<ModelViewerElement>(null);
@@ -57,7 +60,10 @@ export default function DishModelDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto border-border bg-surface">
+      <DialogContent
+        style={theme}
+        className="public-menu max-h-[90vh] max-w-xl overflow-y-auto border-border bg-surface"
+      >
         <DialogHeader>
           <DialogTitle>{item.name}</DialogTitle>
         </DialogHeader>
