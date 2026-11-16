@@ -4,11 +4,11 @@ A rota `/gestao` é exclusiva dos criadores autorizados. O link **Gestão Flux**
 
 ## Ativar
 
-1. As duas pessoas precisam ter contas cadastradas no Flux e e-mails confirmados.
+1. Cada administrador precisa ter uma conta cadastrada no Flux e o e-mail confirmado.
 2. Execute o SQL privado de ativação no SQL Editor do Supabase, como `postgres`. O pacote inclui as atualizações anteriores pendentes e a nova migração da gestão numa única transação. Se alguma conta não existir ou não estiver confirmada, nenhuma parte da atualização será aplicada.
 3. Use a versão atualizada do aplicativo, entre com uma das contas autorizadas e abra `/gestao`. O SQL não envia convites nem cria senhas.
 
-O gerador `scripts/build-platform-access.mjs` recebe os dois e-mails e um caminho de saída fora do repositório. **Não publique o arquivo privado:** ele contém os e-mails dos criadores. O arquivo público `supabase/fluxqr-atualizacao-beta.sql` instala a estrutura, mas não libera nenhuma conta. Não há um botão público para se tornar administrador.
+O gerador `scripts/build-platform-access.mjs` recebe um ou dois e-mails e um caminho de saída fora do repositório. **Não publique o arquivo privado:** ele contém os e-mails dos criadores. O arquivo público `supabase/fluxqr-atualizacao-beta.sql` instala a estrutura, mas não libera nenhuma conta. Não há um botão público para se tornar administrador.
 
 A associação é feita pelo ID da conta já confirmada, não por metadados editáveis do perfil. Recriar uma conta com o mesmo e-mail não transfere a permissão automaticamente. Para revogar uma conta, o responsável pelo banco pode executar `UPDATE public.platform_admins SET active=false WHERE user_id='ID_DA_CONTA';`. A revogação vale na próxima chamada ao banco, inclusive com a sessão ainda aberta.
 
@@ -38,4 +38,4 @@ Cada alteração grava o administrador, e-mail do autor naquele momento, conta a
 
 As tabelas de administradores, acessos manuais e histórico têm RLS e não concedem leitura nem escrita direta ao navegador, inclusive aos administradores. As consultas e mudanças passam por funções que conferem a permissão atual no banco. Usuários comuns só consultam o próprio acesso efetivo; não podem escolher outro usuário nem se conceder privilégios pelo perfil.
 
-`npm run test:db` verifica dois administradores confirmados, isolamento de clientes, bloqueio de acesso anônimo, extensão de trials ativos/vencidos, limites e motivos, concorrência, reenvios, auditoria, integração com eventos reais de cobrança simulados localmente, restauração e revogação da permissão. Os testes usam um banco local isolado e não alteram o Supabase real.
+`npm run test:db` verifica a ativação de um ou dois administradores confirmados, isolamento de clientes, bloqueio de acesso anônimo, extensão de trials ativos/vencidos, limites e motivos, concorrência, reenvios, auditoria, integração com eventos reais de cobrança simulados localmente, restauração e revogação da permissão. Os testes usam um banco local isolado e não alteram o Supabase real.

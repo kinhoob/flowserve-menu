@@ -25,6 +25,13 @@ export async function verifyPlatformManagement(client, { rid, other }) {
   await client.query("UPDATE auth.users SET email_confirmed_at=now() WHERE id=ANY($1::uuid[])", [
     [admin, partner],
   ]);
+  await client.query(platformActivationSQL(["creator@example.invalid"]));
+  assert.equal((await client.query("SELECT count(*) AS n FROM platform_admins")).rows[0].n, "1");
+  assert.equal(
+    (await client.query("SELECT count(*) AS n FROM platform_admins WHERE user_id=$1", [partner]))
+      .rows[0].n,
+    "0",
+  );
   await client.query(activation);
   await client.query(activation);
   assert.equal((await client.query("SELECT count(*) AS n FROM platform_admins")).rows[0].n, "2");
