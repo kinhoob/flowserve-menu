@@ -495,3 +495,119 @@
     display: none;
   }
 }
+
+/* Complete restaurant identity: same rules in the studio and public menu. */
+.public-menu .menu-cover {
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  background: var(--menu-header);
+}
+.public-menu .menu-cover[data-height="tall"] {
+  height: 300px;
+}
+.appearance-preview .menu-cover {
+  height: 120px;
+}
+.appearance-preview .menu-cover[data-height="tall"] {
+  height: 200px;
+}
+.public-menu[data-logo-shape="circle"] .menu-logo {
+  border-radius: 50%;
+}
+.public-menu[data-logo-shape="square"] .menu-logo {
+  border-radius: 0;
+}
+.public-menu[data-logo-size="large"] .menu-logo {
+  width: 96px;
+  height: 96px;
+}
+.public-menu[data-card-style="flat"] .menu-card {
+  border-color: transparent;
+}
+.public-menu[data-card-style="elevated"] .menu-card {
+  border-color: transparent;
+  box-shadow: 0 8px 22px #00000018;
+}
+.public-menu[data-spacing="airy"] .menu-card {
+  padding: 1.25rem;
+}
+.public-menu[data-spacing="airy"] [data-menu-grid] {
+  gap: 1.25rem;
+}
+.public-menu[data-spacing="airy"] [data-menu-grid] > * + * {
+  margin-top: 1.25rem;
+}
+.public-menu[data-layout="grid"][data-spacing="airy"] [data-menu-grid] > * {
+  margin-top: 0;
+}
+.public-menu .menu-card :is(h3, h5) {
+  font-size: calc(0.875rem * var(--menu-text-scale));
+}
+.public-menu .menu-card p {
+  font-size: calc(0.75rem * var(--menu-text-scale));
+}
+.public-menu .menu-card .font-display {
+  font-size: calc(1rem * var(--menu-text-scale));
+}
+.public-menu[data-heading-style="accent"] .menu-section-title {
+  color: var(--primary);
+}
+.public-menu[data-heading-style="centered"] .menu-section-title {
+  text-align: center;
+}
+.public-menu[data-pattern="dots"] {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--foreground) 10%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 18px 18px;
+}
+.public-menu[data-pattern="lines"] {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 18px,
+    color-mix(in srgb, var(--foreground) 4%, transparent) 18px,
+    color-mix(in srgb, var(--foreground) 4%, transparent) 19px
+  );
+}
+.public-menu .menu-categories button {
+  border-radius: 999px;
+}
+.public-menu .menu-categories button[aria-current="true"] {
+  color: var(--primary);
+  background: var(--gold-soft);
+}
+.public-menu[data-category-style="underline"] .menu-categories button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.public-menu[data-category-style="underline"] .menu-categories button[aria-current="true"] {
+  border-bottom-color: var(--primary);
+}
+.public-menu[data-category-style="blocks"] .menu-categories button {
+  border-radius: var(--menu-button-radius);
+  border: 1px solid var(--border);
+}
+.public-menu .menu-signature {
+  background: var(--background);
+}
+.public-menu .menu-header-glow {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--menu-header-accent) 15%, transparent),
+    transparent
+  );
+}
+.public-menu .menu-categories {
+  background-color: var(--menu-header);
+  color: var(--menu-header-text);
+  --foreground: var(--menu-header-text);
+  --muted-foreground: var(--menu-header-muted);
+  --primary: var(--menu-header-accent);
+  --gold-soft: var(--menu-header);
+}

@@ -10,12 +10,40 @@ import {
   DEFAULT_COLORS,
   brandColumns,
   colorsSchema,
+  isCoverUrl,
   readAppearance,
   readColors,
 } from "./appearance";
 
 export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
   const qc = useQueryClient();
+  const [uploadingCover, setUploadingCover] = useState(false);
+  async function uploadCover(file: File) {
+    if (
+      !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+      file.size > 5 * 1024 * 1024
+    ) {
+      toast.error("Envie JPG, PNG ou WEBP de até 5 MB");
+      return;
+    }
+    setUploadingCover(true);
+    try {
+      const extension =
+        file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+      const path = `${restaurant.owner_id}/${restaurant.id}/cover-${crypto.randomUUID()}.${extension}`;
+      const { error } = await supabase.storage
+        .from("menu-images")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (error) throw error;
+      const { data } = supabase.storage.from("menu-images").getPublicUrl(path);
+      setDraft((d) => ({ ...d, appearance: { ...d.appearance, coverUrl: data.publicUrl } }));
+      toast.success("Capa enviada. Publique para exibir no cardápio.");
+    } catch (error) {
+      toast.error(getErrorDetails(error).message ?? "Não foi possível enviar a capa");
+    } finally {
+      setUploadingCover(false);
+    }
+  }
   const incoming = useMemo(
     () => ({
       colors: readColors({
@@ -34,7 +62,9 @@ export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
   const ready = Object.hasOwn(restaurant, "menu_appearance");
   const dirty = JSON.stringify(draft) !== JSON.stringify(incoming);
   const valid =
-    colorsSchema.safeParse(draft.colors).success && !!draft.appearance.buttonLabel.trim();
+    colorsSchema.safeParse(draft.colors).success &&
+    !!draft.appearance.buttonLabel.trim() &&
+    isCoverUrl(draft.appearance.coverUrl);
   const { data: dishes } = useQuery({
     queryKey: ["appearance-preview", restaurant.id],
     queryFn: async () => {
@@ -65,7 +95,13 @@ export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
         .eq("id", restaurant.id)
         .select("id")
         .single();
-      if (error) throw error;
+      if (error) {
+        if (error.code === "23514")
+          throw new Error(
+            "Aplique a atualização de personalização completa no Supabase antes de publicar.",
+          );
+        throw error;
+      }
       if (!data) throw new Error("Não foi possível publicar este cardápio.");
       return { colors: colorsSchema.parse(draft.colors), appearance: payload.menu_appearance };
     },
@@ -97,12 +133,24 @@ export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
           Supabase e atualize esta página.
         </p>
       )}
-      <fieldset disabled={save.isPending} className="min-w-0">
+      <fieldset disabled={save.isPending || uploadingCover} className="min-w-0">
         <AppearanceStudio
+          onUploadCover={uploadCover}
+          uploadingCover={uploadingCover}
           colors={draft.colors}
           appearance={draft.appearance}
-          onColors={(colors) => setDraft((d) => ({ ...d, colors }))}
-          onAppearance={(appearance) => setDraft((d) => ({ ...d, appearance }))}
+          onColors={(colors) =>
+            setDraft((d) => ({
+              ...d,
+              colors: typeof colors === "function" ? colors(d.colors) : colors,
+            }))
+          }
+          onAppearance={(appearance) =>
+            setDraft((d) => ({
+              ...d,
+              appearance: typeof appearance === "function" ? appearance(d.appearance) : appearance,
+            }))
+          }
           name={restaurant.name}
           description={restaurant.description}
           logo={restaurant.logo_url}
@@ -138,7 +186,7 @@ export function AppearanceEditor({ restaurant }: { restaurant: Restaurant }) {
             Descartar
           </button>
           <button
-            disabled={!ready || !dirty || !valid || save.isPending}
+            disabled={!ready || !dirty || !valid || save.isPending || uploadingCover}
             onClick={() => save.mutate()}
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
           >

@@ -1,11 +1,13 @@
+import { MenuCover, MenuSignature } from "@/features/menu/appearance/menu-identity";
 import {
   menuButtonStyle,
   menuThemeStyle,
+  menuAppearanceAttributes,
   readAppearance,
   readColors,
   readableColor,
 } from "@/features/menu/appearance/appearance";
-import { FluxLogo, FluxMark } from "@/components/brand/logo";
+import { FluxLogo } from "@/components/brand/logo";
 import type { DishModel } from "@/features/ar/model-assets";
 import { discoverMenu, type MenuFilter, type MenuSort } from "@/features/menu/discovery";
 import { MenuDiscovery } from "@/features/menu/menu-discovery";
@@ -402,15 +404,13 @@ function PublicMenuPage() {
     <div
       className="public-menu min-h-screen bg-background text-foreground"
       style={brandStyle}
-      data-layout={appearance.layout}
-      data-photos={appearance.photos}
-      data-fit={appearance.imageFit}
-      data-align={appearance.headerAlign}
+      {...menuAppearanceAttributes(appearance)}
     >
+      <MenuCover appearance={appearance} />
       <div className="menu-header relative overflow-hidden border-b border-border bg-surface">
         <div
           aria-hidden
-          className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[680px] -translate-x-1/2 rounded-full bg-[radial-gradient(closest-side,oklch(0.78_0.13_84_/_0.15),transparent)] blur-2xl"
+          className="pointer-events-none absolute -top-40 left-1/2 h-[420px] w-[680px] -translate-x-1/2 rounded-full menu-header-glow blur-2xl"
         />
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -423,16 +423,33 @@ function PublicMenuPage() {
               <img
                 src={restaurant.logo_url}
                 alt={`Logo ${restaurant.name}`}
-                className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-1 ring-[oklch(0.78_0.13_84_/_0.3)] shadow-[0_8px_24px_-12px_oklch(0.78_0.13_84_/_0.5)]"
+                className="menu-logo h-16 w-16 shrink-0 rounded-2xl object-cover ring-1 ring-[oklch(0.78_0.13_84_/_0.3)] shadow-[0_8px_24px_-12px_oklch(0.78_0.13_84_/_0.5)]"
               />
-            ) : null}
+            ) : (
+              <div
+                className="menu-logo grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-primary/10 text-xl font-semibold text-primary"
+                aria-label="Iniciais do restaurante"
+              >
+                {restaurant.name
+                  .split(" ")
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((n) => n[0])
+                  .join("")}
+              </div>
+            )}
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.18em] text-primary">Cardápio digital</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-primary">
+                {appearance.tagline}
+              </p>
               <h1 className="mt-2 font-display text-4xl tracking-tight">
                 <span>{restaurant.name}</span>
               </h1>
             </div>
           </div>
+          {appearance.welcome && (
+            <p className="mt-4 whitespace-pre-line text-sm">{appearance.welcome}</p>
+          )}
           {!data.kitchenOpen && (
             <div className="mt-4 rounded-xl border border-[oklch(0.62_0.21_25_/_0.4)] bg-[oklch(0.62_0.21_25_/_0.08)] px-4 py-3 text-sm text-[oklch(0.85_0.12_25)]">
               Cozinha encerrada. Apenas bebidas disponíveis.
@@ -544,13 +561,14 @@ function PublicMenuPage() {
         </motion.div>
 
         {!isDiscovering && (
-          <nav className="sticky top-0 z-10 -mx-px overflow-x-auto border-t border-border bg-background/90 backdrop-blur">
+          <nav className="menu-categories sticky top-0 z-10 -mx-px overflow-x-auto border-t border-border bg-background/90 backdrop-blur">
             <div className="mx-auto flex max-w-3xl gap-1 px-3 py-2">
               {categories.map((c) => {
                 const active = c.id === activeCat;
                 return (
                   <button
                     key={c.id}
+                    aria-current={active ? "true" : undefined}
                     onClick={() => {
                       setActiveCat(c.id);
                       document
@@ -621,7 +639,9 @@ function PublicMenuPage() {
             if (!items.length) return null;
             return (
               <section key={cat.id} id={`cat-${cat.id}`} className="mb-10 scroll-mt-20">
-                <h2 className="font-display text-2xl tracking-tight">{cat.name}</h2>
+                <h2 className="menu-section-title font-display text-2xl tracking-tight">
+                  {cat.name}
+                </h2>
                 {cat.description && (
                   <p className="mt-1 text-xs text-muted-foreground">{cat.description}</p>
                 )}
@@ -632,7 +652,7 @@ function PublicMenuPage() {
                       <motion.li
                         key={it.id}
                         whileTap={{ scale: 0.99 }}
-                        className="menu-card group flex gap-3 overflow-hidden rounded-2xl border border-border bg-surface p-3 transition hover:border-[oklch(0.78_0.13_84_/_0.3)]"
+                        className="menu-card group flex gap-3 overflow-hidden rounded-2xl border border-border bg-surface p-3 transition hover:border-primary/30"
                       >
                         <div className="menu-photo relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-background/60 sm:h-28 sm:w-28">
                           {it.image_url ? (
@@ -932,11 +952,7 @@ function PublicMenuPage() {
         }}
       />
 
-      <footer className="mt-10 flex items-center justify-center gap-1.5 pb-6 text-[11px] text-muted-foreground/70">
-        <span>Feito no</span>
-        <FluxMark />
-        <span className="font-medium">Flux Menu</span>
-      </footer>
+      <MenuSignature appearance={appearance} name={restaurant.name} />
       {modelItem && (
         <Suspense
           fallback={

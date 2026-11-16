@@ -141,6 +141,10 @@ try {
       font: "classic",
       showDescription: false,
       buttonLabel: "Pedir",
+      coverUrl: "https://cdn.example/cover.webp",
+      categoryStyle: "underline",
+      footerText: "Bem-vindo",
+      showFluxBrand: false,
     }),
     rid,
   ]);
@@ -157,6 +161,12 @@ try {
     { showDescription: "false" },
     { css: "display:none" },
     { buttonLabel: " " },
+    { coverUrl: "javascript:alert(1)" },
+    { coverUrl: "http://cdn.example/x.jpg" },
+    { coverUrl: null },
+    { headingStyle: "injected" },
+    { tagline: "x".repeat(61) },
+    { showFluxBrand: "false" },
   ]) {
     await assert.rejects(
       client.query("UPDATE restaurants SET menu_appearance=$1 WHERE id=$2", [
@@ -165,6 +175,20 @@ try {
       ]),
     );
   }
+  const beforeReplay = (
+    await client.query("SELECT menu_appearance FROM restaurants WHERE id=$1", [rid])
+  ).rows[0].menu_appearance;
+  await client.query(
+    fs.readFileSync(
+      path.join(root, "supabase/migrations/20261116000100_complete_menu_identity.sql"),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(
+    (await client.query("SELECT menu_appearance FROM restaurants WHERE id=$1", [rid])).rows[0]
+      .menu_appearance,
+    beforeReplay,
+  );
   console.log("PASS: menu customization owner scope, typed preferences and invalid JSON rejection");
   const otherCat = (
     await client.query(

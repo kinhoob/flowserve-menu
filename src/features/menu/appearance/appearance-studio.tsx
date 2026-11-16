@@ -1,14 +1,17 @@
+import { MenuCover, MenuSignature } from "./menu-identity";
 import { Switch } from "@/components/ui/switch";
 import { DEMO_DISHES } from "@/features/demo/demo-data";
 import { formatPrice } from "@/lib/format";
 import { Check, Palette, Plus, Smartphone, UtensilsCrossed } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   DEFAULT_COLORS,
   MENU_PRESETS,
   colorsSchema,
   menuButtonStyle,
   menuThemeStyle,
+  menuAppearanceAttributes,
+  isCoverUrl,
   readAppearance,
   readColors,
   type MenuAppearance,
@@ -32,11 +35,15 @@ export function AppearanceStudio({
   logo,
   dishes,
   currency = "BRL",
+  onUploadCover,
+  uploadingCover = false,
 }: {
+  onUploadCover?: (file: File) => Promise<void>;
+  uploadingCover?: boolean;
   colors: MenuColors;
   appearance: MenuAppearance;
-  onColors: (value: MenuColors) => void;
-  onAppearance: (value: MenuAppearance) => void;
+  onColors: Dispatch<SetStateAction<MenuColors>>;
+  onAppearance: Dispatch<SetStateAction<MenuAppearance>>;
   name?: string;
   description?: string | null;
   logo?: string | null;
@@ -70,7 +77,7 @@ export function AppearanceStudio({
               type="button"
               key={String(o.value)}
               aria-pressed={appearance[key] === o.value}
-              onClick={() => onAppearance({ ...appearance, [key]: o.value })}
+              onClick={() => onAppearance((current) => ({ ...current, [key]: o.value }))}
               className={`min-h-10 rounded-xl border px-3 py-2 text-xs transition ${appearance[key] === o.value ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:text-foreground"}`}
             >
               {appearance[key] === o.value && <Check className="mr-1 inline h-3 w-3" />}
@@ -142,7 +149,9 @@ export function AppearanceStudio({
                       type="color"
                       aria-label={`Escolher cor: ${label}`}
                       value={safe[key]}
-                      onChange={(e) => onColors({ ...colors, [key]: e.target.value })}
+                      onChange={(e) =>
+                        onColors((current) => ({ ...current, [key]: e.target.value }))
+                      }
                       className="h-8 w-9 cursor-pointer border-0 bg-transparent p-0"
                     />
                     <input
@@ -150,7 +159,9 @@ export function AppearanceStudio({
                       value={colors[key]}
                       maxLength={7}
                       spellCheck={false}
-                      onChange={(e) => onColors({ ...colors, [key]: e.target.value })}
+                      onChange={(e) =>
+                        onColors((current) => ({ ...current, [key]: e.target.value }))
+                      }
                       className="w-full min-w-0 bg-transparent font-mono text-xs outline-none"
                     />
                   </span>
@@ -169,6 +180,117 @@ export function AppearanceStudio({
           </section>
           <section className="space-y-5 rounded-2xl border border-border bg-surface p-5">
             <h3 className="font-semibold">Composição do cardápio</h3>
+            <h3 className="font-semibold">Identidade e boas-vindas</h3>
+            <label className="block text-sm">
+              Imagem de capa (URL HTTPS)
+              <input
+                type="url"
+                value={appearance.coverUrl}
+                maxLength={2048}
+                onChange={(e) =>
+                  onAppearance((current) => ({ ...current, coverUrl: e.target.value }))
+                }
+                placeholder="https://…"
+                className="mt-2 block w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+              />
+            </label>
+            {!isCoverUrl(appearance.coverUrl) && (
+              <p role="alert" className="text-xs text-destructive">
+                Use um endereço HTTPS válido, sem usuário ou senha.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {onUploadCover && (
+                <label className="cursor-pointer rounded-xl border border-border px-3 py-2 text-xs">
+                  {uploadingCover ? "Enviando capa…" : "Enviar foto de capa"}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={uploadingCover}
+                    className="sr-only"
+                    onChange={(e) => {
+                      const file = e.currentTarget.files?.[0];
+                      if (file) void onUploadCover(file);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+              )}
+              {appearance.coverUrl && (
+                <button
+                  type="button"
+                  className="rounded-xl border border-border px-3 py-2 text-xs"
+                  onClick={() => onAppearance((current) => ({ ...current, coverUrl: "" }))}
+                >
+                  Remover capa da prévia
+                </button>
+              )}
+            </div>
+            {option("coverHeight", "Altura da capa", [
+              { value: "short", label: "Panorâmica" },
+              { value: "tall", label: "Imersiva" },
+            ])}
+            {(
+              [
+                ["tagline", "Chamada acima do nome", 60],
+                ["welcome", "Mensagem de boas-vindas", 180],
+                ["footerText", "Mensagem no rodapé", 180],
+              ] as const
+            ).map(([key, label, max]) => (
+              <label key={key} className="block text-sm">
+                {label}
+                <textarea
+                  rows={key === "tagline" ? 1 : 3}
+                  value={appearance[key]}
+                  maxLength={max}
+                  onChange={(e) =>
+                    onAppearance((current) => ({ ...current, [key]: e.target.value }))
+                  }
+                  className="mt-2 block w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+                />
+                <span className="mt-1 block text-right text-[10px] text-muted-foreground">
+                  {appearance[key].length}/{max}
+                </span>
+              </label>
+            ))}
+            {option("logoShape", "Formato do logo", [
+              { value: "rounded", label: "Arredondado" },
+              { value: "circle", label: "Circular" },
+              { value: "square", label: "Quadrado" },
+            ])}
+            {option("logoSize", "Tamanho do logo", [
+              { value: "small", label: "Discreto" },
+              { value: "large", label: "Destaque" },
+            ])}
+            {option("categoryStyle", "Navegação das categorias", [
+              { value: "pills", label: "Pílulas" },
+              { value: "underline", label: "Sublinhada" },
+              { value: "blocks", label: "Blocos" },
+            ])}
+            {option("headingStyle", "Títulos das categorias", [
+              { value: "plain", label: "Simples" },
+              { value: "accent", label: "Cor de destaque" },
+              { value: "centered", label: "Centralizados" },
+            ])}
+            {option("cardStyle", "Acabamento dos cartões", [
+              { value: "outlined", label: "Borda fina" },
+              { value: "flat", label: "Sem borda" },
+              { value: "elevated", label: "Com sombra" },
+            ])}
+            {option("textSize", "Tamanho dos textos dos pratos", [
+              { value: "small", label: "Menor" },
+              { value: "regular", label: "Padrão" },
+              { value: "large", label: "Maior" },
+            ])}
+            {option("spacing", "Respiro entre os pratos", [
+              { value: "comfortable", label: "Confortável" },
+              { value: "airy", label: "Espaçoso" },
+            ])}
+            {option("backgroundPattern", "Textura do fundo", [
+              { value: "none", label: "Liso" },
+              { value: "dots", label: "Pontos sutis" },
+              { value: "lines", label: "Linhas sutis" },
+            ])}
             {option("font", "Tipografia", [
               { value: "modern", label: "Moderna · Manrope" },
               { value: "clean", label: "Essencial · DM Sans" },
@@ -207,7 +329,9 @@ export function AppearanceStudio({
               <input
                 value={appearance.buttonLabel}
                 maxLength={24}
-                onChange={(e) => onAppearance({ ...appearance, buttonLabel: e.target.value })}
+                onChange={(e) =>
+                  onAppearance((current) => ({ ...current, buttonLabel: e.target.value }))
+                }
                 className="mt-2 block w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
               />
             </label>
@@ -215,13 +339,16 @@ export function AppearanceStudio({
               [
                 ["showDescription", "Exibir descrição dos pratos"],
                 ["showPortion", "Exibir tamanho da porção"],
+                ["showFluxBrand", "Exibir assinatura Flux Menu no rodapé"],
               ] as const
             ).map(([key, label]) => (
               <label key={key} className="flex items-center justify-between gap-3 text-sm">
                 {label}
                 <Switch
                   checked={appearance[key]}
-                  onCheckedChange={(checked) => onAppearance({ ...appearance, [key]: checked })}
+                  onCheckedChange={(checked) =>
+                    onAppearance((current) => ({ ...current, [key]: checked }))
+                  }
                 />
               </label>
             ))}
@@ -246,34 +373,62 @@ export function AppearanceStudio({
             <div
               className="public-menu min-h-[570px]"
               style={menuThemeStyle(safe, appearance)}
-              data-layout={appearance.layout}
-              data-photos={appearance.photos}
-              data-fit={appearance.imageFit}
-              data-align={appearance.headerAlign}
+              {...menuAppearanceAttributes(appearance)}
             >
+              <MenuCover appearance={appearance} />
               <header className="menu-header p-5">
                 <div className="menu-identity flex items-center gap-3">
-                  {logo && (
-                    <img src={logo} alt="Logo" className="h-12 w-12 rounded-xl object-cover" />
+                  {logo ? (
+                    <img
+                      src={logo}
+                      alt="Logo"
+                      className="menu-logo h-12 w-12 rounded-xl object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="menu-logo grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-lg font-semibold text-primary"
+                      aria-label="Iniciais do restaurante"
+                    >
+                      {name
+                        .split(" ")
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((n) => n[0])
+                        .join("")}
+                    </div>
                   )}
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.18em] text-primary">
-                      Cardápio digital
+                      {appearance.tagline}
                     </p>
                     <h3 className="mt-2 text-2xl font-semibold break-words">{name}</h3>
                   </div>
                 </div>
                 {description && <p className="mt-3 text-xs text-muted-foreground">{description}</p>}
+                {appearance.welcome && (
+                  <p className="mt-3 whitespace-pre-line text-sm">{appearance.welcome}</p>
+                )}
                 <span className="mt-4 inline-block rounded-full border border-border px-3 py-1 text-[10px]">
                   Mesa 01
                 </span>
               </header>
               <div className="p-4">
-                <div className="mb-4 flex gap-2 text-[10px]">
-                  <span className="rounded-full border border-border px-3 py-1.5">Destaques</span>
-                  <span className="rounded-full border border-border px-3 py-1.5">Pratos</span>
-                </div>
-                <h4 className="mb-3 text-lg font-semibold">Feitos para você</h4>
+                <nav
+                  className="menu-categories mb-4 flex gap-2 text-[10px]"
+                  aria-label="Categorias na prévia"
+                >
+                  <button
+                    type="button"
+                    aria-current="true"
+                    className="rounded-full border border-border px-3 py-1.5"
+                  >
+                    Destaques
+                  </button>
+                  <button type="button" className="rounded-full border border-border px-3 py-1.5">
+                    Pratos
+                  </button>
+                </nav>
+                <h4 className="menu-section-title mb-3 text-lg font-semibold">Feitos para você</h4>
                 <ul data-menu-grid className="space-y-3">
                   {items.map((item, i) => (
                     <li
@@ -319,6 +474,7 @@ export function AppearanceStudio({
                   ))}
                 </ul>
               </div>
+              <MenuSignature appearance={appearance} name={name} />
             </div>
           </div>
           <p className="mt-3 text-center text-[11px] text-muted-foreground">

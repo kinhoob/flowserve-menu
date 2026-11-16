@@ -76,4 +76,34 @@ describe("restaurant appearance", () => {
     expect(style.backgroundColor).toBe("transparent");
     expect(contrastRatio(colors.card, String(style.color))).toBeGreaterThanOrEqual(4.5);
   });
+  it("preserves complete identity and rejects unsafe cover sources", () => {
+    const value = readAppearance({
+      coverUrl: "https://cdn.example/cover.webp",
+      tagline: "Cozinha autoral",
+      welcome: "Seja bem-vindo",
+      footerText: "Volte sempre",
+      showFluxBrand: false,
+      categoryStyle: "underline",
+      logoShape: "circle",
+    });
+    expect(value).toMatchObject({
+      tagline: "Cozinha autoral",
+      showFluxBrand: false,
+      categoryStyle: "underline",
+      logoShape: "circle",
+      coverUrl: "https://cdn.example/cover.webp",
+    });
+    for (const coverUrl of [
+      "javascript:alert(1)",
+      "data:image/svg+xml,x",
+      "http://cdn.example/a.jpg",
+      "https://user:pass@cdn.example/a.jpg",
+    ]) {
+      expect(readAppearance({ coverUrl }).coverUrl).toBe("");
+    }
+    expect(readAppearance({ tagline: "x".repeat(61), backgroundPattern: "url(x)" })).toMatchObject({
+      tagline: "Cardápio digital",
+      backgroundPattern: "none",
+    });
+  });
 });

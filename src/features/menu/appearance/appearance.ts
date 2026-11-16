@@ -1,6 +1,21 @@
 import type { CSSProperties } from "react";
 import { z } from "zod";
 
+export function isCoverUrl(value: string): boolean {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !!url.hostname &&
+      !url.username &&
+      !url.password &&
+      value.length <= 2048
+    );
+  } catch {
+    return false;
+  }
+}
 export const appearanceSchema = z.object({
   layout: z.enum(["list", "grid", "compact"]).catch("list"),
   font: z.enum(["modern", "clean", "classic"]).catch("modern"),
@@ -12,6 +27,20 @@ export const appearanceSchema = z.object({
   buttonLabel: z.string().trim().min(1).max(24).catch("Adicionar"),
   showDescription: z.boolean().catch(true),
   showPortion: z.boolean().catch(true),
+  coverUrl: z.string().trim().refine(isCoverUrl).catch(""),
+  coverHeight: z.enum(["short", "tall"]).catch("short"),
+  tagline: z.string().trim().max(60).catch("Cardápio digital"),
+  welcome: z.string().trim().max(180).catch(""),
+  footerText: z.string().trim().max(180).catch(""),
+  showFluxBrand: z.boolean().catch(true),
+  categoryStyle: z.enum(["pills", "underline", "blocks"]).catch("pills"),
+  cardStyle: z.enum(["outlined", "flat", "elevated"]).catch("outlined"),
+  logoShape: z.enum(["rounded", "circle", "square"]).catch("rounded"),
+  logoSize: z.enum(["small", "large"]).catch("small"),
+  textSize: z.enum(["small", "regular", "large"]).catch("regular"),
+  spacing: z.enum(["comfortable", "airy"]).catch("comfortable"),
+  headingStyle: z.enum(["plain", "accent", "centered"]).catch("plain"),
+  backgroundPattern: z.enum(["none", "dots", "lines"]).catch("none"),
 });
 export type MenuAppearance = z.infer<typeof appearanceSchema>;
 export function readAppearance(value: unknown): MenuAppearance {
@@ -163,6 +192,8 @@ export function menuThemeStyle(
     "--menu-radius": `${radius}px`,
     "--menu-button-radius": `${Math.min(radius, 14)}px`,
     "--menu-font": MENU_FONTS[appearance.font],
+    "--menu-text-scale":
+      appearance.textSize === "large" ? 1.15 : appearance.textSize === "small" ? 0.92 : 1,
     "--font-sans": MENU_FONTS[appearance.font],
   };
 }
@@ -256,3 +287,19 @@ export const MENU_PRESETS = [
     },
   },
 ] satisfies { id: string; name: string; colors: MenuColors }[];
+
+export function menuAppearanceAttributes(appearance: MenuAppearance) {
+  return {
+    "data-layout": appearance.layout,
+    "data-photos": appearance.photos,
+    "data-fit": appearance.imageFit,
+    "data-align": appearance.headerAlign,
+    "data-category-style": appearance.categoryStyle,
+    "data-card-style": appearance.cardStyle,
+    "data-logo-shape": appearance.logoShape,
+    "data-logo-size": appearance.logoSize,
+    "data-spacing": appearance.spacing,
+    "data-heading-style": appearance.headingStyle,
+    "data-pattern": appearance.backgroundPattern,
+  };
+}
