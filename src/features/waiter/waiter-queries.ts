@@ -11,7 +11,8 @@ export function useWaiterCalls(restaurantId: string | undefined) {
   useEffect(() => {
     if (!restaurantId) return;
     const channel = supabase
-      .channel(`waiter-${restaurantId}`)
+      // The header and page can subscribe concurrently. Never reuse an already-subscribed channel.
+      .channel(`waiter-${restaurantId}-${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
@@ -31,6 +32,7 @@ export function useWaiterCalls(restaurantId: string | undefined) {
   return useQuery({
     queryKey: ["waiter_calls", restaurantId],
     enabled: !!restaurantId,
+    refetchInterval: 15000,
     queryFn: async (): Promise<WaiterCall[]> => {
       const { data, error } = await supabase
         .from("waiter_calls")
@@ -66,13 +68,15 @@ export async function callWaiter(input: {
   customer_name?: string | null;
   message?: string | null;
   kind?: "call" | "bill";
+  table_code?: string;
 }) {
-  const { error } = await supabase.from("waiter_calls").insert({
-    restaurant_id: input.restaurant_id,
-    table_label: input.table_label ?? null,
-    customer_name: input.customer_name ?? null,
-    message: input.message ?? null,
-    ...(input.kind ? { kind: input.kind } : {}),
+  const { error } = await supabase.rpc("public_waiter_call", {
+    p_restaurant_id: input.restaurant_id,
+    p_table_label: input.table_label ?? "",
+    p_customer_name: input.customer_name ?? null,
+    p_message: input.message ?? null,
+    p_kind: input.kind ?? "call",
+    p_table_code: input.table_code ?? null,
   });
   if (error) throw error;
 }

@@ -1,3 +1,4 @@
+import { getServiceStatus } from "@/features/restaurant/service-hours";
 import { resolveRestaurantSlug } from "@/features/restaurant/resolve-restaurant-slug";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
 import { withLivePrices } from "@/features/menu/live-prices";
@@ -98,7 +99,7 @@ function PublicMenuPage() {
   const table = rawTable ? rawTable.replace(/^Mesa\s*/i, "").trim() : undefined;
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["public-menu", slug],
+    queryKey: ["public-menu", slug, table],
     retry: false,
     refetchInterval: 30000,
     queryFn: async () => {
@@ -130,12 +131,17 @@ function PublicMenuPage() {
       if (cats.error) throw cats.error;
       if (items.error) throw items.error;
       if (planRes.error) throw planRes.error;
-      const kitchenOpen = r.kitchen_open !== false;
-      const filteredItems = kitchenOpen
-        ? (items.data ?? [])
-        : (items.data ?? []).filter((i) => i.categories?.kind === "drink");
+      const service = await getServiceStatus(r.id);
+      const kitchenOpen = service.kitchen_open;
+      const barOpen = service.bar_open;
+      const filteredItems =
+        !kitchenOpen && !barOpen
+          ? (items.data ?? [])
+          : (items.data ?? []).filter((i) =>
+              i.categories?.kind === "drink" ? barOpen : kitchenOpen,
+            );
       const plan = ((planRes.data as unknown as string) ?? "basic").toLowerCase();
-      const viewOnly = plan === "basic";
+      const viewOnly = plan === "basic" || !table || (!kitchenOpen && !barOpen);
       return {
         restaurant: r,
         appearance: readAppearance(appearanceRes.data?.menu_appearance),
@@ -143,6 +149,10 @@ function PublicMenuPage() {
         items: (await withLivePrices(r.id, filteredItems)) as PublicItem[],
         modifiers: modifiersMap,
         kitchenOpen,
+        barOpen,
+        requireCode: service.require_table_code,
+        serviceSetupPending: service.setupPending,
+        orderingPlan: plan !== "basic",
         viewOnly,
       };
     },
@@ -164,6 +174,10 @@ function PublicMenuPage() {
     token: string;
   } | null>(null);
   const orderAttempt = useRef<string | null>(null);
+  const [tableCode, setTableCode] = useState("");
+  useEffect(() => {
+    setTableCode("");
+  }, [slug, table]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [pickerItem, setPickerItem] = useState<PublicItem | null>(null);
@@ -324,6 +338,10 @@ function PublicMenuPage() {
       toast.error("Informe um telefone brasileiro válido com DDD (ex: 11 91234-5678)");
       return;
     }
+    if (data.requireCode && !tableCode.trim()) {
+      toast.error("Peça o código da mesa ao garçom e preencha antes de enviar.");
+      return;
+    }
     setSubmitting(true);
     try {
       orderAttempt.current ??= crypto.randomUUID();
@@ -331,6 +349,7 @@ function PublicMenuPage() {
       const { data: orderId, error } = await supabase.rpc("place_order", {
         p_restaurant_id: data.restaurant.id,
         p_tracking_token: trackingToken,
+        p_table_code: tableCode.trim().toLowerCase(),
         p_table_label: table ? `Mesa ${table}` : null,
         p_customer_name: customerName.trim(),
         p_customer_phone: phoneDigits,
@@ -377,6 +396,7 @@ function PublicMenuPage() {
     try {
       await callWaiter({
         restaurant_id: data.restaurant.id,
+        table_code: tableCode.trim().toLowerCase(),
         table_label: table ? `Mesa ${table}` : null,
         customer_name: customerName.trim() || null,
       });
@@ -478,12 +498,45 @@ function PublicMenuPage() {
           )}
           {!data.kitchenOpen && (
             <div className="mt-4 rounded-xl border border-[oklch(0.62_0.21_25_/_0.4)] bg-[oklch(0.62_0.21_25_/_0.08)] px-4 py-3 text-sm text-[oklch(0.85_0.12_25)]">
-              Cozinha encerrada. Apenas bebidas disponíveis.
+              {data.barOpen
+                ? "Cozinha encerrada. Bebidas disponíveis no horário do bar."
+                : "Atendimento encerrado. Novos pedidos estão indisponíveis."}
             </div>
+          )}
+          {!data.barOpen && data.kitchenOpen && (
+            <p className="mt-4 rounded-xl border border-border p-3 text-sm">
+              Bar encerrado. A cozinha continua atendendo.
+            </p>
+          )}
+          {table && data.requireCode && !data.serviceSetupPending && (
+            <label className="mt-4 block rounded-xl border border-border bg-background/60 p-4 text-sm">
+              <span className="block font-medium">Código temporário da mesa</span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                Peça ao garçom no salão. O código protege seus pedidos e chamados.
+              </span>
+              <input
+                aria-label="Código da mesa"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                value={tableCode}
+                onChange={(e) =>
+                  setTableCode(e.target.value.replace(/[^a-fA-F0-9]/g, "").slice(0, 12))
+                }
+                placeholder="12 caracteres fornecidos no salão"
+                className="mt-3 w-full rounded-lg border border-border bg-background p-3 font-mono"
+              />
+            </label>
           )}
           {data.viewOnly && (
             <div className="mt-4 rounded-xl border border-border bg-background/60 px-4 py-3 text-sm text-muted-foreground">
-              Visualização apenas. Chame o garçom para pedir.
+              {data.serviceSetupPending
+                ? "Pedidos temporariamente indisponíveis enquanto o restaurante atualiza o sistema."
+                : !table
+                  ? "Consulte o cardápio à vontade. Para pedir, escaneie o QR Code da sua mesa no restaurante."
+                  : !data.kitchenOpen && !data.barOpen
+                    ? "Você pode consultar o cardápio. Novos pedidos voltam no próximo horário de atendimento."
+                    : "Visualização apenas. Chame o garçom para pedir."}
             </div>
           )}
           {restaurant.description && (
@@ -495,7 +548,7 @@ function PublicMenuPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Mesa {table}
               </div>
             )}
-            {table && !data.viewOnly && (
+            {table && data.orderingPlan && !data.serviceSetupPending && (
               <button
                 onClick={handleCallWaiter}
                 disabled={callingWaiter}
@@ -509,13 +562,14 @@ function PublicMenuPage() {
                 Chamar garçom
               </button>
             )}
-            {table && !data.viewOnly && (
+            {table && data.orderingPlan && !data.serviceSetupPending && (
               <button
                 onClick={async () => {
                   if (!data) return;
                   try {
                     await callWaiter({
                       restaurant_id: data.restaurant.id,
+                      table_code: tableCode.trim().toLowerCase(),
                       table_label: `Mesa ${table}`,
                       customer_name: customerName.trim() || null,
                       kind: "bill",
@@ -973,6 +1027,21 @@ function PublicMenuPage() {
                     </AnimatePresence>
                   </ul>
                   <div className="border-t border-border px-5 py-4">
+                    {data.requireCode && (
+                      <label className="mb-3 block text-sm">
+                        Código da mesa{" "}
+                        <input
+                          aria-label="Código da mesa para enviar pedido"
+                          autoComplete="off"
+                          value={tableCode}
+                          onChange={(e) =>
+                            setTableCode(e.target.value.replace(/[^a-fA-F0-9]/g, "").slice(0, 12))
+                          }
+                          placeholder="Peça o código ao garçom"
+                          className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 font-mono"
+                        />
+                      </label>
+                    )}
                     <label className="mb-3 block">
                       <span className="mb-1.5 block text-xs uppercase tracking-wider text-muted-foreground">
                         Seu nome
@@ -1012,6 +1081,7 @@ function PublicMenuPage() {
                       disabled={
                         submitting ||
                         cart.length === 0 ||
+                        (data.requireCode && tableCode.length !== 12) ||
                         !customerName.trim() ||
                         customerPhone.replace(/\D/g, "").length < 10
                       }

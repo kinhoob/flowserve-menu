@@ -1,3 +1,4 @@
+import { TableAccessCode } from "@/features/tables/table-access-code";
 import { FeatureLocked } from "@/features/billing/trial-guard";
 import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
 import { SplitBillDialog } from "@/features/experience/split-bill-dialog";
@@ -143,6 +144,22 @@ function WaiterPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
+      <details className="mb-5 rounded-2xl border border-border bg-surface p-4">
+        <summary className="cursor-pointer text-sm font-medium">
+          Códigos temporários das mesas
+        </summary>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Entregue o código ao cliente no salão. Ao trocar, o código anterior deixa de funcionar.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {(tables ?? []).map((t) => (
+            <div key={t.id}>
+              <p className="text-sm">{t.label}</p>
+              <TableAccessCode tableId={t.id} />
+            </div>
+          ))}
+        </div>
+      </details>
       <div>
         <p className="text-xs uppercase tracking-[0.18em] text-primary">Operação ao vivo</p>
         <h1 className="mt-2 font-sans font-semibold text-3xl tracking-tight">

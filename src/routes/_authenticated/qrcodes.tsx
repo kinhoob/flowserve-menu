@@ -1,3 +1,4 @@
+import { TableAccessCode } from "@/features/tables/table-access-code";
 import { contrastRatio } from "@/features/menu/appearance/appearance";
 import { Button } from "@/components/ui/button";
 import { getTableLimit } from "@/features/billing/plan-limits";
@@ -531,6 +532,7 @@ function TableCard({
         <canvas ref={ref} />
         <p className="text-center text-[10px]">{caption}</p>
       </div>
+      <TableAccessCode tableId={table.id} />
       <div className="flex gap-2">
         <Button size="sm" variant="secondary" className="flex-1 gap-1.5" onClick={onDownload}>
           <Download className="h-3.5 w-3.5" /> PNG

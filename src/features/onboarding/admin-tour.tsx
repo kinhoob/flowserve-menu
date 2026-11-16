@@ -1,206 +1,295 @@
 import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Sparkles, X } from "lucide-react";
-import { useEffect, useState } from "react";
-
-const STORAGE_KEY = "flux-admin-tour-v2";
-
-type Step = {
-  selector: string;
-  title: string;
-  body: string;
-};
-
-const STEPS: Step[] = [
+import { useNavigate, useRouterState } from "@tanstack/react-router";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowLeft, ArrowRight, MonitorPlay, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+const STEPS = [
   {
-    selector: "#nav-settings",
-    title: "1. Personalize seu restaurante",
-    body: "Em Configurações > Estabelecimento, defina o nome, slug público e moeda. Já criamos um workspace pra você começar.",
+    to: "/dashboard",
+    title: "Conheça sua central",
+    body: "Esta é a tela real da sua operação. Veja os pedidos recentes e os indicadores.",
+    actions: [
+      "Use o menu lateral para trocar de área. No celular, abra o botão de menu.",
+      "O sino reúne chamados e resumos do fechamento.",
+      "Este tutorial navega pelas telas sem cadastrar ou alterar seus dados.",
+    ],
+    result: "Vamos preparar o restaurante, o salão e o atendimento, nessa ordem.",
   },
   {
-    selector: "#nav-menu",
-    title: "2. Cadastre categorias e produtos",
-    body: "Crie categorias (Cozinha ou Bar) e adicione itens com preço, foto e modificadores. Tudo aparece em tempo real no QR do cliente.",
+    to: "/settings",
+    tab: "establishment",
+    title: "Dê um nome ao restaurante",
+    body: "Em Estabelecimento você define como o cliente encontra sua marca.",
+    actions: [
+      "Preencha nome e descrição. Confira a moeda e ajuste o fuso horário.",
+      "Escolha o endereço público pelo nome do restaurante.",
+      "Envie sua logo e salve as alterações.",
+    ],
+    result:
+      "Exemplo: /m/bar-da-praca. Endereços antigos continuam funcionando após a atualização SQL.",
   },
   {
-    selector: "#nav-qrcodes",
-    title: "3. Gere o QR Code das mesas",
-    body: "Cadastre as mesas do seu salão e baixe o PDF dos QR Codes para imprimir e colar.",
+    to: "/settings",
+    tab: "appearance",
+    title: "Um cardápio com a sua cara",
+    body: "A prévia mostra o resultado enquanto você personaliza.",
+    actions: [
+      "Comece por uma paleta ou escolha suas próprias cores.",
+      "Ajuste capa, tipografia, formato dos produtos e mensagens.",
+      "Confira a prévia para celular e toque em Salvar para publicar.",
+    ],
+    result: "Dica: contraste alto entre texto e fundo ajuda o cliente a ler no salão.",
   },
   {
-    selector: "#nav-kitchen",
-    title: "4. Acompanhe os pedidos",
-    body: "Aqui chegam os pedidos em tempo real, com status de preparo. O Garçom complementa a operação no salão.",
+    to: "/menu",
+    title: "Monte o cardápio",
+    body: "Organize categorias, produtos, complementos e promoções nesta tela.",
+    actions: [
+      "Crie categorias do tipo Cozinha ou Bar: isso determina o horário de cada produto.",
+      "Adicione foto, preço e disponibilidade. Configure adicionais quando necessário.",
+      "Agende promoções ou importe um catálogo em CSV. Revise antes de confirmar.",
+    ],
+    result:
+      "O preço é conferido no banco ao enviar o pedido. Alterações não mudam pedidos já feitos.",
   },
   {
-    selector: "#nav-analytics",
-    title: "5. Análises e horários de pico",
-    body: "Veja receita por dia, itens mais vendidos e horários mais movimentados para tomar decisões melhores.",
+    to: "/settings",
+    tab: "operation",
+    target: "service-hours",
+    title: "Defina quando receber pedidos",
+    body: "Cozinha e bar têm agendas independentes, no fuso do restaurante.",
+    actions: [
+      "Ative a agenda semanal e marque os dias de funcionamento.",
+      "Defina abertura e fechamento de cada setor e salve.",
+      "Use as pausas manuais para interromper um setor antes do horário.",
+    ],
+    result: "Exemplo: cozinha fecha às 23h e bar à 01h. Após 23h, só bebidas podem ser pedidas.",
   },
-];
-
+  {
+    to: "/qrcodes",
+    title: "Prepare mesas e QR Codes",
+    body: "Cada mesa tem seu próprio link. Confira o endereço público antes de imprimir.",
+    actions: [
+      "Cadastre as mesas e confira seus nomes.",
+      "Baixe os cartões em PNG ou PDF e coloque-os nas mesas.",
+      "Consulte Mostrar código e entregue o código temporário ao cliente no salão. Não o imprima junto ao QR.",
+    ],
+    result:
+      "O código expira em 2 horas e pode ser trocado. Uma foto antiga do QR, sozinha, não autoriza pedidos.",
+  },
+  {
+    to: "/kitchen",
+    title: "Da fila ao preparo",
+    body: "Pedidos enviados pelo cliente chegam aqui para a equipe.",
+    actions: [
+      "Filtre Cozinha ou Bar e ative o som no aparelho de atendimento.",
+      "Avance para Em preparo e depois Pronto conforme o pedido andar.",
+      "Confira observações e adicionais. Ao cancelar, informe o motivo.",
+    ],
+    result: "O fechamento impede novos pedidos; a equipe continua concluindo os que já chegaram.",
+  },
+  {
+    to: "/waiter",
+    title: "Atenda o salão e encerre a conta",
+    body: "Acompanhe mesas ocupadas, chamados e solicitações de conta.",
+    actions: [
+      "Abra a mesa para registrar pedidos ou consultar a conta.",
+      "Atenda os chamados e marque os pedidos como entregues.",
+      "Confira os valores e finalize a conta. O código anterior expira ao encerrar a última conta da mesa.",
+    ],
+    result:
+      "Para o próximo cliente, consulte um novo código. Cadastre o PIN da equipe em Configurações → Equipe.",
+  },
+  {
+    to: "/analytics",
+    title: "Entenda os resultados",
+    body: "Veja o movimento, os produtos mais vendidos e os tempos de preparo.",
+    actions: [
+      "Escolha o período e confira receita e ticket médio.",
+      "Use horários de pico e ranking para planejar compras e equipe.",
+      "Exporte os resultados. No sino, consulte o resumo de cada fechamento.",
+    ],
+    result:
+      "Receita de pedidos não confirma pagamento. Cancelados ficam fora dos totais de vendas.",
+  },
+  {
+    to: "/dashboard",
+    target: "notification-bell",
+    title: "Seu fechamento no sino",
+    body: "No horário de fechamento do bar, o Flux cria um aviso com o resumo do turno.",
+    actions: [
+      "Toque no sino no topo para abrir os avisos.",
+      "Abra Bar encerrado para consultar receita, pedidos em aberto e cancelados.",
+      "O turno respeita a meia-noite. Avisos ficam salvos se você estiver desconectado.",
+    ],
+    result:
+      "Teste completo: escaneie o QR, solicite o código da mesa e acompanhe um pedido até encerrar a conta.",
+  },
+] as const;
 export function AdminTour() {
   const { user } = useAuth();
-  const [step, setStep] = useState(0);
+  const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const reduced = useReducedMotion();
   const [active, setActive] = useState(false);
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  const [checked, setChecked] = useState(false);
-
-  // First-login auto-start (once per user)
+  const [step, setStep] = useState(0);
+  const [minimized, setMinimized] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!user) {
-      setChecked(true);
-      return;
+    bodyRef.current?.scrollTo({ top: 0 });
+    setMinimized(false);
+  }, [step, active]);
+  const current = STEPS[step];
+  const key = `flux-admin-tour-v3:${user?.id}`;
+  useEffect(() => {
+    const start = () => {
+      setStep(0);
+      setActive(true);
+    };
+    window.addEventListener("flux:start-tour", start);
+    return () => window.removeEventListener("flux:start-tour", start);
+  }, []);
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      if (localStorage.getItem(key)) return;
+    } catch {
+      /* Manual replay remains available. */
     }
-    if (localStorage.getItem(STORAGE_KEY)) {
-      setChecked(true);
-      return;
-    }
-    supabase
+    void supabase
       .from("profiles")
       .select("has_seen_onboarding")
       .eq("id", user.id)
       .single()
       .then(({ data, error }) => {
-        if (error) {
-          setChecked(true);
-          return;
-        }
-        if (data?.has_seen_onboarding) {
-          localStorage.setItem(STORAGE_KEY, "1");
-        } else {
-          setTimeout(() => {
+        if (alive && !error && !data?.has_seen_onboarding)
+          timer = setTimeout(() => {
             setStep(0);
             setActive(true);
           }, 700);
-        }
-        setChecked(true);
       });
-  }, [user]);
-
-  // Manual launch from Settings
-  useEffect(() => {
-    const handler = () => {
-      setStep(0);
-      setActive(true);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
     };
-    window.addEventListener("flux:start-tour", handler);
-    return () => window.removeEventListener("flux:start-tour", handler);
-  }, []);
-
+  }, [user, key]);
+  useEffect(() => {
+    if (active)
+      void navigate({ to: current.to, search: "tab" in current ? { tab: current.tab } : {} });
+  }, [active, current, navigate]);
   useEffect(() => {
     if (!active) return;
-    const update = () => {
-      const el = document.querySelector(STEPS[step].selector);
-      if (el) setRect((el as HTMLElement).getBoundingClientRect());
-      else setRect(null);
-    };
-    update();
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
-    };
-  }, [active, step]);
-
-  async function persistSeen() {
-    if (user) {
-      await supabase.from("profiles").update({ has_seen_onboarding: true }).eq("id", user.id);
-    }
-    localStorage.setItem(STORAGE_KEY, "1");
-  }
-
+    const target = "target" in current ? current.target : null;
+    const timer = setTimeout(() => {
+      if (target)
+        document
+          .getElementById(target)
+          ?.scrollIntoView({ behavior: reduced ? "instant" : "smooth", block: "start" });
+      else window.scrollTo({ top: 0, behavior: "instant" });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [active, current, pathname, reduced]);
   function close() {
-    persistSeen();
     setActive(false);
+    try {
+      localStorage.setItem(key, "1");
+    } catch {
+      /* Storage is optional. */
+    }
+    if (user)
+      void supabase.from("profiles").update({ has_seen_onboarding: true }).eq("id", user.id);
   }
-
-  function next() {
-    if (step >= STEPS.length - 1) close();
-    else setStep((s) => s + 1);
-  }
-
-  if (!active || !checked) return null;
-  const current = STEPS[step];
-
-  const tooltipStyle: React.CSSProperties = rect
-    ? {
-        position: "fixed",
-        top: Math.max(12, rect.top - 8),
-        left: rect.right + 16,
-        zIndex: 100,
-      }
-    : {
-        position: "fixed",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        zIndex: 100,
-      };
-
+  useEffect(() => {
+    if (!active) return;
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setActive(false);
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [active]);
+  if (!active) return null;
   return (
-    <AnimatePresence>
-      <motion.div
-        key="overlay"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-[2px]"
-        onClick={next}
-      />
-      {rect && (
-        <motion.div
-          key={"highlight-" + step}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="pointer-events-none fixed z-[95] rounded-xl ring-2 ring-[oklch(0.78_0.13_84)] shadow-[0_0_0_8px_oklch(0.78_0.13_84_/_0.18)]"
-          style={{
-            top: rect.top - 4,
-            left: rect.left - 4,
-            width: rect.width + 8,
-            height: rect.height + 8,
-          }}
-        />
-      )}
-      <motion.div
-        key={"tip-" + step}
-        initial={{ opacity: 0, scale: 0.95, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-        style={tooltipStyle}
-        className="w-80 max-w-[calc(100vw-32px)] rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] bg-surface p-5 shadow-2xl"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-primary">
-            <Sparkles className="h-3.5 w-3.5" />
-            Tour · {step + 1}/{STEPS.length}
+    <motion.section
+      role="region"
+      aria-label="Tutorial guiado do Flux"
+      initial={{ opacity: 0, y: reduced ? 0 : 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="fixed bottom-3 right-3 z-40 flex max-h-[52dvh] w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border border-primary/40 bg-surface p-4 shadow-2xl md:bottom-6 md:right-6 md:max-h-[65dvh] md:w-[390px]"
+    >
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-2 text-xs uppercase tracking-widest text-primary">
+          <MonitorPlay className="h-4 w-4" />
+          Tutorial · {step + 1}/{STEPS.length}
+        </span>
+        <button
+          onClick={() => setMinimized((v) => !v)}
+          className="ml-auto mr-2 text-xs text-muted-foreground"
+        >
+          {minimized ? "Expandir" : "Ver tela"}
+        </button>
+        <button aria-label="Fechar tutorial" onClick={close} className="rounded-lg p-2">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      {!minimized && (
+        <>
+          <div ref={bodyRef} className="min-h-0 flex-1 overflow-y-auto pr-1">
+            <div className="my-3 h-1 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-primary transition-all"
+                style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+              />
+            </div>
+            <h2 aria-live="polite" className="font-display text-xl">
+              {current.title}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">{current.body}</p>
+            <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm">
+              {current.actions.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ol>
+            <p className="mt-4 rounded-xl bg-gold-soft p-3 text-xs leading-relaxed">
+              {current.result}
+            </p>
+            <label className="mt-4 block text-xs text-muted-foreground">
+              Ir para uma etapa
+              <select
+                aria-label="Etapa do tutorial"
+                value={step}
+                onChange={(e) => setStep(Number(e.target.value))}
+                className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm"
+              >
+                {STEPS.map((s, i) => (
+                  <option key={s.title} value={i}>
+                    {i + 1}. {s.title}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-          <button
-            onClick={close}
-            className="rounded-md p-1 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <h3 className="mt-2 font-display text-xl tracking-tight">{current.title}</h3>
-        <p className="mt-1.5 text-sm text-muted-foreground">{current.body}</p>
-        <div className="mt-4 flex items-center justify-between">
-          <button onClick={close} className="text-xs text-muted-foreground hover:text-foreground">
-            Pular
-          </button>
-          <button
-            onClick={next}
-            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90"
-          >
-            {step >= STEPS.length - 1 ? "Concluir" : "Próximo"}
-            <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      </motion.div>
-    </AnimatePresence>
+          <div className="mt-3 flex shrink-0 items-center justify-between gap-3 border-t border-border pt-3">
+            <button
+              disabled={step === 0}
+              onClick={() => setStep((s) => s - 1)}
+              className="flex items-center gap-1 text-sm disabled:opacity-30"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Anterior
+            </button>
+            <button
+              onClick={() => (step === STEPS.length - 1 ? close() : setStep((s) => s + 1))}
+              className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm text-primary-foreground"
+            >
+              {step === STEPS.length - 1 ? "Concluir" : "Próximo"}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </>
+      )}
+    </motion.section>
   );
 }

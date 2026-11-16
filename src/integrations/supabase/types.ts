@@ -423,6 +423,10 @@ export type Database = {
           description: string | null;
           id: string;
           kitchen_open: boolean;
+          bar_open: boolean;
+          require_table_code: boolean;
+          operating_hours: Json | null;
+          hours_enabled_at: string;
           logo_url: string | null;
           name: string;
           owner_id: string;
@@ -448,6 +452,10 @@ export type Database = {
           description?: string | null;
           id?: string;
           kitchen_open?: boolean;
+          bar_open?: boolean;
+          require_table_code?: boolean;
+          operating_hours?: Json | null;
+          hours_enabled_at?: string;
           logo_url?: string | null;
           name: string;
           owner_id: string;
@@ -473,6 +481,10 @@ export type Database = {
           description?: string | null;
           id?: string;
           kitchen_open?: boolean;
+          bar_open?: boolean;
+          require_table_code?: boolean;
+          operating_hours?: Json | null;
+          hours_enabled_at?: string;
           logo_url?: string | null;
           name?: string;
           owner_id?: string;
@@ -701,6 +713,25 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      get_service_status: { Args: { p_restaurant_id: string }; Returns: Json };
+      table_order_code: {
+        Args: { p_table_id: string; p_staff_token?: string | null; p_rotate?: boolean };
+        Returns: Json;
+      };
+      public_waiter_call: {
+        Args: {
+          p_restaurant_id: string;
+          p_table_label: string;
+          p_customer_name: string | null;
+          p_message: string | null;
+          p_kind: string;
+          p_table_code: string | null;
+        };
+        Returns: undefined;
+      };
+      sync_closing_notifications: { Args: Record<string, never>; Returns: undefined };
+      list_closing_notifications: { Args: Record<string, never>; Returns: Json };
+      closing_summary: { Args: { p_notification_id: string }; Returns: Json };
       resolve_restaurant_slug: { Args: { p_slug: string }; Returns: string | null };
       manage_menu_items: {
         Args: { p_restaurant_id: string; p_action: string; p_rows: Json; p_patch?: Json };
@@ -735,6 +766,7 @@ export type Database = {
       place_order: {
         Args: {
           p_tracking_token: string;
+          p_table_code?: string;
           p_currency: string;
           p_customer_name: string;
           p_customer_phone: string;

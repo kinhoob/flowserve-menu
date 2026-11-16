@@ -2,7 +2,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAuth } from "@/features/auth/use-auth";
 import { TrialBanner, TrialExpiredBlock } from "@/features/billing/trial-guard";
 import { canAccess, isTrialExpired, useTrialStatus } from "@/features/billing/trial-status";
-import { AdminTour } from "@/features/onboarding/admin-tour";
 import { STATUS_LABELS, useOrders, type Order } from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
@@ -427,7 +426,6 @@ function DashboardPage() {
               )}
             </DialogContent>
           </Dialog>
-          <AdminTour />
         </>
       )}
     </div>

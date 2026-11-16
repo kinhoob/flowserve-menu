@@ -1,3 +1,4 @@
+import { ServiceHoursEditor } from "@/features/restaurant/service-hours-editor";
 import { AppearanceEditor } from "@/features/menu/appearance/appearance-editor";
 import { PaymentTestModeBanner } from "@/components/payments/payment-test-mode-banner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -208,7 +209,11 @@ function SettingsPage() {
     setKitchenOpen(v);
     try {
       await update.mutateAsync({ kitchen_open: v });
-      toast.success(v ? "Cozinha aberta" : "Cozinha encerrada — apenas bebidas disponíveis");
+      toast.success(
+        v
+          ? "Cozinha habilitada — respeita a agenda"
+          : "Cozinha pausada — pedidos de comida bloqueados",
+      );
     } catch (caught: unknown) {
       const e = getErrorDetails(caught);
       setKitchenOpen(!v);
@@ -334,6 +339,7 @@ function SettingsPage() {
         </TabsList>
 
         <TabsContent value="operation" className="mt-6 space-y-6">
+          <ServiceHoursEditor key={restaurant.id} restaurant={restaurant} />
           <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-4">
@@ -344,10 +350,10 @@ function SettingsPage() {
                   <h2 className="font-display text-xl tracking-tight">Cozinha</h2>
                   <p className="mt-1 max-w-md text-xs text-muted-foreground">
                     Quando fechada, itens de comida são automaticamente desabilitados no cardápio
-                    público. Apenas bebidas continuam disponíveis para pedido.
+                    público. As bebidas seguem a agenda e a pausa manual do bar.
                   </p>
                   <p className="mt-3 text-sm">
-                    Status:{" "}
+                    Pausa manual:{" "}
                     <span
                       className={
                         kitchenOpen
@@ -355,12 +361,13 @@ function SettingsPage() {
                           : "font-medium text-[oklch(0.78_0.18_25)]"
                       }
                     >
-                      {kitchenOpen ? "Aberta" : "Fechada"}
+                      {kitchenOpen ? "Habilitada (respeita a agenda)" : "Pausada"}
                     </span>
                   </p>
                 </div>
               </div>
               <Switch
+                aria-label="Habilitar cozinha"
                 checked={kitchenOpen}
                 onCheckedChange={toggleKitchen}
                 disabled={update.isPending}

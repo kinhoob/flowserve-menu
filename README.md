@@ -62,3 +62,5 @@ Busca por nome/descrição/categoria, filtros, ordenação e favoritos foram adi
 Siga [o guia de conexão e primeira instalação](docs/SUPABASE-SETUP.md). `npm run db:bootstrap` gera um instalador único para um projeto novo e vazio; credenciais e o SQL gerado ficam fora do Git. O script reúne as migrações em uma transação e bloqueia uma reaplicação sobre as tabelas já existentes.
 
 O cadastro usa o link de confirmação do template padrão do Supabase, sem exigir OTP ou personalização do e-mail. SMTP próprio continua necessário para enviar e-mails aos clientes fora da equipe do projeto.
+
+Para o banco existente, o pacote [fluxqr-atualizacao-beta.sql](supabase/fluxqr-atualizacao-beta.sql) reúne os links personalizados pendentes, horários da cozinha e do bar, códigos temporários das mesas e avisos de fechamento. Veja [como ativar e operar](docs/SERVICE-HOURS.md). `npm run db:upgrade` regenera esse pacote a partir das migrações versionadas; ele não executa nada no Supabase. O tutorial em Configurações navega pelas telas reais e explica cada etapa do atendimento.

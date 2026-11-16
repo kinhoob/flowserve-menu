@@ -2,6 +2,8 @@ import EmbeddedPostgres from "embedded-postgres";
 import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
+import { verifyServiceOperations } from "./verify-service-operations.mjs";
+import { betaUpgradeSQL } from "./build-beta-upgrade.mjs";
 const root = path.resolve(import.meta.dirname, "..");
 const pg = new EmbeddedPostgres({
   databaseDir: path.resolve(import.meta.dirname, "../.db-tests/data-" + Date.now()),
@@ -37,7 +39,12 @@ try {
     .filter((f) => f.endsWith(".sql"))
     .sort()) {
     try {
-      await client.query(fs.readFileSync(root + "/supabase/migrations/" + file, "utf8"));
+      // Reproduce the owner's existing database: named links are still pending.
+      await client.query(
+        file === "20261116000400_restaurant_menu_links.sql"
+          ? betaUpgradeSQL()
+          : fs.readFileSync(root + "/supabase/migrations/" + file, "utf8"),
+      );
     } catch (e) {
       throw new Error("Migration " + file + ": " + e.message);
     }
@@ -47,6 +54,8 @@ try {
     `INSERT INTO auth.users(id,email) VALUES('11111111-1111-4111-8111-111111111111','audit@example.invalid');`,
   );
   const rid = (await client.query("SELECT id FROM restaurants LIMIT 1")).rows[0].id;
+  // Earlier integrity scenarios exercise the explicitly configured unprotected mode.
+  await client.query("UPDATE restaurants SET require_table_code=false WHERE id=$1", [rid]);
   const tid = (
     await client.query(
       `INSERT INTO venue_tables(restaurant_id,label,short_code) VALUES($1,'Mesa 1','ABCDE') RETURNING id`,
@@ -551,6 +560,13 @@ try {
   console.log(
     "PASS: restaurant-name slugs, duplicate names, reserved aliases, owner isolation and old staff links",
   );
+  await verifyServiceOperations(client, {
+    rid,
+    other,
+    product,
+    option,
+    staffToken: oldLinkLogin.token,
+  });
 } finally {
   if (client) await client.end();
   await pg.stop();

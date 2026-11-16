@@ -1,3 +1,4 @@
+import { TableAccessCode } from "@/features/tables/table-access-code";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
 import { SplitBillDialog } from "@/features/experience/split-bill-dialog";
 import type { StaffOrder } from "@/features/staff/staff-rpc";
@@ -166,6 +167,22 @@ function StaffWaiter() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-6">
       <ConnectionNotice />
+      <details className="mb-5 rounded-2xl border border-border bg-surface p-4">
+        <summary className="cursor-pointer text-sm font-medium">
+          Códigos temporários das mesas
+        </summary>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Entregue o código ao cliente no salão. Ao trocar, o código anterior deixa de funcionar.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {(tablesQ.data ?? []).map((t) => (
+            <div key={t.id}>
+              <p className="text-sm">{t.label}</p>
+              <TableAccessCode tableId={t.id} staffToken={session?.token} />
+            </div>
+          ))}
+        </div>
+      </details>
       <Link
         to="/staff/$slug"
         params={{ slug }}

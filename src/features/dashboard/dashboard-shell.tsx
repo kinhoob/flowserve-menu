@@ -1,7 +1,9 @@
+import { AdminTour } from "@/features/onboarding/admin-tour";
+import { NotificationBell } from "./notification-bell";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Bell, Lock, LogOut, Menu } from "lucide-react";
+import { Lock, LogOut, Menu } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { CommandPalette } from "./command-palette";
 import { NAV } from "./navigation";
@@ -130,13 +132,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-              to="/dashboard"
-              aria-label="Ver chamados e notificações"
-              className="rounded-xl border border-border bg-surface p-2.5 text-muted-foreground transition hover:text-foreground hover:-translate-y-0.5"
-            >
-              <Bell className="h-4 w-4" />
-            </Link>
+            <NotificationBell />
           </div>
         </header>
         <main className="flex-1 px-4 py-6 md:px-6 md:py-8">
@@ -173,6 +169,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </main>
       </div>
 
+      <AdminTour />
       <UpgradeProModal
         open={lockedLabel !== null}
         featureLabel={lockedLabel}
