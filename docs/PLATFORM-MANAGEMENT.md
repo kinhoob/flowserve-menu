@@ -1,12 +1,12 @@
 # Central de gestão Flux
 
-A rota `/gestao` é exclusiva dos criadores autorizados. O link **Gestão Flux** aparece no menu do restaurante somente para essas contas. A central tem autenticação própria usando a mesma sessão do Flux e não depende do plano ou do trial do restaurante do administrador.
+A rota `/gestao` é uma área privada do dono da plataforma, separada do dashboard dos restaurantes. Não aparece no menu dos clientes, nem mesmo quando o administrador abre um restaurante. Tem sua própria tela de entrada usando a conta e a sessão existentes do Flux; a permissão de administrador é validada no banco e não depende de plano ou trial. A central mostra todos os restaurantes cadastrados, não apenas o restaurante associado à conta conectada.
 
 ## Ativar
 
 1. Cada administrador precisa ter uma conta cadastrada no Flux e o e-mail confirmado.
 2. Execute o SQL privado de ativação no SQL Editor do Supabase, como `postgres`. O pacote inclui as atualizações anteriores pendentes e a nova migração da gestão numa única transação. Se alguma conta não existir ou não estiver confirmada, nenhuma parte da atualização será aplicada.
-3. Use a versão atualizada do aplicativo, entre com uma das contas autorizadas e abra `/gestao`. O SQL não envia convites nem cria senhas.
+3. Use a versão atualizada do aplicativo e abra diretamente `/gestao`. Entre nessa tela com a conta autorizada. O SQL não envia convites nem cria senhas.
 
 O gerador `scripts/build-platform-access.mjs` recebe um ou dois e-mails e um caminho de saída fora do repositório. **Não publique o arquivo privado:** ele contém os e-mails dos criadores. O arquivo público `supabase/fluxqr-atualizacao-beta.sql` instala a estrutura, mas não libera nenhuma conta. Não há um botão público para se tornar administrador.
 

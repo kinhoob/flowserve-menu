@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Building2, ChevronRight, RefreshCw, Search, ShieldCheck, LogOut } from "lucide-react";
 import { FluxLogo } from "@/components/brand/logo";
 import { useAuth } from "@/features/auth/use-auth";
@@ -12,6 +12,7 @@ import {
   platformMoney,
 } from "@/features/platform/platform-api";
 import { RestaurantManagementDetail } from "@/features/platform/restaurant-management-detail";
+import { PlatformLogin } from "@/features/platform/platform-login";
 import { getErrorDetails } from "@/lib/errors";
 export const Route = createFileRoute("/gestao")({
   head: () => ({
@@ -60,9 +61,6 @@ function PlatformManagement() {
             {user && (
               <>
                 <span className="max-w-52 truncate text-muted-foreground">{user.email}</span>
-                <Link to="/dashboard" className="underline">
-                  Meu restaurante
-                </Link>
                 <button
                   aria-label="Sair da gestão"
                   onClick={() => void signOut()}
@@ -81,23 +79,17 @@ function PlatformManagement() {
         </p>
       ) : !user ? (
         <Gate
-          title="Gestão exclusiva do Flux"
-          body="Entre com uma das contas autorizadas dos criadores para acessar os restaurantes e gerenciar planos."
+          title="Administração do Flux"
+          body="Área privada do dono da plataforma. Acompanhe todos os restaurantes cadastrados e gerencie planos e períodos de teste."
         >
-          <Link
-            to="/auth"
-            search={{ mode: "login", redirect: "/gestao" }}
-            className="rounded-xl bg-primary px-5 py-3 text-sm text-primary-foreground"
-          >
-            Entrar na gestão
-          </Link>
+          <PlatformLogin />
         </Gate>
       ) : access.data !== true ? (
         <Gate
           title={missingSchema ? "Ative a central de gestão" : "Acesso restrito"}
           body={
             missingSchema
-              ? "Execute o SQL de gestão e libere as duas contas autorizadas no Supabase. Depois, atualize esta página."
+              ? "Execute o SQL de gestão para liberar sua conta de administrador no Supabase. Depois, atualize esta página."
               : access.isError
                 ? "Não foi possível verificar sua autorização. Confira a conexão e tente novamente."
                 : "Esta conta não tem permissão de administrador da plataforma. Os dados dos restaurantes estão protegidos."
