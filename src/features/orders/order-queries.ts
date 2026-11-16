@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+import { getErrorDetails } from "@/lib/errors";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database, Tables } from "@/integrations/supabase/types";
 import { fetchAllPages } from "@/lib/operations";
@@ -60,6 +62,7 @@ export function useOrders(restaurantId: string | undefined, includeRecentArchive
     queryKey: ["orders", restaurantId, includeRecentArchived],
     enabled: !!restaurantId,
     refetchInterval: 15000,
+    refetchOnReconnect: "always",
     queryFn: async (): Promise<Order[]> => {
       return fetchAllPages<Order>((from, to) =>
         supabase
@@ -82,7 +85,9 @@ export function useOrders(restaurantId: string | undefined, includeRecentArchive
 export function useArchiveServedOrders(restaurantId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
+    networkMode: "always",
     mutationFn: async () => {
+      if (!navigator.onLine) throw new Error("Reconecte antes de arquivar pedidos");
       const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
       const { error, count } = await supabase
         .from("orders")
@@ -101,10 +106,22 @@ export function useArchiveServedOrders(restaurantId: string | undefined) {
 export function useUpdateOrderStatus(restaurantId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) => {
+    networkMode: "always",
+    onError: (error) =>
+      toast.error(getErrorDetails(error).message ?? "Não foi possível alterar o pedido"),
+    mutationFn: async ({
+      id,
+      status,
+      reason,
+    }: {
+      id: string;
+      status: OrderStatus;
+      reason?: string;
+    }) => {
+      if (!navigator.onLine) throw new Error("Reconecte antes de alterar o pedido");
       const { error } = await supabase
         .from("orders")
-        .update({ status })
+        .update({ status, ...(reason ? { cancellation_reason: reason } : {}) })
         .eq("id", id)
         .eq("restaurant_id", restaurantId!);
       if (error) throw error;

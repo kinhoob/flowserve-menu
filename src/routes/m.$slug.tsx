@@ -1,3 +1,5 @@
+import { ConnectionNotice } from "@/features/orders/connection-notice";
+import { withLivePrices } from "@/features/menu/live-prices";
 import { MenuCover, MenuSignature } from "@/features/menu/appearance/menu-identity";
 import {
   menuButtonStyle,
@@ -85,6 +87,7 @@ function PublicMenuPage() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["public-menu", slug],
     retry: false,
+    refetchInterval: 30000,
     queryFn: async () => {
       const { data: r, error: rErr } = await supabase
         .from("restaurants")
@@ -125,7 +128,7 @@ function PublicMenuPage() {
         restaurant: r,
         appearance: readAppearance(appearanceRes.data?.menu_appearance),
         categories: cats.data ?? [],
-        items: filteredItems as PublicItem[],
+        items: (await withLivePrices(r.id, filteredItems)) as PublicItem[],
         modifiers: modifiersMap,
         kitchenOpen,
         viewOnly,
@@ -271,6 +274,10 @@ function PublicMenuPage() {
   };
 
   const placeOrder = async () => {
+    if (!navigator.onLine) {
+      toast.error("Reconecte à internet antes de enviar. Seu carrinho foi mantido.");
+      return;
+    }
     if (!data || cart.length === 0) return;
     if (!customerName.trim()) {
       toast.error("Informe seu nome para enviar o pedido");
@@ -308,6 +315,7 @@ function PublicMenuPage() {
           menu_item_id: c.itemId,
           name_snapshot: c.name,
           price_snapshot: c.unitPrice,
+          expected_unit_price: c.unitPrice,
           quantity: c.qty,
           notes: c.note || null,
           modifier_option_ids: c.modifiers.map((m) => m.id),
@@ -406,6 +414,7 @@ function PublicMenuPage() {
       style={brandStyle}
       {...menuAppearanceAttributes(appearance)}
     >
+      <ConnectionNotice />
       <MenuCover appearance={appearance} />
       <div className="menu-header relative overflow-hidden border-b border-border bg-surface">
         <div
@@ -803,6 +812,59 @@ function PublicMenuPage() {
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
                 <div>
                   <h3 className="font-display text-2xl tracking-tight">Revisar pedido</h3>
+                  <button
+                    disabled={submitting}
+                    className="mt-2 text-xs underline underline-offset-4"
+                    onClick={async () => {
+                      const fresh = await refetch();
+                      if (!fresh.data || fresh.error) {
+                        toast.error("Não foi possível atualizar o cardápio");
+                        return;
+                      }
+                      const unavailable = cart.some((line) => {
+                        const item = fresh.data.items.find((i) => i.id === line.itemId);
+                        if (!item) return true;
+                        const options = (fresh.data.modifiers.get(item.id) ?? []).flatMap(
+                          (g) => g.modifier_options,
+                        );
+                        return line.modifiers.some((m) => !options.some((o) => o.id === m.id));
+                      });
+                      setCart((current) =>
+                        current.map((line) => {
+                          const item = fresh.data.items.find((i) => i.id === line.itemId);
+                          if (!item) {
+                            return line;
+                          }
+                          const options = (fresh.data.modifiers.get(item.id) ?? []).flatMap(
+                            (g) => g.modifier_options,
+                          );
+                          const modifiers = line.modifiers.map((m) => {
+                            const next = options.find((o) => o.id === m.id);
+                            if (!next) {
+                              return m;
+                            }
+                            return { ...m, name: next.name, price_delta: Number(next.price_delta) };
+                          });
+                          return {
+                            ...line,
+                            name: item.name,
+                            basePrice: Number(item.price),
+                            unitPrice:
+                              Number(item.price) +
+                              modifiers.reduce((sum, m) => sum + m.price_delta, 0),
+                            modifiers,
+                          };
+                        }),
+                      );
+                      toast.info(
+                        unavailable
+                          ? "Alguns itens ou adicionais não estão disponíveis. Remova-os e escolha novamente."
+                          : "Valores atualizados. Revise o pedido antes de enviar.",
+                      );
+                    }}
+                  >
+                    Atualizar valores do carrinho
+                  </button>
                   <p className="text-xs text-muted-foreground">
                     Ajuste as quantidades antes de enviar para a cozinha
                   </p>

@@ -1,3 +1,4 @@
+import { CatalogTools } from "@/features/menu/catalog-tools";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -122,6 +123,7 @@ function MenuPage() {
         </Button>
       </div>
 
+      <CatalogTools restaurantId={restaurant.id} categories={categories} currency={currency} />
       <div className="mt-8 grid gap-6 lg:grid-cols-[280px_1fr]">
         <CategoriesPanel
           restaurantId={restaurantId!}
@@ -570,7 +572,7 @@ function ItemCard({
     >
       {isPromo && (
         <span className="absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary-foreground shadow">
-          <Tag className="h-2.5 w-2.5" /> {promoLabel}
+          <Tag className="h-2.5 w-2.5" /> {item.promo_starts_at ? "Agendada" : promoLabel}
         </span>
       )}
       <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-background/60">
@@ -587,6 +589,12 @@ function ItemCard({
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
+        {item.promo_starts_at && item.promo_ends_at && (
+          <p className="mb-1 text-[10px] text-muted-foreground">
+            Promoção: {new Date(item.promo_starts_at).toLocaleString("pt-BR")} até{" "}
+            {new Date(item.promo_ends_at).toLocaleString("pt-BR")}
+          </p>
+        )}
         <div className="flex items-start justify-between gap-2">
           <h3 className="truncate text-sm font-medium">{item.name}</h3>
           <div className="flex flex-col items-end">

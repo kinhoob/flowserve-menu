@@ -45,3 +45,7 @@ Alterações são locais à prévia até “Publicar personalização”; “Des
 Para ampliar o estúdio, aplique apenas `20261116000100_complete_menu_identity.sql`. Essa migração também pode ser aplicada diretamente quando a migração inicial de aparência ainda não foi executada: ela cria a coluna se necessário e substitui a validação mantendo os dados existentes. Não reaplique o bootstrap. O arquivo pode ser executado novamente sem resetar a configuração.
 
 O editor oferece capa por URL HTTPS ou envio de JPG/PNG/WEBP de até 5 MB, altura da capa, chamada, boas-vindas, mensagem do rodapé, visibilidade da assinatura Flux, tamanho/formato do logo, estilos de navegação e títulos das categorias, acabamento dos cartões, escala de texto, espaçamento e textura do fundo. As regras são compartilhadas com o cardápio público. O envio da capa grava um arquivo no armazenamento; sua exibição no cardápio depende de publicar a personalização. Remover a capa da prévia não apaga o arquivo do armazenamento. Nome e logo continuam editáveis em Estabelecimento. As novas opções exigem a migração completa; sem ela, o banco rejeita a publicação e o aplicativo orienta a atualização.
+
+## Gestão, operação e relatórios
+
+A atualização incremental `20261116000200_restaurant_operations.sql` habilita importação CSV atômica, edição em lote, promoções por período e registro de preparo/cancelamento. Execute uma vez no banco existente e consulte `OPERATIONS-UPGRADE.md` para formatos, limites e uso. Não execute o bootstrap para atualizar um projeto com dados.

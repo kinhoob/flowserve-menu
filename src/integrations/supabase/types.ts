@@ -54,6 +54,8 @@ export type Database = {
       };
       menu_items: {
         Row: {
+          promo_starts_at: string | null;
+          promo_ends_at: string | null;
           model_3d_url: string | null;
           model_usdz_url: string | null;
           portion_description: string | null;
@@ -75,6 +77,8 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          promo_starts_at?: string | null;
+          promo_ends_at?: string | null;
           model_3d_url?: string | null;
           model_usdz_url?: string | null;
           portion_description?: string | null;
@@ -96,6 +100,8 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          promo_starts_at?: string | null;
+          promo_ends_at?: string | null;
           model_3d_url?: string | null;
           model_usdz_url?: string | null;
           portion_description?: string | null;
@@ -271,6 +277,10 @@ export type Database = {
       };
       orders: {
         Row: {
+          preparing_at: string | null;
+          ready_at: string | null;
+          cancelled_at: string | null;
+          cancellation_reason: string | null;
           tracking_token_hash: string | null;
           archived: boolean;
           cover_charge: number | null;
@@ -292,6 +302,10 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          preparing_at?: string | null;
+          ready_at?: string | null;
+          cancelled_at?: string | null;
+          cancellation_reason?: string | null;
           tracking_token_hash?: string | null;
           archived?: boolean;
           cover_charge?: number | null;
@@ -313,6 +327,10 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          preparing_at?: string | null;
+          ready_at?: string | null;
+          cancelled_at?: string | null;
+          cancellation_reason?: string | null;
           tracking_token_hash?: string | null;
           archived?: boolean;
           cover_charge?: number | null;
@@ -683,6 +701,11 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      manage_menu_items: {
+        Args: { p_restaurant_id: string; p_action: string; p_rows: Json; p_patch?: Json };
+        Returns: number;
+      };
+      menu_live_prices: { Args: { p_restaurant_id: string }; Returns: Json };
       get_order_status: { Args: { p_order_id: string; p_token: string }; Returns: string | null };
       owner_place_order: {
         Args: {

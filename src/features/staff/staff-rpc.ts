@@ -25,6 +25,7 @@ const staffOrderSchema = z.object({
       price: z.number(),
       quantity: z.number(),
       notes: z.string().nullable(),
+      modifiers: z.array(z.object({ name: z.string() })).catch([]),
     }),
   ),
 });
@@ -76,6 +77,15 @@ export async function staffUpdateOrderStatus(
   status: string,
   staff_name?: string,
 ) {
+  if (typeof navigator !== "undefined" && !navigator.onLine)
+    throw new Error("Reconecte antes de alterar o pedido");
+  if (
+    status === "cancelled" &&
+    !window.confirm(
+      "Cancelar este pedido? Confirme com a equipe. O pedido será excluído dos valores de vendas.",
+    )
+  )
+    return;
   const { error } = await supabase.rpc("staff_update_order_status", {
     p_token: token,
     p_order_id: order_id,
@@ -86,6 +96,8 @@ export async function staffUpdateOrderStatus(
 }
 
 export async function staffArchiveOrders(token: string, order_ids: string[]) {
+  if (typeof navigator !== "undefined" && !navigator.onLine)
+    throw new Error("Reconecte antes de arquivar pedidos");
   const { error } = await supabase.rpc("staff_archive_orders", {
     p_token: token,
     p_order_ids: order_ids,

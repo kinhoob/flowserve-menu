@@ -396,7 +396,9 @@ function BillModal({
   }
 
   const close = useMutation({
+    networkMode: "always",
     mutationFn: async () => {
+      if (!navigator.onLine) throw new Error("Reconecte antes de fechar a conta");
       const ids = orders.map((o) => o.id);
       const primaryId = ids[0];
       if ((serviceFee > 0 || cover > 0) && primaryId) {
@@ -431,7 +433,9 @@ function BillModal({
   // Força liberação: arquiva QUALQUER pedido residual desta mesa (por label normalizado)
   // e resolve chamados. Usado quando a mesa aparece "ocupada" mas não há itens visíveis.
   const forceFree = useMutation({
+    networkMode: "always",
     mutationFn: async () => {
+      if (!navigator.onLine) throw new Error("Reconecte antes de liberar a mesa");
       const target = normalize(tableLabel);
       const { data: rows, error: selErr } = await supabase
         .from("orders")

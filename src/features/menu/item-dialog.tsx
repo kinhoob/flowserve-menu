@@ -35,7 +35,14 @@ const schema = z.object({
   is_promo: z.boolean(),
   original_price: z.coerce.number().min(0).max(99999).nullable(),
   promo_label: z.string().trim().max(40).nullable(),
+  promo_starts_at: z.string(),
+  promo_ends_at: z.string(),
 });
+function toDateInput(value: string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
 type Vals = z.infer<typeof schema>;
 
 export function ItemDialog({
@@ -74,6 +81,8 @@ export function ItemDialog({
       is_promo: false,
       original_price: null,
       promo_label: null,
+      promo_starts_at: "",
+      promo_ends_at: "",
     },
   });
 
@@ -95,6 +104,8 @@ export function ItemDialog({
         is_promo: item?.is_promo ?? false,
         original_price: item?.original_price ? Number(item.original_price) : null,
         promo_label: item?.promo_label ?? null,
+        promo_starts_at: toDateInput(item?.promo_starts_at),
+        promo_ends_at: toDateInput(item?.promo_ends_at),
       });
     }
   }, [open, item, form]);
@@ -131,6 +142,20 @@ export function ItemDialog({
   };
 
   const onSubmit = async (values: Vals) => {
+    if (
+      values.is_promo &&
+      (values.promo_starts_at || values.promo_ends_at) &&
+      (!values.promo_starts_at ||
+        !values.promo_ends_at ||
+        !Number.isFinite(Date.parse(values.promo_starts_at)) ||
+        !Number.isFinite(Date.parse(values.promo_ends_at)) ||
+        new Date(values.promo_ends_at) <= new Date(values.promo_starts_at) ||
+        values.original_price === null ||
+        values.original_price < values.price)
+    ) {
+      toast.error("Informe início e fim válidos e preço original maior ou igual ao promocional.");
+      return;
+    }
     try {
       const saved = await upsert.mutateAsync({
         id: currentItem?.id,
@@ -148,6 +173,18 @@ export function ItemDialog({
         is_promo: values.is_promo,
         original_price: values.is_promo ? (values.original_price ?? null) : null,
         promo_label: values.is_promo ? (values.promo_label ?? null) : null,
+        ...(values.promo_starts_at || values.promo_ends_at || item?.promo_starts_at
+          ? {
+              promo_starts_at:
+                values.is_promo && values.promo_starts_at
+                  ? new Date(values.promo_starts_at).toISOString()
+                  : null,
+              promo_ends_at:
+                values.is_promo && values.promo_ends_at
+                  ? new Date(values.promo_ends_at).toISOString()
+                  : null,
+            }
+          : {}),
       });
       toast.success(
         currentItem ? "Item atualizado" : "Item criado — agora adicione opções se quiser",
@@ -180,6 +217,33 @@ export function ItemDialog({
 
           <TabsContent value="details" className="mt-4">
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {isPromo && (
+                <div className="rounded-xl border border-border p-4">
+                  <p className="text-sm font-medium">Agendar promoção</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Opcional: início e fim. Fora desse período vale o preço original. Horário do
+                    dispositivo: {Intl.DateTimeFormat().resolvedOptions().timeZone}.
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="text-xs">
+                      Início
+                      <input
+                        type="datetime-local"
+                        {...form.register("promo_starts_at")}
+                        className="input-field mt-2"
+                      />
+                    </label>
+                    <label className="text-xs">
+                      Fim
+                      <input
+                        type="datetime-local"
+                        {...form.register("promo_ends_at")}
+                        className="input-field mt-2"
+                      />
+                    </label>
+                  </div>
+                </div>
+              )}
               <div className="space-y-2">
                 <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   Foto

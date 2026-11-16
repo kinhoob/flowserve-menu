@@ -1,3 +1,5 @@
+import { NewOrderAlarm } from "@/features/orders/new-order-alarm";
+import { ConnectionNotice } from "@/features/orders/connection-notice";
 import type { StaffOrder } from "@/features/staff/staff-rpc";
 import { staffListOrders, staffUpdateOrderStatus } from "@/features/staff/staff-rpc";
 import { useStaffSession } from "@/features/staff/staff-session";
@@ -56,6 +58,7 @@ function StaffKitchen() {
   }, [session, qc]);
 
   const updateStatus = useMutation({
+    networkMode: "always",
     mutationFn: async ({ id, status }: { id: string; status: string }) =>
       staffUpdateOrderStatus(session!.token, id, status, session!.name),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff-orders", session?.token] }),
@@ -86,6 +89,16 @@ function StaffKitchen() {
         <ChefHat className="h-5 w-5 text-primary" /> KDS — Cozinha
       </h1>
 
+      <ConnectionNotice />
+      <NewOrderAlarm orders={ordersQ.data ?? []} />
+      {ordersQ.isError && (
+        <p role="alert" className="rounded-xl border border-destructive p-3 text-sm">
+          Não foi possível atualizar os pedidos.{" "}
+          <button className="underline" onClick={() => void ordersQ.refetch()}>
+            Tentar novamente
+          </button>
+        </p>
+      )}
       {ordersQ.isLoading ? (
         <div className="flex h-40 items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -123,10 +136,20 @@ function StaffKitchen() {
                       </div>
                       <ul className="mt-2 space-y-0.5 text-sm">
                         {(o.items ?? []).map((it) => (
-                          <li key={it.id} className="flex justify-between">
+                          <li key={it.id} className="flex flex-col gap-1">
                             <span>
                               {it.quantity}× {it.name}
                             </span>
+                            {it.modifiers?.length > 0 && (
+                              <p className="text-xs font-medium text-primary">
+                                Adicionais: {it.modifiers.map((m) => m.name).join(" · ")}
+                              </p>
+                            )}
+                            {it.notes && (
+                              <p className="rounded-lg border border-primary/30 p-2 text-xs font-semibold">
+                                Obs.: {it.notes}
+                              </p>
+                            )}
                           </li>
                         ))}
                       </ul>

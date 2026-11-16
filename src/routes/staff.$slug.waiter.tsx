@@ -1,3 +1,4 @@
+import { ConnectionNotice } from "@/features/orders/connection-notice";
 import { SplitBillDialog } from "@/features/experience/split-bill-dialog";
 import type { StaffOrder } from "@/features/staff/staff-rpc";
 import {
@@ -106,6 +107,7 @@ function StaffWaiter() {
   }, [session, qc]);
 
   const archive = useMutation({
+    networkMode: "always",
     mutationFn: async (ids: string[]) => staffArchiveOrders(session!.token, ids),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staff-orders", session?.token] });
@@ -163,6 +165,7 @@ function StaffWaiter() {
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-6">
+      <ConnectionNotice />
       <Link
         to="/staff/$slug"
         params={{ slug }}

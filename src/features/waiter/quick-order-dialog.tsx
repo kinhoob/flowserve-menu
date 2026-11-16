@@ -1,3 +1,4 @@
+import { withLivePrices } from "@/features/menu/live-prices";
 import { ModifierPicker, type SelectedModifier } from "@/features/menu/modifier-picker";
 import { fetchModifiersForRestaurant } from "@/features/menu/modifier-queries";
 import { StaffPicker } from "@/features/staff/staff-picker";
@@ -61,12 +62,16 @@ export function QuickOrderModal({
     queryFn: async (): Promise<WItem[]> => {
       const { data, error } = await supabase
         .from("menu_items")
-        .select("id, name, price, category_id, is_available, categories(name)")
+        .select("*, categories(name,is_active)")
         .eq("restaurant_id", restaurantId)
         .eq("is_available", true)
         .order("name");
       if (error) throw error;
-      return (data ?? []).map((r) => ({
+      const current = await withLivePrices(
+        restaurantId,
+        (data ?? []).filter((r) => r.categories?.is_active),
+      );
+      return current.map((r) => ({
         id: r.id,
         name: r.name,
         price: Number(r.price),
@@ -140,12 +145,17 @@ export function QuickOrderModal({
   }
 
   async function submit(createdByName: string) {
+    if (!navigator.onLine) {
+      toast.error("Reconecte antes de enviar o pedido");
+      return;
+    }
     if (lines.length === 0) return;
     setSubmitting(true);
     try {
       const items = lines.map((l) => ({
         menu_item_id: l.productId,
         quantity: l.qty,
+        expected_unit_price: l.price,
         notes: l.notes || null,
         modifier_option_ids: l.modifiers.map((m) => m.id),
       }));

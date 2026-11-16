@@ -1,3 +1,4 @@
+import { ConnectionNotice } from "@/features/orders/connection-notice";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Bell, Lock, LogOut, Menu } from "lucide-react";
@@ -139,6 +140,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
           </div>
         </header>
         <main className="flex-1 px-4 py-6 md:px-6 md:py-8">
+          <ConnectionNotice />
           <motion.div
             key={pathname}
             initial={{ opacity: 0, y: 6 }}

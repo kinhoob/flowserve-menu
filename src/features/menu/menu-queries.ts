@@ -117,6 +117,9 @@ export function useUpsertMenuItem(restaurantId: string | undefined) {
         description: input.description ?? null,
         price: input.price,
         image_url: input.image_url ?? null,
+        ...(input.promo_starts_at !== undefined
+          ? { promo_starts_at: input.promo_starts_at, promo_ends_at: input.promo_ends_at ?? null }
+          : {}),
         model_3d_url: input.model_3d_url ?? null,
         model_usdz_url: input.model_usdz_url ?? null,
         portion_description: input.portion_description ?? null,
@@ -131,7 +134,13 @@ export function useUpsertMenuItem(restaurantId: string | undefined) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["menu_items"] }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ["menu_items"] }),
+        qc.invalidateQueries({ queryKey: ["public-menu"] }),
+        qc.invalidateQueries({ queryKey: ["waiter-items"] }),
+        qc.invalidateQueries({ queryKey: ["catalog-tools"] }),
+      ]),
   });
 }
 
@@ -150,11 +159,12 @@ export function useReorderCategories(restaurantId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (ordered: { id: string; position: number }[]) => {
-      await Promise.all(
+      const results = await Promise.all(
         ordered.map((o) =>
           supabase.from("categories").update({ position: o.position }).eq("id", o.id),
         ),
       );
+      for (const result of results) if (result.error) throw result.error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories", restaurantId] }),
   });
@@ -164,11 +174,12 @@ export function useReorderMenuItems() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (ordered: { id: string; position: number }[]) => {
-      await Promise.all(
+      const results = await Promise.all(
         ordered.map((o) =>
           supabase.from("menu_items").update({ position: o.position }).eq("id", o.id),
         ),
       );
+      for (const result of results) if (result.error) throw result.error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["menu_items"] }),
   });

@@ -24,7 +24,16 @@ describe("staff RPC response boundaries", () => {
       items: [{ id: "item", name: "Prato", price: 20, quantity: 1, notes: null }],
     };
     rpc.mockResolvedValue({ data: [order], error: null });
-    expect(await staffListOrders("token")).toEqual([order]);
+    expect(await staffListOrders("token")).toEqual([
+      { ...order, items: order.items.map((item) => ({ ...item, modifiers: [] })) },
+    ]);
+    rpc.mockResolvedValue({
+      data: [{ ...order, items: [{ ...order.items[0], modifiers: [{ name: "Extra queijo" }] }] }],
+      error: null,
+    });
+    expect((await staffListOrders("token"))[0].items[0].modifiers).toEqual([
+      { name: "Extra queijo" },
+    ]);
   });
   it("rejects malformed RPC data before it reaches the operational screens", async () => {
     rpc.mockResolvedValue({ data: [{ id: "table", label: 12 }], error: null });

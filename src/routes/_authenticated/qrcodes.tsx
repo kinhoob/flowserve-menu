@@ -1,3 +1,4 @@
+import { contrastRatio } from "@/features/menu/appearance/appearance";
 import { Button } from "@/components/ui/button";
 import { getTableLimit } from "@/features/billing/plan-limits";
 import { useTrialStatus } from "@/features/billing/trial-status";
@@ -57,6 +58,10 @@ function QRCodesPage() {
   const [label, setLabel] = useState("");
   const [bulk, setBulk] = useState({ from: 1, to: 10, prefix: "Mesa" });
   const [downloading, setDownloading] = useState(false);
+  const [qrColor, setQrColor] = useState("#153b27");
+  const [qrCaption, setQrCaption] = useState("Escaneie para ver o cardápio e pedir");
+  const [qrTitle, setQrTitle] = useState("");
+  const qrValid = contrastRatio(qrColor, "#ffffff") >= 7;
 
   // Restaurant is auto-created on signup; no redirect needed.
 
@@ -69,25 +74,56 @@ function QRCodesPage() {
   }
 
   const downloadPng = async (t: VenueTable) => {
+    if (!qrValid) {
+      toast.error("Escolha uma cor mais escura para garantir a leitura do QR");
+      return;
+    }
     if (!canExportQr()) {
       toast.error(
         "Configure VITE_PUBLIC_APP_URL com o domínio publicado antes de exportar QR Codes.",
       );
       return;
     }
-    const url = publicUrl(restaurant.slug, t.label);
-    const dataUrl = await QRCode.toDataURL(url, {
-      width: 1024,
-      margin: 2,
-      color: { dark: "#111111", light: "#ffffff" },
-    });
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = `flux-${restaurant.slug}-${t.label.replace(/\s+/g, "-").toLowerCase()}.png`;
-    a.click();
+    try {
+      const url = publicUrl(restaurant.slug, t.label);
+      const dataUrl = await QRCode.toDataURL(url, {
+        width: 1024,
+        margin: 4,
+        color: { dark: qrColor, light: "#ffffff" },
+      });
+      const a = document.createElement("a");
+      const canvas = document.createElement("canvas");
+      canvas.width = 1200;
+      canvas.height = 1500;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Não foi possível gerar a imagem");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, 1200, 1500);
+      ctx.fillStyle = qrColor;
+      ctx.textAlign = "center";
+      ctx.font = "bold 40px sans-serif";
+      ctx.fillText((qrTitle || restaurant.name).slice(0, 60), 600, 110, 1050);
+      const image = new Image();
+      image.src = dataUrl;
+      await image.decode();
+      ctx.drawImage(image, 100, 180, 1000, 1000);
+      ctx.font = "bold 52px sans-serif";
+      ctx.fillText(t.label, 600, 1280, 1050);
+      ctx.font = "26px sans-serif";
+      ctx.fillText(qrCaption, 600, 1370, 1050);
+      a.href = canvas.toDataURL("image/png");
+      a.download = `flux-${restaurant.slug}-${t.label.replace(/\s+/g, "-").toLowerCase()}.png`;
+      a.click();
+    } catch (error) {
+      toast.error(getErrorDetails(error).message ?? "Não foi possível gerar o cartão PNG");
+    }
   };
 
   const downloadAllPdf = async () => {
+    if (!qrValid) {
+      toast.error("Escolha uma cor mais escura para garantir a leitura do QR");
+      return;
+    }
     if (tables.length === 0) {
       toast.error("Cadastre ao menos uma mesa");
       return;
@@ -117,24 +153,36 @@ function QRCodesPage() {
         const url = publicUrl(restaurant.slug, t.label);
         const dataUrl = await QRCode.toDataURL(url, {
           width: 600,
-          margin: 1,
-          color: { dark: "#111111", light: "#ffffff" },
+          margin: 4,
+          color: { dark: qrColor, light: "#ffffff" },
         });
         const qrSize = Math.min(cardW, cardH) - 120;
         pdf.setDrawColor(220);
         pdf.roundedRect(x + 24, y + 24, cardW - 48, cardH - 48, 12, 12);
         pdf.setFontSize(11);
-        pdf.setTextColor(120);
-        pdf.text(restaurant.name.toUpperCase(), x + cardW / 2, y + 56, { align: "center" });
+        pdf.setTextColor(qrColor);
+        pdf.text(
+          pdf.splitTextToSize((qrTitle || restaurant.name).toUpperCase(), cardW - 64).slice(0, 2),
+          x + cardW / 2,
+          y + 45,
+          {
+            align: "center",
+          },
+        );
         pdf.addImage(dataUrl, "PNG", x + (cardW - qrSize) / 2, y + 72, qrSize, qrSize);
         pdf.setFontSize(22);
         pdf.setTextColor(20);
         pdf.text(t.label, x + cardW / 2, y + cardH - 60, { align: "center" });
         pdf.setFontSize(9);
         pdf.setTextColor(140);
-        pdf.text("Escaneie para ver o cardápio e pedir", x + cardW / 2, y + cardH - 42, {
-          align: "center",
-        });
+        pdf.text(
+          pdf.splitTextToSize(qrCaption, cardW - 64).slice(0, 2),
+          x + cardW / 2,
+          y + cardH - 45,
+          {
+            align: "center",
+          },
+        );
       }
       pdf.save(`flux-${restaurant.slug}-qrcodes.pdf`);
       toast.success("PDF gerado");
@@ -214,6 +262,48 @@ function QRCodesPage() {
         </div>
       )}
 
+      <section className="rounded-2xl border border-border bg-surface p-5">
+        <h2 className="font-display text-xl">QR Code com a sua marca</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Personalize os cartões PNG e PDF para impressão. O fundo do código permanece branco para
+          preservar a leitura. Ajustes válidos para esta exportação.
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <label className="text-xs">
+            Cor do código
+            <input
+              type="color"
+              value={qrColor}
+              onChange={(e) => setQrColor(e.target.value)}
+              className="mt-2 block h-10 w-full"
+            />
+          </label>
+          <label className="text-xs">
+            Título do cartão
+            <input
+              value={qrTitle}
+              maxLength={60}
+              placeholder={restaurant.name}
+              onChange={(e) => setQrTitle(e.target.value)}
+              className="input-field mt-2"
+            />
+          </label>
+          <label className="text-xs">
+            Chamada para o cliente
+            <input
+              value={qrCaption}
+              maxLength={70}
+              onChange={(e) => setQrCaption(e.target.value)}
+              className="input-field mt-2"
+            />
+          </label>
+        </div>
+        {!qrValid && (
+          <p role="alert" className="mt-2 text-xs text-destructive">
+            Cor clara demais. Escolha uma cor escura para exportar.
+          </p>
+        )}
+      </section>
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         {tLoading ? (
           <div className="flex h-40 items-center justify-center">
@@ -236,6 +326,9 @@ function QRCodesPage() {
                 key={t.id}
                 table={t}
                 slug={restaurant.slug}
+                ink={qrColor}
+                title={qrTitle || restaurant.name}
+                caption={qrCaption}
                 occupied={occupiedLabels.has(normalizeTableLabel(t.label))}
                 onDelete={async () => {
                   try {
@@ -363,12 +456,18 @@ function QRCodesPage() {
 function TableCard({
   table,
   slug,
+  ink,
+  title,
+  caption,
   occupied,
   onDelete,
   onDownload,
 }: {
   table: VenueTable;
   slug: string;
+  ink: string;
+  title: string;
+  caption: string;
   occupied: boolean;
   onDelete: () => void;
   onDownload: () => void;
@@ -381,9 +480,9 @@ function TableCard({
     QRCode.toCanvas(ref.current, url, {
       width: 220,
       margin: 1,
-      color: { dark: "#0f0f0f", light: "#ffffff" },
+      color: { dark: ink, light: "#ffffff" },
     }).catch(() => {});
-  }, [url]);
+  }, [url, ink]);
 
   return (
     <li
@@ -424,8 +523,13 @@ function TableCard({
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
-      <div className="flex items-center justify-center rounded-xl bg-white p-3">
+      <div
+        className="flex flex-col items-center justify-center gap-2 rounded-xl bg-white p-3"
+        style={{ color: ink }}
+      >
+        <p className="max-w-full break-words text-center text-xs font-bold">{title}</p>
         <canvas ref={ref} />
+        <p className="text-center text-[10px]">{caption}</p>
       </div>
       <div className="flex gap-2">
         <Button size="sm" variant="secondary" className="flex-1 gap-1.5" onClick={onDownload}>

@@ -1,3 +1,5 @@
+import { orderPerformance } from "@/features/orders/performance";
+import { downloadCsv } from "@/features/menu/catalog-csv";
 import { FeatureLocked } from "@/features/billing/trial-guard";
 import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
 import {
@@ -43,14 +45,24 @@ const RANGE_LABELS: Record<Range, string> = {
 
 function AnalyticsPage() {
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
-  const { data: orders = [], isLoading: oLoading } = useOrders(restaurant?.id);
+  const {
+    data: orders = [],
+    isLoading: oLoading,
+    isError: orderError,
+    refetch: refetchOrders,
+  } = useOrders(restaurant?.id);
   const { data: trial } = useTrialStatus();
   const timezone = restaurant?.timezone ?? "America/Sao_Paulo";
   const [range, setRange] = useState<Range>("7d");
   const [selected, setSelected] = useState<Order | null>(null);
 
   // Pedidos arquivados (concluidos/realizados) — não vêm via useOrders.
-  const { data: archivedOrders = [] } = useQuery({
+  const {
+    data: archivedOrders = [],
+    isError: archiveError,
+    isLoading: archiveLoading,
+    refetch: refetchArchived,
+  } = useQuery({
     queryKey: ["orders-archived", restaurant?.id, range, timezone],
     enabled: !!restaurant?.id,
     queryFn: async (): Promise<Order[]> => {
@@ -79,9 +91,14 @@ function AnalyticsPage() {
     const since = new Date(sinceOrdinal * 86400000);
 
     // Universo completo (ativos + arquivados) para o período.
-    const all: Order[] = [...orders, ...archivedOrders];
+    const all: Order[] = [
+      ...new Map([...orders, ...archivedOrders].map((o) => [o.id, o])).values(),
+    ];
     const paid = all.filter(
-      (o) => o.status !== "cancelled" && dateOrdinal(o.created_at, timezone) >= sinceOrdinal,
+      (o) =>
+        o.status !== "cancelled" &&
+        dateOrdinal(o.created_at, timezone) >= sinceOrdinal &&
+        dateOrdinal(o.created_at, timezone) <= dateOrdinal(new Date(), timezone),
     );
 
     // Receita Realizada = pedido finalizado (concluded ≡ archived=true)
@@ -94,7 +111,8 @@ function AnalyticsPage() {
       .reduce((s, o) => s + Number(o.subtotal || 0), 0);
     const revenue = realizedRevenue + provisionedRevenue;
     const count = paid.length;
-    const avg = count ? revenue / count : 0;
+    const completed = paid.filter((o) => o.archived || o.status === "served");
+    const avg = completed.length ? revenue / completed.length : 0;
 
     const customers = new Set(paid.map((o) => `${o.table_label ?? "-"}|${o.customer_name ?? "-"}`))
       .size;
@@ -109,7 +127,7 @@ function AnalyticsPage() {
       const idx = Math.floor(dateOrdinal(o.created_at, timezone) - sinceOrdinal);
       if (idx >= 0 && idx < perDay.length) {
         const v = Number(o.subtotal || 0);
-        perDay[idx].revenue += v;
+        if (o.archived || o.status === "served") perDay[idx].revenue += v;
         perDay[idx].count += 1;
         if (o.archived === true) perDay[idx].realized += v;
         else if (o.status === "served") perDay[idx].provisioned += v;
@@ -118,7 +136,7 @@ function AnalyticsPage() {
 
     // Top items
     const itemMap = new Map<string, { name: string; qty: number; revenue: number }>();
-    paid.forEach((o) =>
+    completed.forEach((o) =>
       o.order_items.forEach((it) => {
         const key = it.name_snapshot;
         const cur = itemMap.get(key) ?? { name: key, qty: 0, revenue: 0 };
@@ -170,8 +188,15 @@ function AnalyticsPage() {
     };
   }, [orders, archivedOrders, range, timezone]);
 
-  const allOrders = useMemo(() => [...orders, ...archivedOrders], [orders, archivedOrders]);
+  const allOrders = useMemo(
+    () => orderPerformance([...orders, ...archivedOrders], RANGE_DAYS[range], timezone).orders,
+    [orders, archivedOrders, range, timezone],
+  );
 
+  const performance = useMemo(
+    () => orderPerformance([...orders, ...archivedOrders], RANGE_DAYS[range], timezone),
+    [orders, archivedOrders, range, timezone],
+  );
   if (rLoading || !restaurant) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
@@ -187,7 +212,7 @@ function AnalyticsPage() {
 
   const exportCsv = () => {
     const rows = [
-      ["Data", "Mesa", "Cliente", "Status", "Receita", "Subtotal", "Itens"],
+      ["Data", "Mesa", "Cliente", "Status", "Receita", "Subtotal", "Itens", "Motivo cancelamento"],
       ...allOrders
         .filter((o) => dateOrdinal(o.created_at, timezone) >= dateOrdinal(stats.since, "UTC"))
         .map((o) => [
@@ -195,21 +220,19 @@ function AnalyticsPage() {
           o.table_label ?? "",
           o.customer_name ?? "",
           STATUS_LABELS[o.status],
-          o.archived === true ? "Realizada" : o.status === "served" ? "Provisionada" : "Em aberto",
+          o.status === "cancelled"
+            ? "Cancelada"
+            : o.archived === true
+              ? "Realizada"
+              : o.status === "served"
+                ? "Provisionada"
+                : "Em aberto",
           String(o.subtotal),
           o.order_items.map((i) => `${i.quantity}x ${i.name_snapshot}`).join(" | "),
+          o.cancellation_reason ?? "",
         ]),
     ];
-    const csv = rows
-      .map((r) => r.map((c) => `"${String(c).replaceAll(`"`, `""`)}"`).join(","))
-      .join("\n");
-    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `flux-${restaurant.slug}-${range}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`flux-${restaurant.slug}-${range}.csv`, rows);
   };
 
   if (trial && !canAccess(trial, "analytics")) {
@@ -252,7 +275,7 @@ function AnalyticsPage() {
           </div>
           <button
             onClick={exportCsv}
-            disabled={stats.count === 0}
+            disabled={stats.count === 0 || archiveError || orderError || archiveLoading}
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground transition hover:-translate-y-0.5 disabled:opacity-50"
           >
             <Download className="h-3.5 w-3.5" /> Exportar CSV
@@ -260,6 +283,80 @@ function AnalyticsPage() {
         </div>
       </div>
 
+      {(archiveError || orderError) && (
+        <p role="alert" className="rounded-xl border border-destructive p-4 text-sm">
+          Não foi possível carregar o histórico. Os totais estão incompletos; tente novamente antes
+          de usar ou exportar os relatórios.{" "}
+          <button
+            className="underline"
+            onClick={() => void Promise.all([refetchOrders(), refetchArchived()])}
+          >
+            Tentar novamente
+          </button>
+        </p>
+      )}
+      {archiveLoading && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Carregando histórico do período…
+        </p>
+      )}
+      <section className="rounded-2xl border border-border bg-surface p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl">Desempenho da operação</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Preparo medido entre início do preparo e pronto. Pedidos antigos sem esses registros
+              não entram na média.
+            </p>
+          </div>
+          <button
+            disabled={archiveError || orderError || archiveLoading || !performance.ranking.length}
+            className="rounded-xl border border-border px-3 py-2 text-xs disabled:opacity-40"
+            onClick={() =>
+              downloadCsv("flux-produtos-" + range + ".csv", [
+                ["Prato", "Quantidade", "Valor dos itens"],
+                ...performance.ranking.map((i) => [
+                  i.name,
+                  i.quantity,
+                  (i.revenueCents / 100).toFixed(2),
+                ]),
+              ])
+            }
+          >
+            Exportar ranking de pratos
+          </button>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div>
+            <p className="text-xs text-muted-foreground">Preparo médio</p>
+            <p className="mt-1 text-xl">
+              {performance.preparationMean === null
+                ? "Sem medições"
+                : performance.preparationMean.toFixed(1) + " min"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {performance.preparationSamples} pedidos com medição · mediana{" "}
+              {performance.preparationMedian === null
+                ? "—"
+                : performance.preparationMedian.toFixed(1) + " min"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Cancelamentos</p>
+            <p className="mt-1 text-xl">{performance.cancellationRate.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">
+              {performance.cancelled} de {performance.orders.length} pedidos
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Pedidos entregues ou finalizados</p>
+            <p className="mt-1 text-xl">{performance.soldCount}</p>
+            <p className="text-xs text-muted-foreground">
+              Base do ticket médio; valores não confirmam pagamento.
+            </p>
+          </div>
+        </div>
+      </section>
       {/* KPIs */}
       <div className="grid gap-3 stagger sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
@@ -282,11 +379,12 @@ function AnalyticsPage() {
         <KpiCard
           icon={<BarChart3 className="h-4 w-4" />}
           label="Ticket médio"
-          value={formatPrice(stats.avg, currency)}
+          hint="Pedidos entregues ou finalizados"
+          value={formatPrice(performance.ticket, currency)}
         />
         <KpiCard
           icon={<Users className="h-4 w-4" />}
-          label="Clientes únicos"
+          label="Atendimentos identificados"
           value={String(stats.customers)}
         />
       </div>
@@ -589,6 +687,11 @@ function OrderModal({
           </div>
           <StatusPill status={order.status} />
         </div>
+        {order.status === "cancelled" && order.cancellation_reason && (
+          <p className="mt-4 rounded-xl border border-destructive/30 p-3 text-sm">
+            Motivo: {order.cancellation_reason}
+          </p>
+        )}
         <ul className="mt-5 max-h-80 space-y-2 overflow-y-auto pr-1">
           {order.order_items.map((it) => {
             const mods = (it.modifiers_snapshot as Array<{ name: string }> | null) ?? [];

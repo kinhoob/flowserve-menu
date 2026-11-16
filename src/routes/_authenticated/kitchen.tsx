@@ -1,3 +1,4 @@
+import { CancelOrderDialog } from "@/features/orders/cancel-order-dialog";
 import { FeatureLocked } from "@/features/billing/trial-guard";
 import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
 import {
@@ -59,12 +60,22 @@ function KitchenPage() {
   const qc = useQueryClient();
   const { data: restaurant } = useRestaurant();
   const { data: trial } = useTrialStatus();
-  const { data: orders, isLoading } = useOrders(restaurant?.id);
+  const {
+    data: orders,
+    isLoading,
+    isError: ordersError,
+    dataUpdatedAt,
+    refetch,
+  } = useOrders(restaurant?.id);
   const update = useUpdateOrderStatus(restaurant?.id);
   const archive = useArchiveServedOrders(restaurant?.id);
   const [pendingDeliver, setPendingDeliver] = useState<string | null>(null);
 
   async function markServed(id: string, deliveredByName: string) {
+    if (!navigator.onLine) {
+      toast.error("Reconecte antes de marcar a entrega");
+      return;
+    }
     const { error } = await supabase
       .from("orders")
       .update({
@@ -91,6 +102,7 @@ function KitchenPage() {
 
   const [showServed, setShowServed] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [cancelId, setCancelId] = useState<string | null>(null);
   const [scope, setScope] = useState<"all" | "food" | "drink">("all");
   const prevPending = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
@@ -144,6 +156,15 @@ function KitchenPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6">
+      {ordersError && (
+        <div role="alert" className="rounded-xl border border-destructive p-4 text-sm">
+          Falha ao atualizar pedidos. Última atualização:{" "}
+          {dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString("pt-BR") : "nenhuma"}.{" "}
+          <button className="underline" onClick={() => void refetch()}>
+            Tentar novamente
+          </button>
+        </div>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-primary">Operação ao vivo</p>
@@ -177,7 +198,19 @@ function KitchenPage() {
             ))}
           </div>
           <button
-            onClick={() => setSoundOn((v) => !v)}
+            onClick={() => {
+              setSoundOn(true);
+              playChime();
+            }}
+            className="rounded-xl border border-border px-3 py-2 text-xs"
+          >
+            Ativar/testar som
+          </button>
+          <button
+            onClick={() => {
+              setSoundOn((v) => !v);
+              if (!soundOn) playChime();
+            }}
             title={soundOn ? "Som ativo" : "Som mudo"}
             className="rounded-xl border border-border bg-surface p-2.5 text-sm text-muted-foreground transition hover:text-foreground"
           >
@@ -232,12 +265,27 @@ function KitchenPage() {
               status={col.status}
               orders={col.orders}
               onAdvance={(id, next) => advance(id, next)}
-              onCancel={(id) => update.mutate({ id, status: "cancelled" })}
+              onCancel={setCancelId}
               currency={restaurant?.currency ?? "BRL"}
             />
           ))}
         </div>
       )}
+      <CancelOrderDialog
+        key={cancelId ?? "closed"}
+        open={!!cancelId}
+        pending={update.isPending}
+        onClose={() => setCancelId(null)}
+        onConfirm={(reason) => {
+          if (cancelId)
+            update.mutate(
+              { id: cancelId, status: "cancelled", reason },
+              {
+                onSuccess: () => setCancelId(null),
+              },
+            );
+        }}
+      />
       <AnimatePresence>
         {pendingDeliver && restaurant && (
           <StaffPicker
@@ -353,6 +401,22 @@ function KitchenColumn({
                           {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
                         </span>
                       </div>
+                      {Array.isArray(it.modifiers_snapshot) && it.modifiers_snapshot.length > 0 && (
+                        <p className="rounded-lg bg-primary/10 px-2 py-1 text-xs font-medium text-primary">
+                          Adicionais:{" "}
+                          {it.modifiers_snapshot
+                            .map((m) =>
+                              m &&
+                              typeof m === "object" &&
+                              !Array.isArray(m) &&
+                              typeof m.name === "string"
+                                ? m.name
+                                : "",
+                            )
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      )}
                       {it.notes && (
                         <div className="rounded-md border border-[oklch(0.78_0.16_84_/_0.45)] bg-[oklch(0.92_0.12_92_/_0.18)] px-2.5 py-1.5 text-[12px] font-semibold text-[oklch(0.88_0.16_88)]">
                           <span className="mr-1 text-[10px] uppercase tracking-wider text-[oklch(0.78_0.14_84)]">

@@ -326,6 +326,118 @@ try {
   console.log(
     "PASS: webhook deduplication, event ordering, sandbox isolation, plan escalation blocked",
   );
+
+  await client.query("RESET ROLE");
+  const ownCount = Number(
+    (await client.query("SELECT count(*) FROM menu_items WHERE restaurant_id=$1", [rid])).rows[0]
+      .count,
+  );
+  await client.query("SET ROLE authenticated");
+  const csvRows = [
+    { category: "Importados", name: "Prato A", price: 20.5, is_available: true },
+    { category: "Importados", name: "Prato B", price: 12 },
+  ];
+  const imported = (
+    await client.query("SELECT manage_menu_items($1,'import',$2::jsonb) AS count", [
+      rid,
+      JSON.stringify(csvRows),
+    ])
+  ).rows[0].count;
+  assert.equal(imported, 2);
+  await fails("SELECT manage_menu_items($1,'import',$2::jsonb)", [
+    rid,
+    JSON.stringify([
+      { category: "Atomic", name: "Duplo", price: 10 },
+      { category: "Atomic", name: "Duplo", price: 10 },
+    ]),
+  ]);
+  await fails("SELECT manage_menu_items($1,'update',$2::jsonb,$3::jsonb)", [
+    rid,
+    JSON.stringify([product, otherItem]),
+    JSON.stringify({ is_available: false }),
+  ]);
+  await fails("SELECT manage_menu_items($1,'update',$2::jsonb,$3::jsonb)", [
+    rid,
+    JSON.stringify([product]),
+    JSON.stringify({ category_id: otherCat }),
+  ]);
+  await client.query(
+    "SELECT set_config('request.jwt.claim.sub','99999999-9999-4999-8999-999999999999',false)",
+  );
+  await fails("SELECT manage_menu_items($1,'import',$2::jsonb)", [rid, JSON.stringify(csvRows)]);
+  await client.query("RESET ROLE");
+  assert.equal(
+    Number(
+      (await client.query("SELECT count(*) FROM menu_items WHERE restaurant_id=$1", [rid])).rows[0]
+        .count,
+    ),
+    ownCount + 2,
+  );
+  assert.equal(
+    (await client.query("SELECT is_available FROM menu_items WHERE id=$1", [product])).rows[0]
+      .is_available,
+    true,
+  );
+  assert.equal(
+    Number(
+      (
+        await client.query(
+          "SELECT count(*) FROM categories WHERE restaurant_id=$1 AND name='Atomic'",
+          [rid],
+        )
+      ).rows[0].count,
+    ),
+    0,
+  );
+  await client.query(
+    "UPDATE menu_items SET is_promo=true,price=10,original_price=20,promo_starts_at=now()+interval '1 hour',promo_ends_at=now()+interval '2 hours' WHERE id=$1",
+    [product],
+  );
+  let validated = (
+    await client.query("SELECT validated_order_items($1,$2::jsonb) AS items", [rid, items])
+  ).rows[0].items;
+  assert.equal(validated[0].price_snapshot, 23);
+  await client.query("SET ROLE anon");
+  const prices = (await client.query("SELECT menu_live_prices($1) AS prices", [rid])).rows[0]
+    .prices;
+  assert.equal(prices[product].price, 20);
+  assert.equal(prices[product].is_promo, false);
+  await client.query("RESET ROLE");
+  await client.query(
+    "UPDATE menu_items SET promo_starts_at=now()-interval '1 hour',promo_ends_at=now()+interval '1 hour' WHERE id=$1",
+    [product],
+  );
+  validated = (
+    await client.query("SELECT validated_order_items($1,$2::jsonb) AS items", [rid, items])
+  ).rows[0].items;
+  assert.equal(validated[0].price_snapshot, 13);
+  await fails("SELECT validated_order_items($1,$2::jsonb)", [
+    rid,
+    JSON.stringify([{ ...JSON.parse(items)[0], expected_unit_price: 23 }]),
+  ]);
+  await fails("UPDATE menu_items SET promo_ends_at=promo_starts_at WHERE id=$1", [product]);
+  await client.query(
+    "UPDATE menu_items SET is_promo=false,price=15.99,original_price=NULL,promo_starts_at=NULL,promo_ends_at=NULL WHERE id=$1",
+    [product],
+  );
+  await client.query("UPDATE orders SET status='preparing' WHERE id=$1", [order]);
+  await client.query("UPDATE orders SET status='ready' WHERE id=$1", [order]);
+  const progress = (
+    await client.query("SELECT preparing_at,ready_at FROM orders WHERE id=$1", [order])
+  ).rows[0];
+  assert.ok(progress.preparing_at);
+  assert.ok(progress.ready_at >= progress.preparing_at);
+  await client.query("UPDATE orders SET preparing_at=NULL WHERE id=$1", [order]);
+  assert.deepEqual(
+    (await client.query("SELECT preparing_at FROM orders WHERE id=$1", [order])).rows[0]
+      .preparing_at,
+    progress.preparing_at,
+  );
+  await client.query("UPDATE orders SET status='served' WHERE id=$1", [order]);
+  await fails("UPDATE orders SET status='cancelled' WHERE id=$1", [order]);
+  console.log(
+    "PASS: atomic CSV import, bulk ownership, promotion windows, stale-price rejection and preparation timestamps",
+  );
 } finally {
   if (client) await client.end();
   await pg.stop();
