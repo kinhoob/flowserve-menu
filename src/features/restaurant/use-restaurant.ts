@@ -1,13 +1,10 @@
+import { restaurantSlug } from "./restaurant-slug";
 import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 
 export type Restaurant = Tables<"restaurants">;
-
-function shortSlug(userId: string) {
-  return "r-" + userId.replace(/-/g, "").slice(0, 10);
-}
 
 export function useRestaurant() {
   const { user } = useAuth();
@@ -27,7 +24,7 @@ export function useRestaurant() {
       // Safety net: trigger normally creates this on signup. If missing
       // (older account, race condition), auto-create now so the app never
       // gets stuck without a restaurant_id.
-      const slug = shortSlug(user!.id);
+      const slug = restaurantSlug("Meu Restaurante");
       for (let attempt = 0; attempt < 3; attempt++) {
         const { data: created, error: insertErr } = await supabase
           .from("restaurants")

@@ -467,6 +467,90 @@ try {
   console.log(
     "PASS: atomic CSV import, bulk ownership, promotion windows, stale-price rejection and preparation timestamps",
   );
+
+  for (const [name, expected] of [
+    ["SÃO JOÃO", "sao-joao"],
+    ["São João".normalize("NFD"), "sao-joao"],
+    ["Oi", "oi-restaurante"],
+    ["🍽️", "restaurante"],
+  ])
+    assert.equal(
+      (await client.query("SELECT restaurant_name_slug($1) AS slug", [name])).rows[0].slug,
+      expected,
+    );
+  const oldAddress = (await client.query("SELECT slug FROM restaurants WHERE id=$1", [rid])).rows[0]
+    .slug;
+  assert.ok(oldAddress.startsWith("meu-restaurante"));
+  assert.equal(
+    (await client.query("SELECT restaurant_name_slug('Café da Praça') AS slug")).rows[0].slug,
+    "cafe-da-praca",
+  );
+  await client.query(
+    "SELECT set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111111',false)",
+  );
+  await client.query("SET ROLE authenticated");
+  await client.query(
+    "UPDATE restaurants SET name='Café da Praça',slug='cafe-da-praca' WHERE id=$1",
+    [rid],
+  );
+  assert.equal(
+    (await client.query("SELECT resolve_restaurant_slug($1) AS slug", [oldAddress])).rows[0].slug,
+    "cafe-da-praca",
+  );
+  assert.equal(
+    (await client.query("UPDATE restaurants SET slug='foreign-takeover' WHERE id=$1", [other]))
+      .rowCount,
+    0,
+  );
+  await client.query(
+    "SELECT set_config('request.jwt.claim.sub','99999999-9999-4999-8999-999999999999',false)",
+  );
+  await fails("UPDATE restaurants SET slug=$1 WHERE id=$2", [oldAddress, other]);
+  await fails("UPDATE restaurants SET slug='cafe-da-praca' WHERE id=$1", [other]);
+  await client.query("RESET ROLE");
+  await client.query(
+    "UPDATE restaurants SET name='Café da Praça',slug='cafe-da-praca' WHERE id=$1",
+    [other],
+  );
+  assert.equal(
+    (await client.query("SELECT slug FROM restaurants WHERE id=$1", [other])).rows[0].slug,
+    "cafe-da-praca-2",
+  );
+  // Reproduce an existing cryptic address before running the backfill trigger.
+  await client.query("BEGIN");
+  try {
+    await client.query("ALTER TABLE restaurants DISABLE TRIGGER preserve_restaurant_slug");
+    await client.query(
+      "UPDATE restaurants SET slug='r-9999999999',name='Café da Praça' WHERE id=$1",
+      [other],
+    );
+    await client.query("ALTER TABLE restaurants ENABLE TRIGGER preserve_restaurant_slug");
+    await client.query("UPDATE restaurants SET slug=slug WHERE id=$1", [other]);
+    assert.equal(
+      (await client.query("SELECT slug FROM restaurants WHERE id=$1", [other])).rows[0].slug,
+      "cafe-da-praca-2",
+    );
+    assert.equal(
+      (await client.query("SELECT resolve_restaurant_slug('r-9999999999') AS slug")).rows[0].slug,
+      "cafe-da-praca-2",
+    );
+  } finally {
+    await client.query("ROLLBACK");
+  }
+  await client.query("UPDATE staff_members SET active=true WHERE id=$1", [staff.id]);
+  await client.query("UPDATE staff_login_attempts SET window_started=now()-interval '6 minutes'");
+  await client.query("SET ROLE anon");
+  await fails("SELECT * FROM restaurant_slug_aliases");
+  const oldLinkLogin = (await client.query("SELECT * FROM staff_login($1,'7891')", [oldAddress]))
+    .rows[0];
+  assert.ok(oldLinkLogin.token);
+  assert.equal(
+    (await client.query("SELECT resolve_restaurant_slug($1) AS slug", [oldAddress])).rows[0].slug,
+    "cafe-da-praca",
+  );
+  console.log(
+    "PASS: restaurant-name slugs, duplicate names, reserved aliases, owner isolation and old staff links",
+  );
 } finally {
   if (client) await client.end();
   await pg.stop();

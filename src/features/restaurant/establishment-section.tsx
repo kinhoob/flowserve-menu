@@ -1,11 +1,13 @@
+import { restaurantSlug, validRestaurantSlug } from "./restaurant-slug";
+import { publicMenuUrl } from "@/lib/public-menu-url";
 import { Link } from "@tanstack/react-router";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorDetails } from "@/lib/errors";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image as ImageIcon, Loader2, Save, Store, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export function EstablishmentSection({
@@ -36,6 +38,32 @@ export function EstablishmentSection({
   const qc = useQueryClient();
   const { user } = useAuth();
   const [name, setName] = useState(initialName);
+  const [draftSlug, setDraftSlug] = useState(slug);
+  const [slugEdited, setSlugEdited] = useState(false);
+  const previousSlug = useRef(slug);
+  useEffect(() => {
+    const previous = previousSlug.current;
+    previousSlug.current = slug;
+    setDraftSlug((current) => (current === previous ? slug : current));
+  }, [slug]);
+  const slugDirty = draftSlug !== slug;
+  const slugValid = validRestaurantSlug(draftSlug);
+  const {
+    data: linksReady = false,
+    isLoading: checkingLinks,
+    refetch: checkLinks,
+  } = useQuery({
+    queryKey: ["restaurant-link-support", restaurantId],
+    queryFn: async () => {
+      const { error } = await supabase.rpc("resolve_restaurant_slug", { p_slug: slug });
+      if (error) {
+        if (error.code === "PGRST202" || error.code === "42883") return false;
+        throw error;
+      }
+      return true;
+    },
+    retry: false,
+  });
   const [description, setDescription] = useState(initialDescription ?? "");
   const [selectedTimezone, setSelectedTimezone] = useState(timezone);
   useEffect(() => setSelectedTimezone(timezone), [timezone]);
@@ -154,18 +182,38 @@ export function EstablishmentSection({
     mutationFn: async () => {
       const trimmed = name.trim();
       if (!trimmed) throw new Error("Informe um nome");
+      if (slugDirty && (!slugValid || !linksReady))
+        throw new Error(
+          !slugValid
+            ? "Use um endereço com 3 a 80 caracteres, letras minúsculas, números e hífens."
+            : "Aplique a atualização de endereços personalizados antes de salvar o novo link.",
+        );
       new Intl.DateTimeFormat("pt-BR", { timeZone: selectedTimezone }).format();
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("restaurants")
         .update({
           name: trimmed,
+          ...(slugDirty ? { slug: draftSlug } : {}),
           description: description.trim() || null,
           timezone: selectedTimezone,
         })
-        .eq("id", restaurantId);
-      if (error) throw error;
+        .eq("id", restaurantId)
+        .select("*")
+        .single();
+      if (error) {
+        if (error.code === "23505") throw new Error("Esse endereço já está em uso. Escolha outro.");
+        throw error;
+      }
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
+      setDraftSlug(saved.slug);
+      setSlugEdited(false);
+      qc.setQueriesData({ queryKey: ["restaurant"] }, (current: unknown) =>
+        current && typeof current === "object" && "id" in current && current.id === restaurantId
+          ? saved
+          : current,
+      );
       qc.invalidateQueries({ queryKey: ["restaurant"] });
       qc.invalidateQueries({ queryKey: ["public-menu"] });
       toast.success("Estabelecimento atualizado");
@@ -174,6 +222,7 @@ export function EstablishmentSection({
   });
 
   const dirty =
+    slugDirty ||
     description.trim() !== (initialDescription ?? "") ||
     name.trim() !== initialName.trim() ||
     selectedTimezone !== timezone;
@@ -261,13 +310,17 @@ export function EstablishmentSection({
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setName(next);
+                    if (!slugEdited && linksReady) setDraftSlug(restaurantSlug(next));
+                  }}
                   className="flex-1 rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
                   placeholder="Ex.: Trattoria Bella"
                 />
                 <button
                   onClick={() => save.mutate()}
-                  disabled={!dirty || save.isPending}
+                  disabled={!dirty || save.isPending || (slugDirty && (!slugValid || !linksReady))}
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
                 >
                   {save.isPending ? (
@@ -279,11 +332,96 @@ export function EstablishmentSection({
                 </button>
               </div>
             </div>
-            <dl className="grid gap-3 sm:grid-cols-3">
-              <div>
-                <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">Slug</dt>
-                <dd className="mt-1 truncate text-sm">/m/{slug}</dd>
+            <div className="space-y-3 rounded-xl border border-border bg-background/40 p-4">
+              <label className="block text-sm font-medium" htmlFor="restaurant-menu-address">
+                Endereço do seu cardápio
+              </label>
+              <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3">
+                <span className="text-xs text-muted-foreground">/m/</span>
+                <input
+                  id="restaurant-menu-address"
+                  disabled={!linksReady}
+                  value={draftSlug}
+                  maxLength={80}
+                  aria-invalid={!slugValid}
+                  onChange={(e) => {
+                    setSlugEdited(true);
+                    setDraftSlug(e.target.value);
+                  }}
+                  onBlur={() => setDraftSlug(restaurantSlug(draftSlug, 80))}
+                  className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none"
+                />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Use o nome do restaurante, por exemplo cafe-da-praca. Os links anteriores continuam
+                funcionando após ativar esta atualização.
+              </p>
+              {!slugValid && (
+                <p role="alert" className="text-xs text-destructive">
+                  Use de 3 a 80 caracteres: letras minúsculas, números e hífens.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-3 text-xs">
+                <button
+                  type="button"
+                  className="underline underline-offset-4"
+                  disabled={!linksReady}
+                  onClick={() => {
+                    setDraftSlug(restaurantSlug(name));
+                    setSlugEdited(false);
+                  }}
+                >
+                  Usar nome do restaurante
+                </button>
+                <a
+                  href={`/m/${encodeURIComponent(slug)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-4"
+                >
+                  Abrir cardápio atual ↗
+                </a>
+                <button
+                  type="button"
+                  className="underline underline-offset-4"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(publicMenuUrl(slug));
+                      toast.success("Link copiado");
+                    } catch {
+                      toast.error("Não foi possível copiar o link");
+                    }
+                  }}
+                >
+                  Copiar link atual
+                </button>
+              </div>
+              {slugDirty && (
+                <p role="status" className="text-xs text-primary">
+                  O novo endereço será publicado ao salvar as alterações.
+                </p>
+              )}
+              {!linksReady && (
+                <p role="status" className="text-xs text-muted-foreground">
+                  {checkingLinks
+                    ? "Conferindo suporte aos novos endereços…"
+                    : "Ative a atualização de endereços personalizados no banco para mudar o link sem perder os QR Codes existentes."}
+                  <button
+                    type="button"
+                    className="ml-2 underline"
+                    onClick={() =>
+                      void Promise.all([
+                        checkLinks(),
+                        qc.invalidateQueries({ queryKey: ["restaurant"] }),
+                      ])
+                    }
+                  >
+                    Verificar novamente
+                  </button>
+                </p>
+              )}
+            </div>
+            <dl className="grid gap-3 sm:grid-cols-2">
               <div>
                 <dt className="text-[10px] uppercase tracking-wider text-muted-foreground">
                   Moeda

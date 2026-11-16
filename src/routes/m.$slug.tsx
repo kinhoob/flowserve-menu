@@ -1,3 +1,4 @@
+import { resolveRestaurantSlug } from "@/features/restaurant/resolve-restaurant-slug";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
 import { withLivePrices } from "@/features/menu/live-prices";
 import { MenuCover, MenuSignature } from "@/features/menu/appearance/menu-identity";
@@ -78,9 +79,20 @@ type PublicItem = DishModel & {
   original_price: number | null;
 };
 
+function fetchPublicRestaurant(address: string) {
+  return supabase
+    .from("restaurants")
+    .select(
+      "id,name,description,currency,brand_color,brand_text_color,brand_accent_color,brand_card_color,brand_header_color,brand_button_color,banner_enabled,banner_title,banner_description,banner_image_url,banner_cta_label,slug,kitchen_open,logo_url",
+    )
+    .eq("slug", address)
+    .maybeSingle();
+}
+
 function PublicMenuPage() {
   const reduceMotion = useReducedMotion();
   const { slug } = Route.useParams();
+  const navigate = Route.useNavigate();
   const { table: rawTable } = Route.useSearch();
   // Normaliza: se o QR vier com "Mesa 1" no parâmetro, evita virar "Mesa Mesa 1"
   const table = rawTable ? rawTable.replace(/^Mesa\s*/i, "").trim() : undefined;
@@ -90,13 +102,12 @@ function PublicMenuPage() {
     retry: false,
     refetchInterval: 30000,
     queryFn: async () => {
-      const { data: r, error: rErr } = await supabase
-        .from("restaurants")
-        .select(
-          "id,name,description,currency,brand_color,brand_text_color,brand_accent_color,brand_card_color,brand_header_color,brand_button_color,banner_enabled,banner_title,banner_description,banner_image_url,banner_cta_label,slug,kitchen_open,logo_url",
-        )
-        .eq("slug", slug)
-        .maybeSingle();
+      let result = await fetchPublicRestaurant(slug);
+      if (!result.error && !result.data) {
+        const canonical = await resolveRestaurantSlug(slug);
+        if (canonical !== slug) result = await fetchPublicRestaurant(canonical);
+      }
+      const { data: r, error: rErr } = result;
       if (rErr) throw rErr;
       if (!r) throw notFound();
       const [cats, items, modifiersMap, planRes, appearanceRes] = await Promise.all([
@@ -113,7 +124,7 @@ function PublicMenuPage() {
           .eq("is_available", true)
           .order("position"),
         fetchModifiersForRestaurant(r.id),
-        supabase.rpc("get_restaurant_plan", { p_slug: slug }),
+        supabase.rpc("get_restaurant_plan", { p_slug: r.slug }),
         supabase.from("restaurants").select("menu_appearance").eq("id", r.id).maybeSingle(),
       ]);
       if (cats.error) throw cats.error;
@@ -158,6 +169,18 @@ function PublicMenuPage() {
   const [pickerItem, setPickerItem] = useState<PublicItem | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
   const [bump, setBump] = useState(0);
+
+  // Keep an in-progress cart or private tracking session mounted during a restaurant rename.
+  useEffect(() => {
+    if (cart.length || placedOrder || submitting || orderAttempt.current) return;
+    if (data?.restaurant.slug && data.restaurant.slug !== slug)
+      void navigate({
+        to: "/m/$slug",
+        params: { slug: data.restaurant.slug },
+        search: { table: rawTable },
+        replace: true,
+      });
+  }, [data?.restaurant.slug, slug, rawTable, navigate, cart.length, placedOrder, submitting]);
 
   // Only expose the status belonging to this private tracking token.
   useEffect(() => {

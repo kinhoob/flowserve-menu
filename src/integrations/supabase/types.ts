@@ -701,6 +701,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      resolve_restaurant_slug: { Args: { p_slug: string }; Returns: string | null };
       manage_menu_items: {
         Args: { p_restaurant_id: string; p_action: string; p_rows: Json; p_patch?: Json };
         Returns: number;

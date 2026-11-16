@@ -1,11 +1,11 @@
-export function publicMenuUrl(slug: string, table: string): string {
+export function publicMenuUrl(slug: string, table?: string): string {
   const configured = import.meta.env.VITE_PUBLIC_APP_URL as string | undefined;
   const origin = configured
     ? new URL(configured).origin
     : typeof window !== "undefined"
       ? window.location.origin
       : "";
-  return `${origin}/m/${encodeURIComponent(slug)}?table=${encodeURIComponent(table)}`;
+  return `${origin}/m/${encodeURIComponent(slug)}${table === undefined ? "" : `?table=${encodeURIComponent(table)}`}`;
 }
 
 export function canExportQr(): boolean {

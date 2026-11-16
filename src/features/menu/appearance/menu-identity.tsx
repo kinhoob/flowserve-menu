@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { FluxMark } from "@/components/brand/logo";
 import { isCoverUrl, type MenuAppearance } from "./appearance";
 
@@ -20,11 +21,17 @@ export function MenuSignature({ appearance, name }: { appearance: MenuAppearance
       <p className="font-medium text-foreground">{name}</p>
       {appearance.footerText && <p className="whitespace-pre-line">{appearance.footerText}</p>}
       {appearance.showFluxBrand && (
-        <div className="flex items-center justify-center gap-1.5 text-[11px]">
+        <Link
+          to="/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Conhecer o Flux Menu (abre uma nova aba)"
+          className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[11px] transition hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+        >
           <span>Feito no</span>
           <FluxMark />
           <span>Flux Menu</span>
-        </div>
+        </Link>
       )}
     </footer>
   );

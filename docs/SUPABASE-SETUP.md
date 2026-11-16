@@ -55,3 +55,11 @@ A atualização incremental `20261116000200_restaurant_operations.sql` habilita 
 A atualização de operação não cria a coluna de aparência. Se o editor mostrar “Ativação do salvamento pendente”, aplique a migração completa `20261116000100_complete_menu_identity.sql` e a de padrão `20261116000300_menu_black_gold.sql`. O SQL de reparação entregue reúne as duas numa transação. O teste do banco reproduz a coluna ausente e confirma a reparação sem recriar o restaurante. Depois, clique em “Verificar novamente”.
 
 O padrão é preto, dourado e branco, com vitrine de pratos e 14 paletas editáveis. A migração altera o padrão dos novos restaurantes e corrige apenas o antigo registro inicial dourado sem personalização. Paletas explicitamente configuradas são preservadas. A barra de salvamento fica no topo durante a edição, valida as entradas e atualiza o estado publicado após a confirmação do servidor. A demonstração oferece acesso ao editor real e não simula publicação. O armazenamento local pode estar indisponível em navegadores com restrições de privacidade; isso não bloqueia a publicação no servidor.
+
+## Endereços personalizados e assinatura
+
+Aplique uma vez `20261116000400_restaurant_menu_links.sql` no projeto existente. A migração converte somente os códigos antigos no formato r- seguido do identificador em endereços derivados do nome, com sufixos quando houver nomes repetidos. Endereços já personalizados não são alterados. Os códigos anteriores ficam reservados ao mesmo restaurante e continuam resolvendo os QR Codes existentes. Não reaplique o bootstrap.
+
+Em Configurações → Estabelecimento, o campo Endereço do seu cardápio aceita letras minúsculas, números e hífens. O nome sugere o endereço até o usuário editá-lo manualmente. O salvamento do nome e endereço é atômico; um endereço ocupado rejeita toda a alteração. A cópia do link usa o domínio público configurado ou a origem local no desenvolvimento. QR Codes novos usam o endereço atual. Links antigos abrem o endereço atual preservando o parâmetro da mesa; logins antigos da equipe também permanecem funcionais. A estrutura de aliases é privada, com uma função pública de resolução somente por endereço conhecido.
+
+A assinatura Flux Menu no rodapé abre a página inicial da plataforma em uma nova aba, preservando a página e o carrinho do restaurante.
