@@ -1,3 +1,4 @@
+import { OnboardingChecklist } from "./platform-insights";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -89,6 +90,7 @@ function DetailBody({ data }: { data: PlatformDetail }) {
       setReason("");
       void qc.invalidateQueries({ queryKey: ["platform-detail"] });
       void qc.invalidateQueries({ queryKey: ["platform-restaurants"] });
+      void qc.invalidateQueries({ queryKey: ["platform-growth"] });
       void qc.invalidateQueries({ queryKey: ["trial-status"] });
     },
     onError: (error) => {
@@ -112,6 +114,7 @@ function DetailBody({ data }: { data: PlatformDetail }) {
   ).toISOString();
   return (
     <div className="space-y-6">
+      {data.health && <OnboardingChecklist health={data.health} />}
       <div className="flex flex-wrap gap-2">
         <span className="rounded-full bg-gold-soft px-3 py-1 text-xs text-primary">
           {PLAN_LABELS[e.plan_type] ?? e.plan_type}

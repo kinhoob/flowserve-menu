@@ -725,6 +725,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      platform_growth_overview: { Args: { p_days?: number }; Returns: Json };
       is_platform_admin: { Args: Record<string, never>; Returns: boolean };
       get_my_entitlement: { Args: Record<string, never>; Returns: Json };
       platform_list_restaurants: {

@@ -6,6 +6,7 @@ import { verifyServiceOperations } from "./verify-service-operations.mjs";
 import { betaUpgradeSQL } from "./build-beta-upgrade.mjs";
 import { verifyPlatformManagement } from "./verify-platform-management.mjs";
 import { verifyAnalyticsHistory } from "./verify-analytics-history.mjs";
+import { verifyPlatformGrowth } from "./verify-platform-growth.mjs";
 const root = path.resolve(import.meta.dirname, "..");
 const pg = new EmbeddedPostgres({
   databaseDir: path.resolve(import.meta.dirname, "../.db-tests/data-" + Date.now()),
@@ -571,6 +572,7 @@ try {
   });
   await verifyPlatformManagement(client, { rid, other });
   await verifyAnalyticsHistory(client, { rid, other });
+  await verifyPlatformGrowth(client);
 } finally {
   if (client) await client.end();
   await pg.stop();

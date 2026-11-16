@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { PlatformInsights } from "@/features/platform/platform-insights";
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Building2, ChevronRight, RefreshCw, Search, ShieldCheck, LogOut } from "lucide-react";
 import { FluxLogo } from "@/components/brand/logo";
@@ -26,6 +27,9 @@ export const Route = createFileRoute("/gestao")({
 function PlatformManagement() {
   const { user, loading, signOut } = useAuth();
   const access = usePlatformAccess();
+  const qc = useQueryClient();
+  const listRef = useRef<HTMLElement>(null);
+  const [growthReady, setGrowthReady] = useState(false);
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
@@ -46,6 +50,18 @@ function PlatformManagement() {
     refetchInterval: 60000,
     queryFn: () => listRestaurants(search, status, page),
   });
+  function filterRestaurants(filter: string) {
+    setStatus(filter);
+    setPage(0);
+    setInput("");
+    setSearch("");
+    listRef.current?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth",
+      block: "start",
+    });
+  }
   const missingSchema =
     access.isError && ["PGRST202", "42883"].includes(getErrorDetails(access.error).code ?? "");
   return (
@@ -118,7 +134,10 @@ function PlatformManagement() {
               </p>
             </div>
             <button
-              onClick={() => void list.refetch()}
+              onClick={() => {
+                void list.refetch();
+                void qc.invalidateQueries({ queryKey: ["platform-growth"] });
+              }}
               disabled={list.isFetching}
               className="flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm disabled:opacity-40"
             >
@@ -126,23 +145,15 @@ function PlatformManagement() {
               Atualizar
             </button>
           </div>
-          {list.data && (
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-              {[
-                ["Restaurantes", list.data.stats.restaurants],
-                ["Em trial", list.data.stats.trial],
-                ["Trials encerrados", list.data.stats.expired],
-                ["Com plano", list.data.stats.paid],
-                ["Acessos manuais", list.data.stats.manual],
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-2xl border border-border bg-surface p-4 md:p-5">
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                  <p className="mt-3 font-display text-3xl">{value}</p>
-                </div>
-              ))}
-            </div>
-          )}
-          <section className="overflow-hidden rounded-2xl border border-border bg-surface">
+          <PlatformInsights
+            onSelect={setSelected}
+            onFilter={filterRestaurants}
+            onReady={setGrowthReady}
+          />
+          <section
+            ref={listRef}
+            className="scroll-mt-6 overflow-hidden rounded-2xl border border-border bg-surface"
+          >
             <div className="flex flex-wrap items-center gap-3 border-b border-border p-4 md:p-5">
               <label className="relative min-w-48 flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -169,6 +180,22 @@ function PlatformManagement() {
                 <option value="expired">Trial encerrado</option>
                 <option value="paid">Com plano</option>
                 <option value="manual">Acesso manual</option>
+                <optgroup label="Acompanhamento" disabled={!growthReady}>
+                  <option value="manual_plan">Plano concedido manualmente (sem trial)</option>
+                  <option value="ending">Trial vence em até 3 dias</option>
+                  <option value="attention">Precisa de atenção</option>
+                  <option value="setup">Implantação incompleta</option>
+                  <option value="never_ordered">Sem primeiro pedido</option>
+                  <option value="inactive">Sem pedidos há 10 dias</option>
+                  <option value="active7">Com pedidos nos últimos 7 dias</option>
+                  <option value="active">Com pedidos nos últimos 30 dias</option>
+                  <option value="subscribed">Assinatura de produção ativa</option>
+                </optgroup>
+                <optgroup label="Novos cadastros" disabled={!growthReady}>
+                  <option value="new7">Novos nos últimos 7 dias</option>
+                  <option value="new30">Novos nos últimos 30 dias</option>
+                  <option value="new90">Novos nos últimos 90 dias</option>
+                </optgroup>
               </select>
             </div>
             {list.isPending ? (
@@ -223,6 +250,19 @@ function PlatformManagement() {
                         </p>
                       </div>
                       <div className="text-sm">
+                        {r.health && (
+                          <div className="mb-3">
+                            <p className="text-xs text-primary">
+                              Implantação: {r.health.completed_steps}/4 etapas
+                            </p>
+                            <div className="mt-1 h-1 overflow-hidden rounded-full bg-background">
+                              <div
+                                className="h-full bg-primary/70"
+                                style={{ width: (r.health.completed_steps / 4) * 100 + "%" }}
+                              />
+                            </div>
+                          </div>
+                        )}
                         <p>{r.orders_30d} pedidos · últimos 30 dias</p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           Entregues: {platformMoney(r.sales_30d, r.currency)}

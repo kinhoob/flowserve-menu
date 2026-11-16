@@ -67,4 +67,6 @@ Para o banco existente, o pacote [fluxqr-atualizacao-beta.sql](supabase/fluxqr-a
 
 A [central de gestão da plataforma](docs/PLATFORM-MANAGEMENT.md), em `/gestao`, permite aos criadores autorizados acompanhar restaurantes e assinaturas, conceder planos e estender trials com histórico de auditoria. A ativação de uma ou duas contas é feita por SQL privado; o pacote público instala a estrutura sem autorizar usuários. Concessões de acesso não alteram cobranças no provedor.
 
+A [visão de crescimento da gestão](docs/PLATFORM-GROWTH.md) mostra novos cadastros, atividade em 7/30 dias, trials, conversão por conta para assinatura de produção ativa, implantação e clientes que precisam de atenção. Os filtros abrem a lista correspondente e a ficha apresenta o checklist do restaurante. Cortesias sem assinatura ativa não entram na conversão.
+
 As [análises dos restaurantes](docs/RESTAURANT-ANALYTICS.md) têm comparação entre períodos, datas personalizadas, filtros de setor/categoria/turno, virada do dia de operação, indicadores de fila/preparo/entrega, ranking com cancelamentos e exportações consistentes com os filtros. A migração de histórico preserva a classificação dos novos itens após mudanças no catálogo. Vendas e contas encerradas não confirmam pagamento.

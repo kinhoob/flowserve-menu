@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { entitlementSchema } from "@/features/billing/entitlement";
+import { healthSchema, growthSchema } from "./platform-health";
 export const restaurantListSchema = z.object({
   total: z.number(),
   page: z.number(),
@@ -27,10 +28,12 @@ export const restaurantListSchema = z.object({
       orders_30d: z.number(),
       sales_30d: z.number(),
       last_order_at: z.string().nullable(),
+      health: healthSchema.optional(),
     }),
   ),
 });
 export const detailSchema = z.object({
+  health: healthSchema.optional(),
   restaurant: z.object({
     id: z.string(),
     name: z.string(),
@@ -125,6 +128,11 @@ export async function listRestaurants(search: string, status: string, page: numb
   });
   if (error) throw error;
   return restaurantListSchema.parse(data);
+}
+export async function platformGrowth(days: number) {
+  const { data, error } = await supabase.rpc("platform_growth_overview", { p_days: days });
+  if (error) throw error;
+  return growthSchema.parse(data);
 }
 export async function restaurantDetail(id: string) {
   const { data, error } = await supabase.rpc("platform_restaurant_detail", { p_restaurant_id: id });
