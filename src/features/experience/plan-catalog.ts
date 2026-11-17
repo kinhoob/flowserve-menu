@@ -38,7 +38,7 @@ export const plans: Plan[] = [
       "Pedidos por QR Code",
       "KDS para cozinha e bar",
       "Cardápio digital ilimitado",
-      "Até 5 QR Codes",
+      "Até 10 QR Codes",
       "Suporte por email",
     ],
     cta: "Começar grátis",

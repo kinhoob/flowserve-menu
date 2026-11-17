@@ -1,7 +1,7 @@
-// Per produto: Essential = 5 QR Codes, Pro = ilimitado,
+// Per produto: Essential = 10 QR Codes, Pro = ilimitado,
 // Trial libera o limite do Pro, Enterprise é ilimitado.
 export const PLAN_TABLE_LIMITS: Record<string, number> = {
-  essential: 5,
+  essential: 10,
   pro: Number.POSITIVE_INFINITY,
   trial: Number.POSITIVE_INFINITY,
   enterprise: Number.POSITIVE_INFINITY,

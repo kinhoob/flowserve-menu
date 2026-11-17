@@ -74,7 +74,7 @@ const PLANS: {
     features: [
       "Pedidos por QR Code",
       "KDS para cozinha e bar",
-      "Até 5 QR Codes",
+      "Até 10 QR Codes",
       "Suporte por email",
     ],
     priceId: "essential_monthly",
