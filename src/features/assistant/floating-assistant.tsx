@@ -1,3 +1,4 @@
+import { HelpPanel } from "./help-panel";
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { BellMascot } from "@/components/brand/bell-mascot";
@@ -47,6 +48,7 @@ export function FloatingAssistant({ hidden = false }: { hidden?: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const tools = useDashboardTools();
   const preferences = useMascotPreferences();
+  const [help, setHelp] = useState(false);
   const [open, setOpen] = useState(false),
     [pinned, setPinned] = useState(false),
     [tip, setTip] = useState(0),
@@ -73,6 +75,7 @@ export function FloatingAssistant({ hidden = false }: { hidden?: boolean }) {
     setOpen(false);
     setPinned(false);
     setTip(0);
+    setHelp(false);
     drag.current = null;
     setMoving(false);
   }, [pathname, hidden, preferences.enabled]);
@@ -219,13 +222,25 @@ export function FloatingAssistant({ hidden = false }: { hidden?: boolean }) {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <p
-              key={pathname + tip}
-              aria-live={pinned ? "polite" : "off"}
-              className="assistant-bubble mt-2 text-sm leading-6"
+            <button
+              onClick={() => {
+                setHelp(!help);
+                setPinned(true);
+              }}
+              className="mt-2 min-h-10 w-full rounded-lg border border-primary/30 p-2 text-xs text-primary"
             >
-              {tips[tip % tips.length]}
-            </p>
+              {help ? "Voltar às dicas" : "Buscar ajuda e consultar pedidos"}
+            </button>
+            {help && <HelpPanel pathname={pathname} onNavigate={close} />}
+            {!help && (
+              <p
+                key={pathname + tip}
+                aria-live={pinned ? "polite" : "off"}
+                className="assistant-bubble mt-2 text-sm leading-6"
+              >
+                {tips[tip % tips.length]}
+              </p>
+            )}
             <button
               onClick={() => setTip((n) => n + 1)}
               className="mt-3 flex min-h-10 items-center gap-2 text-xs text-primary"

@@ -1,11 +1,12 @@
-import { formatPrice } from "@/lib/format";
+import { Link } from "@tanstack/react-router";
+import { BellMascot } from "@/components/brand/bell-mascot";
 import { cn } from "@/lib/utils";
 import {
   ArrowDownLeft,
   ArrowUpRight,
   Check,
   ChefHat,
-  CircleDot,
+  Bell,
   Clock3,
   LayoutGrid,
   MoreHorizontal,
@@ -23,7 +24,6 @@ export function OperationPreview({
   compact?: boolean;
   onAdvance?: (id: string) => void;
 }) {
-  const active = orders.filter((order) => order.status !== "served");
   return (
     <div
       className={cn(
@@ -66,36 +66,52 @@ export function OperationPreview({
               <span className="h-1 w-1 rounded-full bg-[#d5c3a4]" /> Exemplo
             </span>
           </div>
-          <div className="mb-5 grid grid-cols-3 gap-2">
+          <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[
-              { label: "Pedidos", value: String(orders.length), icon: Receipt },
               {
-                label: "Em operação",
-                value: String(active.length).padStart(2, "0"),
-                icon: CircleDot,
+                label: "Novos pedidos",
+                value: orders.filter((o) => o.status === "pending").length,
+                icon: Receipt,
               },
               {
-                label: "Vendas simuladas",
-                value: formatPrice(
-                  orders.reduce((sum, order) => sum + order.amount, 0),
-                  "BRL",
-                ),
-                icon: ArrowUpRight,
+                label: "Prontos para entregar",
+                value: orders.filter((o) => o.status === "ready").length,
+                icon: ChefHat,
               },
+              { label: "Chamados", value: 1, icon: Bell },
+              { label: "Contas solicitadas", value: 1, icon: ArrowUpRight },
             ].map(({ label, value, icon: Icon }) => (
-              <div
-                key={label}
-                className="rounded-xl border border-white/6 bg-[#171614] p-2.5 sm:p-3.5"
-              >
-                <div className="mb-2 flex items-center justify-between gap-1 text-[9px] text-[#d5c3a4]">
-                  <span>{label}</span>
-                  <Icon className="hidden h-3 w-3 sm:block" />
-                </div>
-                <p className="font-display text-base tracking-tight text-[#faf9f2] sm:text-xl">
-                  {value}
-                </p>
+              <div key={label} className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <Icon className="mb-2 h-3.5 w-3.5 text-[#D9AF50]" />
+                <p className="text-[9px] text-white/65">{label}</p>
+                <p className="mt-1 text-xl font-semibold text-white">{value}</p>
               </div>
             ))}
+          </div>
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-[#D9AF50]/25 bg-[#D9AF50]/5 p-3">
+            <BellMascot className="h-12 w-12 shrink-0" />
+            <p className="rounded-xl rounded-bl-none bg-white/5 p-3 text-xs leading-5 text-white/85">
+              Tem pedido pronto! Abra a fila e confira qual mesa está esperando.
+              <span className="mt-1 block text-[9px] text-white/50">
+                Campainha do Flux · exemplo de dica
+              </span>
+            </p>
+          </div>
+          <div className="mb-4 flex flex-wrap gap-2">
+            <Link
+              to="/demo"
+              search={{ view: "menu" }}
+              className="rounded-lg bg-[#D9AF50] px-3 py-2 text-xs font-medium text-black"
+            >
+              Ver cardápio
+            </Link>
+            <Link
+              to="/demo"
+              search={{ view: "operation" }}
+              className="rounded-lg border border-white/15 px-3 py-2 text-xs text-white"
+            >
+              Explorar demonstração
+            </Link>
           </div>
           <div className="mb-3 flex items-center justify-between">
             <h4 className="text-xs font-semibold text-[#eeeae0]">Pedidos do salão</h4>
@@ -129,7 +145,7 @@ export function OperationPreview({
                         ? "Novo"
                         : order.status === "preparing"
                           ? "Em preparo"
-                          : "Pronto"
+                          : status.label
                       : status.label}
                   </span>
                   {onAdvance && order.status !== "served" && (
