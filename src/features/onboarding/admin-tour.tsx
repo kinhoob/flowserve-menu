@@ -255,7 +255,7 @@ export function AdminTour({ onActiveChange }: { onActiveChange?: (active: boolea
               <BellMascot className="h-16 w-16 shrink-0" />
               <div
                 key={current.title}
-                className="assistant-bubble rounded-2xl rounded-bl-sm border border-primary/20 bg-primary/5 p-3"
+                className="assistant-bubble assistant-tour-speech relative rounded-2xl rounded-bl-sm border border-primary/20 bg-primary/5 p-3"
               >
                 <p className="text-sm leading-6 text-muted-foreground">{current.body}</p>
               </div>

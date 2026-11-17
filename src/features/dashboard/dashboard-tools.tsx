@@ -1,3 +1,4 @@
+import { MascotPreference } from "@/features/assistant/mascot-preference";
 import { useEffect, useState, lazy, Suspense, type ReactNode } from "react";
 import {
   Dialog,
@@ -129,12 +130,13 @@ export function DashboardTools({ children }: { children: ReactNode }) {
       <Dialog open={help} onOpenChange={setHelp}>
         <DialogContent className="border-border bg-surface">
           <DialogHeader>
-            <DialogTitle>Atalhos do Flux</DialogTitle>
+            <DialogTitle>Atalhos e preferências</DialogTitle>
             <DialogDescription>
               Navegue mais rápido. Atalhos de uma tecla não são ativados enquanto você digita ou
               está em uma janela.
             </DialogDescription>
           </DialogHeader>
+          <MascotPreference />
           <dl className="space-y-4 text-sm">
             {[
               ["Ctrl / ⌘ + K", "Buscar páginas, mesas e ações"],

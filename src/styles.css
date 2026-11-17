@@ -950,14 +950,6 @@ html:has(.flux-landing)::-webkit-scrollbar {
     transform: none;
   }
 }
-.assistant-orb {
-  opacity: 0.85;
-}
-.assistant-orb:hover,
-.assistant-orb:focus-visible,
-.assistant-orb[aria-expanded="true"] {
-  opacity: 1;
-}
 body:has([role="dialog"][data-state="open"]) .flux-assistant,
 body:has([role="alertdialog"][data-state="open"]) .flux-assistant {
   visibility: hidden;
@@ -965,6 +957,30 @@ body:has([role="alertdialog"][data-state="open"]) .flux-assistant {
 @media (prefers-reduced-motion: reduce) {
   .bell-mascot-awake .bell-mascot-eye,
   .assistant-bubble {
+    animation: none;
+  }
+}
+
+.assistant-chat {
+  animation: assistant-appear 180ms ease-out;
+}
+.assistant-chat-tail {
+  pointer-events: none;
+}
+.assistant-tour-speech::before {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  left: -5px;
+  top: 22px;
+  transform: rotate(45deg);
+  background: var(--surface);
+  border-left: 1px solid var(--gold);
+  border-bottom: 1px solid var(--gold);
+}
+@media (prefers-reduced-motion: reduce) {
+  .assistant-chat {
     animation: none;
   }
 }

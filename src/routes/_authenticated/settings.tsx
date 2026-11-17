@@ -1,3 +1,4 @@
+import { MascotPreference } from "@/features/assistant/mascot-preference";
 import { ServiceHoursEditor } from "@/features/restaurant/service-hours-editor";
 import { AppearanceEditor } from "@/features/menu/appearance/appearance-editor";
 import { PaymentTestModeBanner } from "@/components/payments/payment-test-mode-banner";
@@ -343,6 +344,7 @@ function SettingsPage() {
         </TabsList>
 
         <TabsContent value="operation" className="mt-6 space-y-6">
+          <MascotPreference />
           <ServiceHoursEditor key={restaurant.id} restaurant={restaurant} />
           <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="flex items-start justify-between gap-4">

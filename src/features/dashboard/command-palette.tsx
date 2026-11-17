@@ -105,7 +105,7 @@ export function CommandPalette({
                   </Command.Item>
                 )}
                 <Command.Item
-                  value="Ajuda atalhos teclado"
+                  value="Ajuda atalhos teclado preferências mascote campainha"
                   onSelect={() => {
                     setOpen(false);
                     tools.shortcuts();
@@ -113,7 +113,7 @@ export function CommandPalette({
                   className="dashboard-command-item"
                 >
                   <Keyboard className="h-4 w-4" />
-                  Atalhos de teclado
+                  Atalhos e preferências
                 </Command.Item>
               </Command.Group>
               <Command.Empty className="px-4 py-10 text-center text-sm text-muted-foreground">
