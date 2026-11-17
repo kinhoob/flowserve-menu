@@ -1,7 +1,7 @@
 import { ArPreview } from "@/features/landing/ar-preview";
 import { BetaBadge } from "@/components/brand/beta-badge";
 import { FluxLogo } from "@/components/brand/logo";
-import { FadeIn } from "@/components/motion/page-transition";
+import { ScrollReveal as FadeIn } from "@/features/landing/scroll-reveal";
 import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { DEMO_DISHES } from "@/features/demo/demo-data";
@@ -57,7 +57,7 @@ function LandingPage() {
     block: "start",
   };
   return (
-    <div className="relative min-h-screen overflow-x-clip bg-background text-foreground">
+    <div className="flux-landing relative w-full min-w-0 min-h-screen overflow-x-clip bg-background text-foreground">
       <motion.div
         aria-hidden
         style={{ scaleX: progress }}
@@ -192,13 +192,7 @@ function LandingPage() {
         </div>
       </header>
       <main id="main">
-        <motion.section
-          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.06 }}
-          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
-          className="relative mx-auto grid max-w-7xl items-center gap-8 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:gap-14 lg:pb-24 lg:pt-16"
-        >
+        <section className="relative mx-auto grid max-w-7xl items-center gap-8 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:gap-14 lg:pb-24 lg:pt-16">
           <div className="relative z-10 max-w-xl">
             <FadeIn y={10}>
               <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#6b5b43]/40 bg-[#27221b]/65 px-3 py-1.5 text-[10px] font-medium tracking-wide text-[#d5c3a4]">
@@ -299,7 +293,7 @@ function LandingPage() {
               </div>
             </div>
           </div>
-        </motion.section>
+        </section>
         <div className="mx-auto max-w-7xl px-5 sm:px-8">
           <div className="flex flex-wrap items-center justify-between gap-4 border-y border-border/80 py-6">
             <p className="text-[10px] uppercase tracking-[.2em] text-muted-foreground">
@@ -322,14 +316,7 @@ function LandingPage() {
             </Link>
           </div>
         </div>
-        <motion.section
-          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.06 }}
-          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
-          id="experience"
-          className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28"
-        >
+        <section id="experience" className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
           <FadeIn>
             <div className="mb-9 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
               <div>
@@ -346,7 +333,7 @@ function LandingPage() {
             </div>
           </FadeIn>
           <div className="grid gap-4 md:grid-cols-3">
-            <FadeIn className="md:col-span-2">
+            <FadeIn direction="left" className="min-w-0 md:col-span-2">
               <div className="flux-panel transition-[border-color,box-shadow] duration-500 hover:border-primary/30 hover:shadow-[0_16px_60px_-30px_#e7bc7030] grid h-full overflow-hidden sm:grid-cols-2">
                 <div className="flex flex-col p-7">
                   <span className="mb-6 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -394,7 +381,7 @@ function LandingPage() {
                 </div>
               </div>
             </FadeIn>
-            <FadeIn delay={0.08}>
+            <FadeIn direction="right" delay={0.08}>
               <div className="flux-panel flex h-full flex-col p-7">
                 <span className="mb-6 flex h-10 w-10 items-center justify-center rounded-xl bg-[#b8a586]/10 text-[#d5c3a4]">
                   <Box className="h-5 w-5" />
@@ -417,15 +404,8 @@ function LandingPage() {
               </div>
             </FadeIn>
           </div>
-        </motion.section>
-        <motion.section
-          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.06 }}
-          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
-          id="operation"
-          className="border-y border-border bg-[#171614]"
-        >
+        </section>
+        <section id="operation" className="border-y border-border bg-[#171614]">
           <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] lg:gap-20 lg:py-24">
             <FadeIn>
               <p className="flux-eyebrow text-primary">Bastidores em harmonia</p>
@@ -476,18 +456,12 @@ function LandingPage() {
                 <ArrowUpRight className="h-4 w-4" />
               </Link>
             </FadeIn>
-            <FadeIn delay={0.08}>
+            <FadeIn direction="right" delay={0.08}>
               <OperationPreview compact />
             </FadeIn>
           </div>
-        </motion.section>
-        <motion.section
-          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.06 }}
-          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
-          className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:py-24"
-        >
+        </section>
+        <section className="mx-auto max-w-7xl px-5 py-16 sm:px-8 lg:py-24">
           <div className="grid gap-8 sm:grid-cols-3">
             {[
               {
@@ -509,7 +483,7 @@ function LandingPage() {
                 text: "Sua equipe cuida do que faz diferença: a experiência de estar à mesa.",
               },
             ].map(({ n, icon: Icon, title, text }, index) => (
-              <FadeIn key={n} delay={index * 0.06}>
+              <FadeIn key={n} direction={index % 2 ? "right" : "left"} delay={index * 0.06}>
                 <div className="flex items-center gap-3">
                   <span className="font-display text-3xl text-[#6b5b43]">{n}</span>
                   <div className="h-px flex-1 bg-border" />
@@ -520,15 +494,8 @@ function LandingPage() {
               </FadeIn>
             ))}
           </div>
-        </motion.section>
-        <motion.section
-          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.06 }}
-          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
-          id="pricing"
-          className="mx-auto max-w-7xl px-5 pb-20 pt-5 sm:px-8 lg:pb-28"
-        >
+        </section>
+        <section id="pricing" className="mx-auto max-w-7xl px-5 pb-20 pt-5 sm:px-8 lg:pb-28">
           <FadeIn>
             <div className="mx-auto mb-10 max-w-xl text-center">
               <p className="flux-eyebrow text-primary">Encontre seu ritmo</p>
@@ -543,7 +510,11 @@ function LandingPage() {
             {plans
               .filter((plan) => !plan.comingSoon)
               .map((plan, index) => (
-                <FadeIn key={plan.name} delay={index * 0.06}>
+                <FadeIn
+                  key={plan.name}
+                  direction={index % 2 ? "right" : "left"}
+                  delay={index * 0.06}
+                >
                   <article
                     className={`relative flex h-full flex-col rounded-3xl border p-6 sm:p-8 ${plan.featured ? "border-[#e5dfca] bg-[#eee9d9] text-[#171614]" : "border-border bg-surface"}`}
                   >
@@ -597,12 +568,8 @@ function LandingPage() {
             Escolha do plano e condições de cobrança são confirmadas no checkout. Soluções para
             redes estão em planejamento.
           </p>
-        </motion.section>
-        <motion.section
-          initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 22 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.06 }}
-          transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
+        </section>
+        <section
           id="faq"
           className="mx-auto grid max-w-7xl gap-8 px-5 pb-20 sm:px-8 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]"
         >
@@ -614,7 +581,7 @@ function LandingPage() {
               estabelecimento.
             </p>
           </FadeIn>
-          <FadeIn className="space-y-2">
+          <div className="space-y-2">
             {[
               {
                 q: "O que significa estar em beta?",
@@ -656,20 +623,19 @@ function LandingPage() {
                 q: "O Flux substitui meu sistema fiscal?",
                 a: "O Flux organiza cardápio, pedidos e atendimento. Emissão de documentos fiscais e integrações com outros sistemas não estão incluídas nesta versão.",
               },
-            ].map((item) => (
-              <details
-                key={item.q}
-                className="group rounded-2xl border border-border bg-surface/60 px-5 py-4"
-              >
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium">
-                  <span>{item.q}</span>
-                  <Plus className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-45" />
-                </summary>
-                <p className="mt-3 pr-6 text-sm leading-6 text-muted-foreground">{item.a}</p>
-              </details>
+            ].map((item, index) => (
+              <FadeIn key={item.q} direction={index % 2 ? "right" : "left"}>
+                <details className="group rounded-2xl border border-border bg-surface/60 px-5 py-4">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium">
+                    <span>{item.q}</span>
+                    <Plus className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-45" />
+                  </summary>
+                  <p className="mt-3 pr-6 text-sm leading-6 text-muted-foreground">{item.a}</p>
+                </details>
+              </FadeIn>
             ))}
-          </FadeIn>
-        </motion.section>
+          </div>
+        </section>
       </main>
       <footer className="mx-auto flex max-w-7xl flex-col border-t border-border/70 justify-between gap-6 px-5 py-8 text-[10px] text-muted-foreground sm:px-8 md:flex-row md:items-center">
         <FluxLogo />
