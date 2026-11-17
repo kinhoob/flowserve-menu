@@ -916,3 +916,55 @@ html:has(.flux-landing)::-webkit-scrollbar {
 .dashboard-ui .stagger > * {
   animation: none;
 }
+
+/* The assistant stays still; only one eye moves briefly at long intervals. */
+.bell-mascot-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.bell-mascot-awake .bell-mascot-eye {
+  animation: bell-wink 7s ease-in-out infinite;
+}
+@keyframes bell-wink {
+  0%,
+  44%,
+  49%,
+  100% {
+    transform: scaleY(1);
+  }
+  46%,
+  47% {
+    transform: scaleY(0.13);
+  }
+}
+.assistant-bubble {
+  animation: assistant-appear 180ms ease-out;
+}
+@keyframes assistant-appear {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.assistant-orb {
+  opacity: 0.85;
+}
+.assistant-orb:hover,
+.assistant-orb:focus-visible,
+.assistant-orb[aria-expanded="true"] {
+  opacity: 1;
+}
+body:has([role="dialog"][data-state="open"]) .flux-assistant,
+body:has([role="alertdialog"][data-state="open"]) .flux-assistant {
+  visibility: hidden;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bell-mascot-awake .bell-mascot-eye,
+  .assistant-bubble {
+    animation: none;
+  }
+}

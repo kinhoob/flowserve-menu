@@ -1,3 +1,4 @@
+import { BellMascot } from "@/components/brand/bell-mascot";
 import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
@@ -10,7 +11,7 @@ const STEPS = [
     title: "Conheça sua central",
     body: "Esta é a tela real da sua operação. Veja os pedidos recentes e os indicadores.",
     actions: [
-      "Use o menu lateral para trocar de área. No celular, abra o botão de menu.",
+      "Use o menu lateral para trocar de área. No celular, use a barra inferior ou toque em Mais.",
       "O sino reúne chamados e resumos do fechamento.",
       "Este tutorial navega pelas telas sem cadastrar ou alterar seus dados.",
     ],
@@ -127,12 +128,16 @@ const STEPS = [
       "Teste completo: escaneie o QR, solicite o código da mesa e acompanhe um pedido até encerrar a conta.",
   },
 ] as const;
-export function AdminTour() {
+export function AdminTour({ onActiveChange }: { onActiveChange?: (active: boolean) => void }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const reduced = useReducedMotion();
   const [active, setActive] = useState(false);
+  useEffect(() => {
+    onActiveChange?.(active);
+    return () => onActiveChange?.(false);
+  }, [active, onActiveChange]);
   const [step, setStep] = useState(0);
   const [minimized, setMinimized] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -217,7 +222,7 @@ export function AdminTour() {
       aria-label="Tutorial guiado do Flux"
       initial={{ opacity: 0, y: reduced ? 0 : 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="fixed bottom-3 right-3 z-40 flex max-h-[52dvh] w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border border-primary/40 bg-surface p-4 shadow-2xl md:bottom-6 md:right-6 md:max-h-[65dvh] md:w-[390px]"
+      className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-3 z-40 flex max-h-[52dvh] w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border border-primary/40 bg-surface p-4 shadow-2xl md:bottom-6 md:right-6 md:max-h-[65dvh] md:w-[390px]"
     >
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-2 text-xs uppercase tracking-widest text-primary">
@@ -246,7 +251,15 @@ export function AdminTour() {
             <h2 aria-live="polite" className="font-display text-xl">
               {current.title}
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground">{current.body}</p>
+            <div className="mt-3 flex items-center gap-3">
+              <BellMascot className="h-16 w-16 shrink-0" />
+              <div
+                key={current.title}
+                className="assistant-bubble rounded-2xl rounded-bl-sm border border-primary/20 bg-primary/5 p-3"
+              >
+                <p className="text-sm leading-6 text-muted-foreground">{current.body}</p>
+              </div>
+            </div>
             <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm">
               {current.actions.map((a) => (
                 <li key={a}>{a}</li>

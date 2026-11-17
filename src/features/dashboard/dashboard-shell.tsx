@@ -1,3 +1,4 @@
+import { FloatingAssistant } from "@/features/assistant/floating-assistant";
 import { useDashboardTools } from "@/features/dashboard/use-dashboard-tools";
 import { DashboardTools, MenuPreviewLink } from "./dashboard-tools";
 import { RestaurantHeader } from "./restaurant-header";
@@ -40,6 +41,7 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: trial, isPending: planLoading, refetch: refetchPlan } = useTrialStatus();
   const [lockedLabel, setLockedLabel] = useState<string | null>(null);
+  const [tourActive, setTourActive] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const initials = (user?.user_metadata?.display_name || user?.email || "U")
     .slice(0, 2)
@@ -254,7 +256,8 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
           Mais
         </button>
       </nav>
-      <AdminTour />
+      <AdminTour onActiveChange={setTourActive} />
+      <FloatingAssistant hidden={tourActive || mobileOpen} />
       <UpgradeProModal
         open={lockedLabel !== null}
         featureLabel={lockedLabel}
