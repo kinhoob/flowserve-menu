@@ -1,3 +1,4 @@
+import { LandingFaq } from "@/features/landing/landing-faq";
 import { ArPreview } from "@/features/landing/ar-preview";
 import { BetaBadge } from "@/components/brand/beta-badge";
 import { FluxLogo } from "@/components/brand/logo";
@@ -8,7 +9,7 @@ import { DEMO_DISHES } from "@/features/demo/demo-data";
 import { OperationPreview } from "@/features/demo/operation-preview";
 import { plans } from "@/features/experience/plan-catalog";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
+import { motion, useReducedMotion, useScroll } from "framer-motion";
 import {
   ArrowDown,
   ArrowRight,
@@ -51,7 +52,7 @@ function LandingPage() {
   const mobileSection = useRef<string | null>(null);
   const reducedMotion = useReducedMotion();
   const { scrollYProgress } = useScroll();
-  const progress = useSpring(scrollYProgress, { stiffness: 110, damping: 28 });
+
   const sectionScroll: ScrollIntoViewOptions = {
     behavior: reducedMotion ? "auto" : "smooth",
     block: "start",
@@ -60,7 +61,7 @@ function LandingPage() {
     <div className="flux-landing relative w-full min-w-0 min-h-screen overflow-x-clip bg-background text-foreground">
       <motion.div
         aria-hidden
-        style={{ scaleX: progress }}
+        style={{ scaleX: scrollYProgress }}
         className="fixed inset-x-0 top-0 z-50 h-0.5 origin-left bg-primary"
       />
       <Link
@@ -569,73 +570,7 @@ function LandingPage() {
             redes estão em planejamento.
           </p>
         </section>
-        <section
-          id="faq"
-          className="mx-auto grid max-w-7xl gap-8 px-5 pb-20 sm:px-8 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]"
-        >
-          <FadeIn>
-            <p className="flux-eyebrow text-primary">Antes de sentar à mesa</p>
-            <h2 className="mt-4 font-display text-3xl">Ficou alguma dúvida?</h2>
-            <p className="mt-4 max-w-sm text-sm leading-6 text-muted-foreground">
-              Explore a demonstração para conhecer a experiência antes de configurar seu
-              estabelecimento.
-            </p>
-          </FadeIn>
-          <div className="space-y-2">
-            {[
-              {
-                q: "O que significa estar em beta?",
-                a: "O Flux está em evolução. Recursos e telas podem mudar e podem ocorrer falhas. Teste o fluxo de pedidos antes de usar no salão e mantenha uma alternativa de atendimento durante interrupções.",
-              },
-              {
-                q: "Posso personalizar o cardápio com a minha marca?",
-                a: "Sim. Ajuste cores, fontes, imagens e apresentação dos produtos na personalização. Confira a prévia e salve para publicar as alterações.",
-              },
-              {
-                q: "Como começo no meu restaurante?",
-                a: "Crie sua conta, cadastre categorias e produtos, personalize o cardápio e configure mesas e horários. Abra o QR Code em outro celular e faça um pedido de teste antes de disponibilizá-lo aos clientes.",
-              },
-              {
-                q: "É possível pedir fora do restaurante?",
-                a: "O QR Code abre o cardápio. O envio respeita os horários configurados e o código temporário da mesa quando exigido. Essas medidas reduzem pedidos indevidos, mas não comprovam a localização física do cliente.",
-              },
-              {
-                q: "Preciso de internet?",
-                a: "Sim. Cliente e equipe precisam de conexão para enviar e acompanhar pedidos. Em caso de interrupção, confirme o recebimento com a equipe antes de reenviar.",
-              },
-              {
-                q: "Como funcionam teste e contratação?",
-                a: "O prazo de teste aparece na conta. Preços, recursos e condições de renovação são apresentados antes de confirmar a contratação. A demonstração pública pode ser explorada sem contratar.",
-              },
-              {
-                q: "O cliente precisa baixar um aplicativo?",
-                a: "O cardápio e o pedido funcionam pelo navegador do celular, a partir do QR Code. Não é necessário instalar um aplicativo próprio do Flux.",
-              },
-              {
-                q: "A realidade aumentada funciona com qualquer foto?",
-                a: "A visualização na mesa precisa de um modelo 3D do prato, com medidas conferidas, e de um aparelho compatível. Uma foto comum continua sendo exibida normalmente no cardápio.",
-              },
-              {
-                q: "A demonstração faz pedidos de verdade?",
-                a: "Não. Ela usa dados ilustrativos e simula o fluxo localmente. Você pode escolher pratos, calcular uma divisão e avançar o preparo sem enviar pedidos ou realizar cobranças.",
-              },
-              {
-                q: "O Flux substitui meu sistema fiscal?",
-                a: "O Flux organiza cardápio, pedidos e atendimento. Emissão de documentos fiscais e integrações com outros sistemas não estão incluídas nesta versão.",
-              },
-            ].map((item, index) => (
-              <FadeIn key={item.q} direction={index % 2 ? "right" : "left"}>
-                <details className="group rounded-2xl border border-border bg-surface/60 px-5 py-4">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium">
-                    <span>{item.q}</span>
-                    <Plus className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-45" />
-                  </summary>
-                  <p className="mt-3 pr-6 text-sm leading-6 text-muted-foreground">{item.a}</p>
-                </details>
-              </FadeIn>
-            ))}
-          </div>
-        </section>
+        <LandingFaq />
       </main>
       <footer className="mx-auto flex max-w-7xl flex-col border-t border-border/70 justify-between gap-6 px-5 py-8 text-[10px] text-muted-foreground sm:px-8 md:flex-row md:items-center">
         <FluxLogo />

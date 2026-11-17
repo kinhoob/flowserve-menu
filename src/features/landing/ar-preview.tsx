@@ -1,15 +1,17 @@
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion, useInView } from "framer-motion";
 import { ScanLine, RotateCcw } from "lucide-react";
 import { DEMO_DISHES } from "@/features/demo/demo-data";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 /** An illustrative scene: no camera permission, real model or portion measurement. */
 export function ArPreview() {
   const reduced = useReducedMotion();
   const [playing, setPlaying] = useState(true);
-  const animate = playing && !reduced;
+  const container = useRef<HTMLDivElement>(null);
+  const visible = useInView(container, { amount: 0.1 });
+  const animate = playing && !reduced && visible;
   return (
-    <div className="mt-6">
+    <div ref={container} className="mt-6">
       <div className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-[#27221b]">
         <div
           aria-hidden
@@ -30,7 +32,11 @@ export function ArPreview() {
           <div className="absolute h-32 w-48 rounded-[50%] border border-dashed border-[#e8c784]/40 bg-[#e8c784]/5 [transform:rotateX(55deg)]" />
           <motion.div
             animate={animate ? { y: [5, -5, 5], rotate: [-4, 4, -4] } : { y: 0, rotate: 0 }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            transition={{
+              duration: animate ? 6 : 0.3,
+              repeat: animate ? Infinity : 0,
+              ease: "easeInOut",
+            }}
             className="relative h-32 w-36 overflow-hidden rounded-[50%] border-[6px] border-[#eee9da] shadow-[0_24px_25px_-8px_#0009] [transform:rotateX(18deg)]"
           >
             <img
