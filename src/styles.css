@@ -878,3 +878,41 @@ html:has(.flux-landing)::-webkit-scrollbar {
     transform: none;
   }
 }
+
+.dashboard-command-group [cmdk-group-heading] {
+  padding: 0.65rem 0.75rem;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted-foreground);
+}
+.dashboard-command-item {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 0 12px;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+}
+.dashboard-command-item[data-selected="true"] {
+  background: var(--gold-soft);
+  color: var(--primary);
+}
+.dashboard-ui a,
+.dashboard-ui button {
+  transition-duration: 160ms;
+}
+.dashboard-ui .animate-pulse,
+.dashboard-ui .animate-ping {
+  animation: none;
+}
+.dashboard-ui .animate-fade-up,
+.dashboard-ui .animate-scale-in {
+  animation: flux-fade-in 180ms ease-out;
+}
+.dashboard-ui .stagger > * {
+  animation: none;
+}

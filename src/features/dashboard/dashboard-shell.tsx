@@ -1,10 +1,13 @@
+import { useDashboardTools } from "@/features/dashboard/use-dashboard-tools";
+import { DashboardTools, MenuPreviewLink } from "./dashboard-tools";
+import { RestaurantHeader } from "./restaurant-header";
 import { BetaBadge } from "@/components/brand/beta-badge";
 import { AdminTour } from "@/features/onboarding/admin-tour";
 import { NotificationBell } from "./notification-bell";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Lock, LogOut, Menu } from "lucide-react";
+import { Lock, LogOut, Menu, Keyboard, MoreHorizontal, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { CommandPalette } from "./command-palette";
 import { NAV } from "./navigation";
@@ -17,6 +20,22 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 export function DashboardShell({ children }: { children: ReactNode }) {
+  return (
+    <DashboardTools>
+      <DashboardShellContent>{children}</DashboardShellContent>
+    </DashboardTools>
+  );
+}
+function DashboardShellContent({ children }: { children: ReactNode }) {
+  const tools = useDashboardTools();
+  const [betaDismissed, setBetaDismissed] = useState(true);
+  useEffect(() => {
+    try {
+      setBetaDismissed(sessionStorage.getItem("flux-beta-dismissed") === "yes");
+    } catch {
+      setBetaDismissed(false);
+    }
+  }, []);
   const { user, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { data: trial, isPending: planLoading, refetch: refetchPlan } = useTrialStatus();
@@ -48,10 +67,10 @@ export function DashboardShell({ children }: { children: ReactNode }) {
               }
             }}
             className={cn(
-              "group relative flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-all duration-300",
+              "group relative flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition-colors duration-150",
               active
                 ? "bg-gold-soft text-foreground ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]"
-                : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground hover:translate-x-0.5",
+                : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
               locked && "opacity-70",
             )}
           >
@@ -96,8 +115,8 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar md:flex">
+    <div className="dashboard-ui flex min-h-screen bg-background text-foreground">
+      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-border bg-sidebar md:flex">
         <div className="px-6 pb-6 pt-7">
           <FluxLogo />
         </div>
@@ -128,27 +147,52 @@ export function DashboardShell({ children }: { children: ReactNode }) {
 
           <CommandPalette trial={trial} onLocked={setLockedLabel} />
 
-          <div className="md:hidden">
-            <FluxLogo />
-          </div>
+          <RestaurantHeader />
 
           <div className="flex items-center gap-2">
-            <BetaBadge />
+            <span className="hidden sm:inline-flex">
+              <BetaBadge />
+            </span>
+            <MenuPreviewLink className="hidden rounded-lg border border-border px-3 py-2 text-xs lg:inline-flex" />
+            <button
+              onClick={tools.shortcuts}
+              aria-label="Mostrar atalhos de teclado"
+              className="hidden rounded-lg p-2 text-muted-foreground sm:block"
+            >
+              <Keyboard className="h-4 w-4" />
+            </button>
             <NotificationBell />
           </div>
         </header>
-        <main className="flex-1 px-4 py-6 md:px-6 md:py-8">
+        <main className="min-w-0 flex-1 px-4 pb-28 pt-6 md:px-6 md:py-8">
           <ConnectionNotice />
-          <p className="mb-5 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3 text-xs leading-5 text-muted-foreground">
-            <strong className="font-medium text-primary">Flux em beta.</strong> Estamos evoluindo a
-            experiência. Teste as configurações antes de usar no salão e mantenha uma alternativa
-            para possíveis interrupções.
-          </p>
+          {!betaDismissed && (
+            <div className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
+              <p className="text-xs leading-5 text-muted-foreground">
+                <strong className="font-medium text-primary">Flux em beta.</strong> Teste as
+                configurações antes de usar no salão.
+              </p>
+              <button
+                aria-label="Dispensar aviso beta"
+                onClick={() => {
+                  setBetaDismissed(true);
+                  try {
+                    sessionStorage.setItem("flux-beta-dismissed", "yes");
+                  } catch {
+                    /* Dismissal stays available in memory. */
+                  }
+                }}
+                className="rounded p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
           <motion.div
             key={pathname}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
           >
             {!trial && pathname !== "/settings" ? (
               <div
@@ -176,6 +220,40 @@ export function DashboardShell({ children }: { children: ReactNode }) {
         </main>
       </div>
 
+      <nav
+        aria-label="Navegação rápida no celular"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-background px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))] md:hidden"
+      >
+        {NAV.filter((n) => ["/dashboard", "/kitchen", "/tables"].includes(n.to)).map(
+          ({ to, label, icon: Icon, feature }) => (
+            <Link
+              key={to}
+              to={to}
+              aria-current={pathname === to ? "page" : undefined}
+              onClick={(e) => {
+                if (feature && trial && !canAccess(trial, feature)) {
+                  e.preventDefault();
+                  setLockedLabel(label);
+                }
+              }}
+              className={cn(
+                "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px]",
+                pathname === to ? "bg-primary/10 text-primary" : "text-muted-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {to === "/dashboard" ? "Início" : label}
+            </Link>
+          ),
+        )}
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+          Mais
+        </button>
+      </nav>
       <AdminTour />
       <UpgradeProModal
         open={lockedLabel !== null}

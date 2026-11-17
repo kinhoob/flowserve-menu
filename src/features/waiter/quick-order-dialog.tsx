@@ -1,3 +1,5 @@
+import { QueryError } from "@/features/dashboard/query-feedback";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { withLivePrices } from "@/features/menu/live-prices";
 import { ModifierPicker, type SelectedModifier } from "@/features/menu/modifier-picker";
 import { fetchModifiersForRestaurant } from "@/features/menu/modifier-queries";
@@ -57,7 +59,12 @@ export function QuickOrderModal({
 
   const [pickingStaff, setPickingStaff] = useState(false);
 
-  const { data: items, isLoading } = useQuery({
+  const {
+    data: items,
+    isLoading,
+    isError: itemsError,
+    refetch: refetchItems,
+  } = useQuery({
     queryKey: ["waiter-items", restaurantId],
     queryFn: async (): Promise<WItem[]> => {
       const { data, error } = await supabase
@@ -186,190 +193,235 @@ export function QuickOrderModal({
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
-      onClick={onClose}
+    <DialogPrimitive.Root
+      open
+      onOpenChange={(open) => {
+        if (!open && !submitting) onClose();
+      }}
     >
-      <motion.div
-        initial={{ y: 40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 40, opacity: 0 }}
-        transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-        onClick={(e) => e.stopPropagation()}
-        className="flex h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-border bg-background sm:rounded-3xl"
-      >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Lançamento rápido
-            </div>
-            <h2 className="font-sans font-semibold text-xl tracking-tight">{tableLabel}</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="px-5 py-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              autoFocus
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar item ou categoria…"
-              className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
-            />
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-5">
-          {isLoading ? (
-            <div className="flex h-32 items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <ul className="space-y-1.5 pb-2">
-              {filtered.map((it) => {
-                const ex = lines.find((l) => l.productId === it.id && l.modifiers.length === 0);
-                return (
-                  <li
-                    key={it.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2.5"
-                  >
-                    <button onClick={() => addItem(it)} className="min-w-0 flex-1 text-left">
-                      <div className="truncate text-sm font-medium">{it.name}</div>
-                      <div className="text-[11px] text-muted-foreground">
-                        {it.category_name} · {formatPrice(it.price, currency)}
-                      </div>
-                    </button>
-                    {ex ? (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => setQty(ex.itemId, ex.qty - 1)}
-                          className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground"
-                        >
-                          <Minus className="h-3.5 w-3.5" />
-                        </button>
-                        <span className="min-w-[1.5rem] text-center text-sm font-medium">
-                          {ex.qty}
-                        </span>
-                        <button
-                          onClick={() => setQty(ex.itemId, ex.qty + 1)}
-                          className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => addItem(it)}
-                        className="rounded-lg bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
-                      >
-                        Adicionar
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-              {filtered.length === 0 && (
-                <li className="py-8 text-center text-sm text-muted-foreground">
-                  Nenhum item encontrado.
-                </li>
-              )}
-            </ul>
-          )}
-        </div>
-
-        <div className="border-t border-border bg-surface/50 px-5 py-3">
-          {lines.length > 0 && (
-            <div className="mb-3 max-h-32 space-y-1.5 overflow-y-auto">
-              {lines.map((l) => (
-                <div key={l.itemId} className="flex items-center gap-2 text-xs">
-                  <button
-                    aria-label={`Diminuir quantidade de ${l.name}`}
-                    onClick={() => setQty(l.itemId, l.qty - 1)}
-                    className="rounded border border-border p-1"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className="font-medium text-primary">{l.qty}×</span>
-                  <button
-                    aria-label={`Aumentar quantidade de ${l.name}`}
-                    onClick={() => setQty(l.itemId, l.qty + 1)}
-                    className="rounded border border-border p-1"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                  <span className="flex-1 truncate">{l.name}</span>
-                  <input
-                    value={l.notes}
-                    onChange={(e) =>
-                      setLines((p) =>
-                        p.map((x) => (x.itemId === l.itemId ? { ...x, notes: e.target.value } : x)),
-                      )
-                    }
-                    placeholder="obs"
-                    className="w-24 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Subtotal
-              </div>
-              <div className="font-sans font-semibold text-xl tracking-tight">
-                {formatPrice(subtotal, currency)}
-              </div>
-            </div>
-            <button
-              onClick={requestSubmit}
-              disabled={lines.length === 0 || submitting}
-              className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-95 disabled:opacity-50"
-            >
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Send className="h-4 w-4" /> Enviar pedido
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </motion.div>
-      <AnimatePresence>
-        {pickingStaff && (
-          <StaffPicker
-            restaurantId={restaurantId}
-            title="Quem lançou esse pedido?"
-            onSelect={async (name) => {
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/70" />
+        <DialogPrimitive.Content
+          aria-describedby="quick-order-description"
+          className="fixed inset-0 z-50 flex items-end justify-center outline-none sm:items-center"
+          onPointerDown={(e) => {
+            if (e.target === e.currentTarget && !submitting) onClose();
+          }}
+          onEscapeKeyDown={(e) => {
+            if (pickerItem) {
+              e.preventDefault();
+              setPickerItem(null);
+            } else if (pickingStaff) {
+              e.preventDefault();
               setPickingStaff(false);
-              await submit(name);
+            } else if (submitting) e.preventDefault();
+          }}
+        >
+          <DialogPrimitive.Description id="quick-order-description" className="sr-only">
+            Selecione os itens e confirme o envio do pedido.
+          </DialogPrimitive.Description>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            onClick={(e) => e.stopPropagation()}
+            className="flex h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-border bg-background sm:rounded-3xl"
+          >
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Lançamento rápido
+                </div>
+                <DialogPrimitive.Title className="font-sans font-semibold text-xl tracking-tight">
+                  {tableLabel}
+                </DialogPrimitive.Title>
+              </div>
+              <button
+                aria-label="Fechar novo pedido"
+                disabled={submitting}
+                onClick={onClose}
+                className="rounded-lg p-2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="px-5 py-3">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  autoFocus
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Buscar item ou categoria…"
+                  className="w-full rounded-xl border border-border bg-surface py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                />
+              </div>
+            </div>
+
+            {modifiers.isError && (
+              <QueryError
+                message="Não foi possível carregar os adicionais. Atualize antes de montar o pedido."
+                retry={() => void modifiers.refetch()}
+              />
+            )}
+            <div className="flex-1 overflow-y-auto px-5">
+              {itemsError ? (
+                <QueryError
+                  message="Não foi possível carregar os produtos."
+                  retry={() => void refetchItems()}
+                />
+              ) : isLoading || modifiers.isPending ? (
+                <div className="flex h-32 items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <ul className="space-y-1.5 pb-2">
+                  {filtered.map((it) => {
+                    const ex = lines.find((l) => l.productId === it.id && l.modifiers.length === 0);
+                    return (
+                      <li
+                        key={it.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-3 py-2.5"
+                      >
+                        <button onClick={() => addItem(it)} className="min-w-0 flex-1 text-left">
+                          <div className="truncate text-sm font-medium">{it.name}</div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {it.category_name} · {formatPrice(it.price, currency)}
+                          </div>
+                        </button>
+                        {ex ? (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => setQty(ex.itemId, ex.qty - 1)}
+                              className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground"
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </button>
+                            <span className="min-w-[1.5rem] text-center text-sm font-medium">
+                              {ex.qty}
+                            </span>
+                            <button
+                              onClick={() => setQty(ex.itemId, ex.qty + 1)}
+                              className="rounded-md border border-border p-1 text-muted-foreground hover:text-foreground"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => addItem(it)}
+                            className="rounded-lg bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
+                          >
+                            Adicionar
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                  {filtered.length === 0 && (
+                    <li className="py-8 text-center text-sm text-muted-foreground">
+                      Nenhum item encontrado.
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+
+            <div className="border-t border-border bg-surface/50 px-5 py-3">
+              {lines.length > 0 && (
+                <div className="mb-3 max-h-32 space-y-1.5 overflow-y-auto">
+                  {lines.map((l) => (
+                    <div key={l.itemId} className="flex items-center gap-2 text-xs">
+                      <button
+                        aria-label={`Diminuir quantidade de ${l.name}`}
+                        onClick={() => setQty(l.itemId, l.qty - 1)}
+                        className="rounded border border-border p-1"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className="font-medium text-primary">{l.qty}×</span>
+                      <button
+                        aria-label={`Aumentar quantidade de ${l.name}`}
+                        onClick={() => setQty(l.itemId, l.qty + 1)}
+                        className="rounded border border-border p-1"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                      <span className="flex-1 truncate">{l.name}</span>
+                      <input
+                        value={l.notes}
+                        onChange={(e) =>
+                          setLines((p) =>
+                            p.map((x) =>
+                              x.itemId === l.itemId ? { ...x, notes: e.target.value } : x,
+                            ),
+                          )
+                        }
+                        placeholder="obs"
+                        className="w-24 rounded-md border border-border bg-background px-2 py-0.5 text-[11px] outline-none focus:border-[oklch(0.78_0.13_84_/_0.5)]"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Subtotal
+                  </div>
+                  <div className="font-sans font-semibold text-xl tracking-tight">
+                    {formatPrice(subtotal, currency)}
+                  </div>
+                </div>
+                <button
+                  onClick={requestSubmit}
+                  disabled={
+                    lines.length === 0 ||
+                    submitting ||
+                    modifiers.isError ||
+                    modifiers.isPending ||
+                    itemsError
+                  }
+                  className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-95 disabled:opacity-50"
+                >
+                  {submitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4" /> Enviar pedido
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+          <AnimatePresence>
+            {pickingStaff && (
+              <StaffPicker
+                restaurantId={restaurantId}
+                title="Quem lançou esse pedido?"
+                onSelect={async (name) => {
+                  setPickingStaff(false);
+                  await submit(name);
+                }}
+                onClose={() => setPickingStaff(false)}
+              />
+            )}
+          </AnimatePresence>
+          <ModifierPicker
+            item={pickerItem}
+            groups={pickerItem ? (modifiers.data?.get(pickerItem.id) ?? []) : []}
+            currency={currency}
+            onClose={() => setPickerItem(null)}
+            onConfirm={(selected) => {
+              if (pickerItem) addConfigured(pickerItem, selected);
+              setPickerItem(null);
             }}
-            onClose={() => setPickingStaff(false)}
           />
-        )}
-      </AnimatePresence>
-      <ModifierPicker
-        item={pickerItem}
-        groups={pickerItem ? (modifiers.data?.get(pickerItem.id) ?? []) : []}
-        currency={currency}
-        onClose={() => setPickerItem(null)}
-        onConfirm={(selected) => {
-          if (pickerItem) addConfigured(pickerItem, selected);
-          setPickerItem(null);
-        }}
-      />
-    </motion.div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }

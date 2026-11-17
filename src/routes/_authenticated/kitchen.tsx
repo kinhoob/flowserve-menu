@@ -1,3 +1,4 @@
+import { DashboardSkeleton } from "@/features/dashboard/query-feedback";
 import { CancelOrderDialog } from "@/features/orders/cancel-order-dialog";
 import { FeatureLocked } from "@/features/billing/trial-guard";
 import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
@@ -18,7 +19,7 @@ import { formatPrice } from "@/lib/format";
 import { playChime } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Archive,
@@ -26,7 +27,6 @@ import {
   CheckCircle2,
   ChefHat,
   Clock,
-  Loader2,
   Volume2,
   VolumeX,
   XCircle,
@@ -35,6 +35,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/kitchen")({
+  validateSearch: (s: Record<string, unknown>): { status?: "pending" | "ready" } => ({
+    status: s.status === "pending" || s.status === "ready" ? s.status : undefined,
+  }),
   head: () => ({ meta: [{ title: "Cozinha — Flux Menu" }] }),
   component: KitchenPage,
 });
@@ -58,6 +61,7 @@ function elapsed(ts: string) {
 
 function KitchenPage() {
   const qc = useQueryClient();
+  const { status: statusFilter } = Route.useSearch();
   const { data: restaurant } = useRestaurant();
   const { data: trial } = useTrialStatus();
   const {
@@ -165,6 +169,14 @@ function KitchenPage() {
           </button>
         </div>
       )}
+      {statusFilter && (
+        <div className="flex items-center justify-between rounded-xl border border-border p-3 text-sm">
+          <span>Exibindo: {STATUS_LABELS[statusFilter]}</span>
+          <Link to="/kitchen" search={{}} className="text-primary underline">
+            Ver todos os pedidos
+          </Link>
+        </div>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-primary">Operação ao vivo</p>
@@ -248,9 +260,7 @@ function KitchenPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
+        <DashboardSkeleton />
       ) : (
         <div
           className={cn(
@@ -259,16 +269,18 @@ function KitchenPage() {
             "sm:grid-cols-2",
           )}
         >
-          {columns.map((col) => (
-            <KitchenColumn
-              key={col.status}
-              status={col.status}
-              orders={col.orders}
-              onAdvance={(id, next) => advance(id, next)}
-              onCancel={setCancelId}
-              currency={restaurant?.currency ?? "BRL"}
-            />
-          ))}
+          {columns
+            .filter((col) => !statusFilter || col.status === statusFilter)
+            .map((col) => (
+              <KitchenColumn
+                key={col.status}
+                status={col.status}
+                orders={col.orders}
+                onAdvance={(id, next) => advance(id, next)}
+                onCancel={setCancelId}
+                currency={restaurant?.currency ?? "BRL"}
+              />
+            ))}
         </div>
       )}
       <CancelOrderDialog
@@ -348,12 +360,11 @@ function KitchenColumn({
             orders.map((o) => (
               <motion.div
                 key={o.id}
-                layout
-                initial={{ opacity: 0, y: 12, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95, x: 20 }}
-                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                className="group rounded-xl border border-border bg-background/80 p-4 backdrop-blur transition hover:border-[oklch(0.78_0.13_84_/_0.4)]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="group rounded-xl border border-border bg-background/80 p-4 transition-colors hover:border-[oklch(0.78_0.13_84_/_0.4)]"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>

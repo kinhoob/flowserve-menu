@@ -1,3 +1,4 @@
+import { DashboardSkeleton, QueryError } from "@/features/dashboard/query-feedback";
 import { CatalogTools } from "@/features/menu/catalog-tools";
 import {
   AlertDialog,
@@ -57,9 +58,19 @@ export const Route = createFileRoute("/_authenticated/menu")({
 });
 
 function MenuPage() {
-  const { data: restaurant, isLoading: rLoading } = useRestaurant();
+  const {
+    data: restaurant,
+    isLoading: rLoading,
+    isError: rError,
+    refetch: rRefetch,
+  } = useRestaurant();
   const restaurantId = restaurant?.id;
-  const { data: categories = [], isLoading: cLoading } = useCategories(restaurantId);
+  const {
+    data: categories = [],
+    isLoading: cLoading,
+    isError: cError,
+    refetch: cRefetch,
+  } = useCategories(restaurantId);
   const [activeCatId, setActiveCatId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [itemDialog, setItemDialog] = useState<{ open: boolean; item: MenuItem | null }>({
@@ -81,24 +92,32 @@ function MenuPage() {
     }
   }, [categories, activeCatId]);
 
-  const { data: items = [], isLoading: iLoading } = useMenuItems(
-    restaurantId,
-    activeCatId ?? undefined,
-  );
+  const {
+    data: items = [],
+    isLoading: iLoading,
+    isError: iError,
+    refetch: iRefetch,
+  } = useMenuItems(restaurantId, activeCatId ?? undefined);
 
   const filtered = items.filter((i) =>
     query ? i.name.toLowerCase().includes(query.toLowerCase()) : true,
   );
 
-  if (rLoading) {
+  if (rLoading || cLoading) return <DashboardSkeleton />;
+  if (rError || !restaurant)
     return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
+      <QueryError
+        message="Não foi possível carregar seu restaurante."
+        retry={() => void rRefetch()}
+      />
     );
-  }
-
-  if (!restaurant) return null;
+  if (cError)
+    return (
+      <QueryError
+        message="Não foi possível carregar as categorias."
+        retry={() => void cRefetch()}
+      />
+    );
   const currency = restaurant.currency;
 
   return (
@@ -123,8 +142,14 @@ function MenuPage() {
         </Button>
       </div>
 
+      {iError && (
+        <QueryError
+          message="Não foi possível carregar os itens. Tente novamente antes de editar."
+          retry={() => void iRefetch()}
+        />
+      )}
       <CatalogTools restaurantId={restaurant.id} categories={categories} currency={currency} />
-      <div className="mt-8 grid gap-6 lg:grid-cols-[280px_1fr]">
+      <div className="mt-8 grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <CategoriesPanel
           restaurantId={restaurantId!}
           categories={categories}
@@ -138,6 +163,8 @@ function MenuPage() {
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
+              type="search"
+              aria-label="Buscar itens do cardápio"
               placeholder="Buscar itens…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -150,7 +177,7 @@ function MenuPage() {
               title="Nenhuma categoria selecionada"
               hint="Crie sua primeira categoria para começar a adicionar itens."
             />
-          ) : iLoading ? (
+          ) : iError ? null : iLoading ? (
             <div className="flex h-40 items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>

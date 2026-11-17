@@ -1,9 +1,23 @@
+import { useDashboardTools } from "@/features/dashboard/use-dashboard-tools";
+
+import { useRestaurant } from "@/features/restaurant/use-restaurant";
+import { useTables } from "@/features/tables/table-queries";
+import { publicMenuUrl } from "@/lib/public-menu-url";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { canAccess, type TrialInfo } from "@/features/billing/trial-status";
 import { normalizeSearch } from "@/features/menu/discovery";
 import { useNavigate } from "@tanstack/react-router";
 import { Command } from "cmdk";
-import { ArrowUpRight, Command as CommandIcon, Lock, Search } from "lucide-react";
+import {
+  ArrowUpRight,
+  Command as CommandIcon,
+  Lock,
+  Search,
+  Plus,
+  Armchair,
+  ExternalLink,
+  Keyboard,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { NAV } from "./navigation";
 export function CommandPalette({
@@ -15,8 +29,13 @@ export function CommandPalette({
 }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const tools = useDashboardTools();
+  const { data: restaurant } = useRestaurant();
+  const tables = useTables(restaurant?.id);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
+      if (event.isComposing || event.defaultPrevented) return;
+      if (document.querySelector('[role="dialog"],[role="alertdialog"]') && !open) return;
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
         setOpen((value) => !value);
@@ -24,7 +43,7 @@ export function CommandPalette({
     };
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
-  }, []);
+  }, [open]);
   return (
     <>
       <button
@@ -43,7 +62,7 @@ export function CommandPalette({
         <DialogContent className="overflow-hidden border-border bg-surface p-0 sm:max-w-lg">
           <DialogTitle className="sr-only">Navegação rápida</DialogTitle>
           <DialogDescription className="sr-only">
-            Busque uma página. Use as setas para selecionar e Enter para abrir.
+            Busque uma página, ação ou mesa. Use as setas para selecionar e Enter para abrir.
           </DialogDescription>
           <Command
             label="Páginas do Flux Menu"
@@ -55,13 +74,50 @@ export function CommandPalette({
               <Search className="h-4 w-4 shrink-0 text-primary" />
               <Command.Input
                 autoFocus
-                placeholder="Para onde vamos?"
+                placeholder="Buscar páginas, ações ou mesas…"
                 className="h-16 w-full bg-transparent text-sm outline-none"
               />
             </div>
             <Command.List className="max-h-80 overflow-y-auto p-2">
+              <Command.Group heading="Ações rápidas" className="dashboard-command-group">
+                <Command.Item
+                  value="Novo pedido lançar pedido"
+                  onSelect={() => {
+                    setOpen(false);
+                    tools.newOrder();
+                  }}
+                  className="dashboard-command-item"
+                >
+                  <Plus className="h-4 w-4" />
+                  Novo pedido
+                </Command.Item>
+                {restaurant && (
+                  <Command.Item
+                    value="Ver cardápio prévia público"
+                    onSelect={() => {
+                      setOpen(false);
+                      window.open(publicMenuUrl(restaurant.slug), "_blank", "noopener,noreferrer");
+                    }}
+                    className="dashboard-command-item"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Ver cardápio
+                  </Command.Item>
+                )}
+                <Command.Item
+                  value="Ajuda atalhos teclado"
+                  onSelect={() => {
+                    setOpen(false);
+                    tools.shortcuts();
+                  }}
+                  className="dashboard-command-item"
+                >
+                  <Keyboard className="h-4 w-4" />
+                  Atalhos de teclado
+                </Command.Item>
+              </Command.Group>
               <Command.Empty className="px-4 py-10 text-center text-sm text-muted-foreground">
-                Nenhuma página encontrada. Tente “mesas” ou “cardápio”.
+                Nada encontrado. Busque uma página, ação ou nome de mesa.
               </Command.Empty>
               <Command.Group
                 heading="Seu estabelecimento"
@@ -90,6 +146,31 @@ export function CommandPalette({
                     </Command.Item>
                   );
                 })}
+              </Command.Group>
+              <Command.Group heading="Mesas" className="dashboard-command-group">
+                {tables.data?.map((table) => (
+                  <Command.Item
+                    key={table.id}
+                    value={"Mesa " + table.label}
+                    onSelect={() => {
+                      setOpen(false);
+                      if (!trial || !canAccess(trial, "tables")) onLocked("Mesas");
+                      else void navigate({ to: "/tables", search: { table: table.id } });
+                    }}
+                    className="dashboard-command-item"
+                  >
+                    <Armchair className="h-4 w-4" />
+                    {table.label}
+                  </Command.Item>
+                ))}
+                {tables.isError && (
+                  <p className="p-3 text-xs text-muted-foreground">
+                    Mesas indisponíveis.{" "}
+                    <button className="underline" onClick={() => void tables.refetch()}>
+                      Tentar novamente
+                    </button>
+                  </p>
+                )}
               </Command.Group>
             </Command.List>
             <div className="flex justify-between border-t border-border px-4 py-3 text-[10px] text-muted-foreground">

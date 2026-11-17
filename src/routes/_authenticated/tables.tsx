@@ -1,3 +1,4 @@
+import { DashboardSkeleton, QueryError } from "@/features/dashboard/query-feedback";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,7 +25,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { fetchAllPages, isOpenOrder, normalizeTableLabel } from "@/lib/operations";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Armchair,
   ExternalLink,
@@ -36,10 +37,13 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/tables")({
+  validateSearch: (s: Record<string, unknown>): { table?: string } => ({
+    table: typeof s.table === "string" ? s.table : undefined,
+  }),
   head: () => ({ meta: [{ title: "Mesas — Flux Menu" }] }),
   component: TablesPage,
 });
@@ -69,10 +73,23 @@ function useTableHistory(restaurantId: string | undefined) {
 }
 
 function TablesPage() {
-  const { data: restaurant, isLoading: rLoading } = useRestaurant();
-  const { data: tables = [], isLoading: tLoading } = useTables(restaurant?.id);
-  const { data: orders = [] } = useOrders(restaurant?.id);
-  const { data: history = [] } = useTableHistory(restaurant?.id);
+  const navigate = useNavigate();
+  const {
+    data: restaurant,
+    isLoading: rLoading,
+    isError: rError,
+    refetch: rRefetch,
+  } = useRestaurant();
+  const {
+    data: tables = [],
+    isLoading: tLoading,
+    isError: tError,
+    refetch: tRefetch,
+  } = useTables(restaurant?.id);
+  const ordersQuery = useOrders(restaurant?.id);
+  const { data: orders = [] } = ordersQuery;
+  const historyQuery = useTableHistory(restaurant?.id);
+  const { data: history = [] } = historyQuery;
   const { data: trial } = useTrialStatus();
   const tableLimit = getTableLimit(trial?.plan_type);
   const reachedLimit = tables.length >= tableLimit;
@@ -86,6 +103,13 @@ function TablesPage() {
   const [filter, setFilter] = useState<"all" | "free" | "busy">("all");
   const [historyTable, setHistoryTable] = useState<VenueTable | null>(null);
 
+  const { table: requestedTable } = Route.useSearch();
+  useEffect(() => {
+    if (requestedTable) {
+      const match = tables.find((t) => t.id === requestedTable);
+      if (match) setHistoryTable(match);
+    }
+  }, [requestedTable, tables]);
   const currency = restaurant?.currency || "BRL";
   const fmt = useMemo(
     () => new Intl.NumberFormat("pt-BR", { style: "currency", currency }),
@@ -127,14 +151,18 @@ function TablesPage() {
     return map;
   }, [history]);
 
-  if (rLoading || !restaurant) {
+  if (rLoading || tLoading) return <DashboardSkeleton />;
+  if (rError || !restaurant)
     return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
+      <QueryError
+        message="Não foi possível carregar seu restaurante."
+        retry={() => void rRefetch()}
+      />
     );
-  }
-
+  if (tError)
+    return (
+      <QueryError message="Não foi possível carregar as mesas." retry={() => void tRefetch()} />
+    );
   if (trial && !canAccess(trial, "tables")) {
     return (
       <div className="mx-auto max-w-6xl space-y-6">
@@ -143,6 +171,17 @@ function TablesPage() {
     );
   }
 
+  if (ordersQuery.isPending || historyQuery.isPending) return <DashboardSkeleton />;
+  if (ordersQuery.isError || historyQuery.isError)
+    return (
+      <QueryError
+        message="Não foi possível atualizar a ocupação ou o histórico das mesas."
+        retry={() => {
+          void ordersQuery.refetch();
+          void historyQuery.refetch();
+        }}
+      />
+    );
   const busyCount = tables.filter((t) => occupancy.has(normalizeLabel(t.label))).length;
   const freeCount = tables.length - busyCount;
 
@@ -415,7 +454,10 @@ function TablesPage() {
 
       <HistoryModal
         table={historyTable}
-        onClose={() => setHistoryTable(null)}
+        onClose={() => {
+          setHistoryTable(null);
+          void navigate({ to: "/tables", search: {}, replace: true });
+        }}
         history={history}
         fmt={fmt}
         orderTotal={orderTotal}

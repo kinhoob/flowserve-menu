@@ -1,3 +1,7 @@
+import { useDashboardTools } from "@/features/dashboard/use-dashboard-tools";
+import { OperationalOverview } from "@/features/dashboard/operational-overview";
+import { DashboardSkeleton, QueryError } from "@/features/dashboard/query-feedback";
+import { MenuPreviewLink } from "@/features/dashboard/dashboard-tools";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/use-auth";
 import { TrialBanner, TrialExpiredBlock } from "@/features/billing/trial-guard";
@@ -9,7 +13,7 @@ import { useResolveWaiterCall, useWaiterCalls } from "@/features/waiter/waiter-q
 import { formatPrice } from "@/lib/format";
 import { isOpenOrder, normalizeTableLabel, restaurantDate, restaurantHour } from "@/lib/operations";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowUpRight, Bell, DollarSign, Flame, Loader2, Receipt, Users } from "lucide-react";
+import { ArrowUpRight, Bell, DollarSign, Flame, Receipt, Users, Plus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +32,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 function DashboardPage() {
   const { user } = useAuth();
+  const tools = useDashboardTools();
   const { checkout: checkoutStatus } = Route.useSearch();
   const navigate = useNavigate();
 
@@ -41,9 +46,12 @@ function DashboardPage() {
     data: restaurant,
     isLoading: restaurantLoading,
     isError: restaurantError,
+    refetch: refetchRestaurant,
   } = useRestaurant();
-  const { data: orders } = useOrders(restaurant?.id, true);
-  const { data: waiterCalls = [] } = useWaiterCalls(restaurant?.id);
+  const ordersQuery = useOrders(restaurant?.id, true);
+  const { data: orders } = ordersQuery;
+  const callsQuery = useWaiterCalls(restaurant?.id);
+  const { data: waiterCalls = [] } = callsQuery;
   const resolveCall = useResolveWaiterCall(restaurant?.id);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const pendingCalls = waiterCalls.filter((c) => !c.resolved);
@@ -53,7 +61,8 @@ function DashboardPage() {
   const { data: trial } = useTrialStatus();
   const trialExpired = isTrialExpired(trial);
 
-  const { data: tables = [] } = useTables(restaurant?.id);
+  const tablesQuery = useTables(restaurant?.id);
+  const { data: tables = [] } = tablesQuery;
   const tablesCount = tables.length;
 
   const stats = useMemo(() => {
@@ -90,41 +99,45 @@ function DashboardPage() {
   const recent = (orders ?? []).slice(0, 6);
 
   const name = user?.user_metadata?.display_name || user?.email?.split("@")[0] || "por aí";
-  const ctaTo = "/menu" as const;
-  const ctaLabel = "Gerenciar cardápio";
 
   const hour = restaurantHour(new Date(), restaurant?.timezone ?? "America/Sao_Paulo");
   const greeting =
     hour < 5 ? "Boa madrugada" : hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
-  if (restaurantLoading) {
+  if (restaurantLoading) return <DashboardSkeleton />;
+  if (restaurantError)
     return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
+      <QueryError
+        message="Não foi possível carregar seu restaurante. Verifique a conexão e tente novamente."
+        retry={() => void refetchRestaurant()}
+      />
     );
-  }
-
-  if (restaurantError || !restaurant) {
+  if (!restaurant)
     return (
-      <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-          <Flame className="h-6 w-6 text-primary" />
-        </div>
-        <h2 className="mt-5 font-display text-2xl tracking-tight">Preparando seu workspace</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Estamos criando seu restaurante. Atualize a página em alguns segundos.
-        </p>
-        <button
-          onClick={() => window.location.reload()}
-          className="mt-5 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-        >
-          Atualizar
-        </button>
-      </div>
+      <QueryError
+        message="Seu restaurante ainda não foi disponibilizado. Tente carregar novamente."
+        retry={() => void refetchRestaurant()}
+      />
     );
-  }
-
+  if (trialExpired) return <TrialExpiredBlock />;
+  if (ordersQuery.isPending || callsQuery.isPending || tablesQuery.isPending)
+    return <DashboardSkeleton />;
+  const refresh = () => {
+    void ordersQuery.refetch();
+    void callsQuery.refetch();
+    void tablesQuery.refetch();
+  };
+  if (
+    (ordersQuery.isError && !orders) ||
+    (callsQuery.isError && !callsQuery.data) ||
+    (tablesQuery.isError && !tablesQuery.data)
+  )
+    return (
+      <QueryError
+        message="Não foi possível carregar os dados da operação. Tente novamente para consultar os indicadores."
+        retry={refresh}
+      />
+    );
   const STATS = [
     {
       label: "Pedidos hoje",
@@ -163,15 +176,28 @@ function DashboardPage() {
                 Pedidos, mesas e equipe no mesmo fluxo.
               </p>
             </div>
-            <Link
-              to={ctaTo}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90 hover:-translate-y-0.5"
+            <button
+              onClick={tools.newOrder}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
             >
-              {ctaLabel}
-              <ArrowUpRight className="h-4 w-4" />
-            </Link>
+              <Plus className="h-4 w-4" />
+              Novo pedido
+            </button>
           </div>
 
+          {(ordersQuery.isError || callsQuery.isError || tablesQuery.isError) && (
+            <QueryError
+              message="Falha ao atualizar. Os últimos dados recebidos continuam visíveis e podem estar desatualizados."
+              retry={refresh}
+            />
+          )}
+          <OperationalOverview
+            orders={orders ?? []}
+            calls={waiterCalls}
+            kitchen={canAccess(trial, "kitchen")}
+            resolve={(id) => resolveCall.mutate(id)}
+            pending={resolveCall.isPending}
+          />
           {billCalls.length > 0 && (
             <div className="rounded-2xl border-2 border-[oklch(0.78_0.18_84_/_0.7)] bg-gold-soft p-4 shadow-[0_0_40px_-10px_oklch(0.78_0.18_84_/_0.7)] animate-pulse animate-fade-up">
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
@@ -262,41 +288,27 @@ function DashboardPage() {
             ))}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3" aria-label="Acessos rápidos">
+          <section aria-label="Ações rápidas" className="flex flex-wrap gap-3">
+            <MenuPreviewLink className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium" />
+            <Link
+              to="/tables"
+              className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium"
+            >
+              Gerenciar mesas
+            </Link>
             <Link
               to="/menu"
-              className="group flex items-center justify-between rounded-2xl border border-border bg-surface/50 p-4"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-xs font-medium"
             >
-              <div>
-                <p className="text-xs font-semibold">Seu cardápio, do seu jeito</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">Editar pratos e adicionais</p>
-              </div>
-              <ArrowUpRight className="h-4 w-4 text-primary transition-transform group-hover:-translate-y-0.5" />
+              Editar cardápio <ArrowUpRight className="h-4 w-4" />
             </Link>
             <Link
               to="/qrcodes"
-              className="group flex items-center justify-between rounded-2xl border border-border bg-surface/50 p-4"
+              className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium"
             >
-              <div>
-                <p className="text-xs font-semibold">O primeiro toque</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">Gerenciar seus QR Codes</p>
-              </div>
-              <ArrowUpRight className="h-4 w-4 text-primary transition-transform group-hover:-translate-y-0.5" />
+              QR Codes
             </Link>
-            {canAccess(trial, "kitchen") && (
-              <Link
-                to="/kitchen"
-                className="group flex items-center justify-between rounded-2xl border border-border bg-surface/50 p-4"
-              >
-                <div>
-                  <p className="text-xs font-semibold">Bastidores no ritmo</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">Acompanhar a cozinha</p>
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-primary transition-transform group-hover:-translate-y-0.5" />
-              </Link>
-            )}
-          </div>
-
+          </section>
           <div className="rounded-2xl border border-border bg-surface p-6 animate-fade-up">
             <div className="flex items-center justify-between">
               <h2 className="font-display text-xl tracking-tight">Atividade recente</h2>

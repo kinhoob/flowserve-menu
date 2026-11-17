@@ -1,3 +1,4 @@
+import { fetchAllPages } from "@/lib/operations";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,15 +35,17 @@ export function useWaiterCalls(restaurantId: string | undefined) {
     enabled: !!restaurantId,
     refetchInterval: 15000,
     queryFn: async (): Promise<WaiterCall[]> => {
-      const { data, error } = await supabase
-        .from("waiter_calls")
-        .select("*")
-        .eq("restaurant_id", restaurantId!)
-        .eq("is_test", false)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data ?? [];
+      return fetchAllPages<WaiterCall>((from, to) =>
+        supabase
+          .from("waiter_calls")
+          .select("*")
+          .eq("restaurant_id", restaurantId!)
+          .eq("is_test", false)
+          .eq("resolved", false)
+          .order("created_at", { ascending: false })
+          .order("id")
+          .range(from, to),
+      );
     },
   });
 }
