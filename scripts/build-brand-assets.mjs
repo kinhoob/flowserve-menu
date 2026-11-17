@@ -88,9 +88,7 @@ fs.writeFileSync(
   svg(
     512,
     512,
-    '<rect width="512" height="512" rx="100" fill="#090909"/><g transform="translate(36 106) scale(1.04)">' +
-      mark() +
-      "</g>",
+    '<g transform="translate(36 106) scale(1.04)">' + mark() + "</g>",
     null,
     "Flux Menu",
   ),

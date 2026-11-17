@@ -7,3 +7,5 @@ A fonte vetorial da marca está em src/components/brand/identity.json. Tipografi
 Execute node scripts/build-brand-assets.mjs para regenerar os SVGs em public/brand e o favicon. Não depende de fontes instaladas.
 
 Versão transparente clara usa texto preto; escura usa texto branco. O símbolo é ilustrativo e não deve ser apresentado como QR funcional.
+
+O favicon usa somente o QR dourado, com fundo transparente no SVG e no PNG.
