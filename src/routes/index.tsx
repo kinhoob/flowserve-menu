@@ -197,12 +197,12 @@ function LandingPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.06 }}
           transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
-          className="relative mx-auto grid max-w-7xl items-center gap-8 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[1fr_1.08fr] lg:gap-14 lg:pb-24 lg:pt-16"
+          className="relative mx-auto grid max-w-7xl items-center gap-8 px-5 pb-16 pt-10 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)] lg:gap-14 lg:pb-24 lg:pt-16"
         >
           <div className="relative z-10 max-w-xl">
             <FadeIn y={10}>
-              <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#48634c]/40 bg-[#233328]/65 px-3 py-1.5 text-[10px] font-medium tracking-wide text-[#b3c9ac]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#b8ce9b]" />
+              <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#6b5b43]/40 bg-[#27221b]/65 px-3 py-1.5 text-[10px] font-medium tracking-wide text-[#d5c3a4]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#d5c3a4]" />
                 Beta aberto · Vamos evoluir seu salão juntos.
               </div>
               <h1 className="font-display text-[clamp(2.65rem,5.1vw,4.65rem)] font-semibold leading-[1.08] tracking-[-.065em]">
@@ -238,11 +238,11 @@ function LandingPage() {
               </div>
               <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-[10px] text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-3 w-3 text-[#b3c9ac]" />
+                  <Check className="h-3 w-3 text-[#d5c3a4]" />
                   Feito para o celular
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-3 w-3 text-[#b3c9ac]" />
+                  <Check className="h-3 w-3 text-[#d5c3a4]" />
                   Do pedido à mesa
                 </span>
               </div>
@@ -251,7 +251,7 @@ function LandingPage() {
           <div className="relative mx-auto w-full max-w-[610px] pb-16 pt-8 sm:pb-20 lg:pt-0">
             <div
               aria-hidden
-              className="pointer-events-none absolute -inset-12 rounded-full bg-[radial-gradient(ellipse_at_center,#47644730,transparent_65%)]"
+              className="pointer-events-none absolute -inset-12 rounded-full bg-[radial-gradient(ellipse_at_center,#6b5b4330,transparent_65%)]"
             />
             <FadeIn delay={0.08} y={18}>
               <div className="relative rounded-3xl shadow-[0_35px_100px_-35px_#000b] sm:-rotate-1">
@@ -262,12 +262,12 @@ function LandingPage() {
               initial={{ opacity: reducedMotion ? 1 : 0, y: reducedMotion ? 0 : 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: reducedMotion ? 0 : 0.65, delay: reducedMotion ? 0 : 0.3 }}
-              className="absolute -bottom-2 right-2 w-[168px] rotate-3 rounded-[25px] border-[5px] border-[#485248] bg-[#f1efe4] p-2.5 text-[#1c2a20] shadow-[0_20px_70px_-20px_#000a] sm:right-5 sm:w-[195px]"
+              className="absolute -bottom-2 right-2 w-[168px] rotate-3 rounded-[25px] border-[5px] border-[#6b5b43] bg-[#f1efe4] p-2.5 text-[#171614] shadow-[0_20px_70px_-20px_#000a] sm:right-5 sm:w-[195px]"
             >
-              <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-[#1b261e]" />
+              <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-[#171614]" />
               <div className="mb-2 flex items-center justify-between px-1 text-[8px]">
                 <span className="font-semibold">Casa do Flux</span>
-                <span className="rounded-full bg-[#dce3d3] px-1.5 py-0.5">Mesa 01</span>
+                <span className="rounded-full bg-[#eee5d5] px-1.5 py-0.5">Mesa 01</span>
               </div>
               <div className="relative h-24 overflow-hidden rounded-xl sm:h-28">
                 <img
@@ -280,22 +280,22 @@ function LandingPage() {
                 </span>
               </div>
               <p className="mt-2 text-[10px] font-semibold">Burger da casa</p>
-              <p className="mt-1 text-[8px] text-[#6d776c]">Feito para dar vontade.</p>
+              <p className="mt-1 text-[8px] text-[#b8a586]">Feito para dar vontade.</p>
               <div className="mt-3 flex items-center justify-between">
                 <span className="text-xs font-bold">R$ 36,00</span>
-                <span className="rounded-lg bg-[#253d2c] p-1.5 text-[#f0eddd]">
+                <span className="rounded-lg bg-[#27221b] p-1.5 text-[#f0eddd]">
                   <Plus className="h-3 w-3" />
                 </span>
               </div>
-              <p className="mt-2 text-[7px] text-[#788273]">Cardápio ilustrativo</p>
+              <p className="mt-2 text-[7px] text-[#b8a586]">Cardápio ilustrativo</p>
             </motion.div>
-            <div className="absolute -left-1 bottom-10 hidden items-center gap-3 rounded-2xl border border-[#566b52]/40 bg-[#26352a] px-4 py-3 shadow-lg sm:flex">
-              <div className="rounded-xl bg-[#9ab38d]/15 p-2">
-                <Check className="h-4 w-4 text-[#c0d1ad]" />
+            <div className="absolute -left-1 bottom-10 hidden items-center gap-3 rounded-2xl border border-[#6b5b43]/40 bg-[#27221b] px-4 py-3 shadow-lg sm:flex">
+              <div className="rounded-xl bg-[#b8a586]/15 p-2">
+                <Check className="h-4 w-4 text-[#d5c3a4]" />
               </div>
               <div>
-                <p className="text-[11px] font-medium text-[#e3eadb]">Tudo conversando.</p>
-                <p className="mt-0.5 text-[9px] text-[#a4b7a0]">Cliente, cozinha e equipe.</p>
+                <p className="text-[11px] font-medium text-[#eee5d5]">Tudo conversando.</p>
+                <p className="mt-0.5 text-[9px] text-[#d5c3a4]">Cliente, cozinha e equipe.</p>
               </div>
             </div>
           </div>
@@ -305,7 +305,7 @@ function LandingPage() {
             <p className="text-[10px] uppercase tracking-[.2em] text-muted-foreground">
               Feito para quem serve bem
             </p>
-            <div className="flex flex-wrap gap-5 text-xs font-medium text-[#a6b2a5] sm:gap-9">
+            <div className="flex flex-wrap gap-5 text-xs font-medium text-[#d5c3a4] sm:gap-9">
               {["Restaurantes", "Bares", "Cafés", "Bistrôs"].map((label) => (
                 <span key={label}>{label}</span>
               ))}
@@ -337,7 +337,7 @@ function LandingPage() {
                 <h2 className="mt-4 font-display text-3xl leading-tight sm:text-5xl">
                   A experiência começa
                   <br />
-                  <span className="text-[#97aa95]">antes da primeira garfada.</span>
+                  <span className="text-[#b8a586]">antes da primeira garfada.</span>
                 </h2>
               </div>
               <p className="max-w-xs text-sm leading-6 text-muted-foreground">
@@ -373,16 +373,16 @@ function LandingPage() {
                     <ArrowUpRight className="h-3.5 w-3.5" />
                   </Link>
                 </div>
-                <div className="relative m-3 flex min-h-72 flex-col justify-end overflow-hidden rounded-2xl bg-[#2a382a]">
+                <div className="relative m-3 flex min-h-72 flex-col justify-end overflow-hidden rounded-2xl bg-[#27221b]">
                   <img
                     loading="lazy"
                     src={DEMO_DISHES[2].image_url}
                     alt="Foto ilustrativa de um bowl com vegetais"
                     className="absolute inset-0 h-full w-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#101a14]/95 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#171614]/95 via-transparent to-transparent" />
                   <div className="relative p-5">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#dce7c9] px-2.5 py-1 text-[9px] font-medium text-[#2a3d27]">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eee5d5] px-2.5 py-1 text-[9px] font-medium text-[#27221b]">
                       <Leaf className="h-3 w-3" />
                       Leve, fresco, do seu jeito.
                     </span>
@@ -396,7 +396,7 @@ function LandingPage() {
             </FadeIn>
             <FadeIn delay={0.08}>
               <div className="flux-panel flex h-full flex-col p-7">
-                <span className="mb-6 flex h-10 w-10 items-center justify-center rounded-xl bg-[#9aad92]/10 text-[#bdcbb4]">
+                <span className="mb-6 flex h-10 w-10 items-center justify-center rounded-xl bg-[#b8a586]/10 text-[#d5c3a4]">
                   <Box className="h-5 w-5" />
                 </span>
                 <span className="flux-eyebrow text-muted-foreground">Uma nova perspectiva</span>
@@ -424,15 +424,15 @@ function LandingPage() {
           viewport={{ once: true, amount: 0.06 }}
           transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
           id="operation"
-          className="border-y border-border bg-[#141a16]"
+          className="border-y border-border bg-[#171614]"
         >
-          <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[.8fr_1.2fr] lg:gap-20 lg:py-24">
+          <div className="mx-auto grid max-w-7xl items-center gap-10 px-5 py-16 sm:px-8 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)] lg:gap-20 lg:py-24">
             <FadeIn>
               <p className="flux-eyebrow text-primary">Bastidores em harmonia</p>
               <h2 className="mt-4 font-display text-3xl leading-tight sm:text-5xl">
                 O salão acontece.
                 <br />
-                <span className="text-[#97aa95]">Você acompanha.</span>
+                <span className="text-[#b8a586]">Você acompanha.</span>
               </h2>
               <p className="mt-5 text-sm leading-7 text-muted-foreground">
                 Pedidos organizados por etapa. Mesas com status claro. Cozinha e atendimento olhando
@@ -458,7 +458,7 @@ function LandingPage() {
                 ].map(({ icon: Icon, title, text }) => (
                   <div key={title} className="flex items-start gap-3">
                     <div className="mt-0.5 rounded-lg border border-border bg-surface p-2">
-                      <Icon className="h-4 w-4 text-[#b7c7b0]" />
+                      <Icon className="h-4 w-4 text-[#d5c3a4]" />
                     </div>
                     <div>
                       <h3 className="text-xs font-semibold">{title}</h3>
@@ -511,9 +511,9 @@ function LandingPage() {
             ].map(({ n, icon: Icon, title, text }, index) => (
               <FadeIn key={n} delay={index * 0.06}>
                 <div className="flex items-center gap-3">
-                  <span className="font-display text-3xl text-[#556450]">{n}</span>
+                  <span className="font-display text-3xl text-[#6b5b43]">{n}</span>
                   <div className="h-px flex-1 bg-border" />
-                  <Icon className="h-4 w-4 text-[#a1b39b]" />
+                  <Icon className="h-4 w-4 text-[#d5c3a4]" />
                 </div>
                 <h3 className="mt-5 font-display text-lg">{title}</h3>
                 <p className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">{text}</p>
@@ -545,24 +545,24 @@ function LandingPage() {
               .map((plan, index) => (
                 <FadeIn key={plan.name} delay={index * 0.06}>
                   <article
-                    className={`relative flex h-full flex-col rounded-3xl border p-6 sm:p-8 ${plan.featured ? "border-[#e5dfca] bg-[#eee9d9] text-[#1f2a21]" : "border-border bg-surface"}`}
+                    className={`relative flex h-full flex-col rounded-3xl border p-6 sm:p-8 ${plan.featured ? "border-[#e5dfca] bg-[#eee9d9] text-[#171614]" : "border-border bg-surface"}`}
                   >
                     {plan.featured && (
-                      <span className="absolute -top-3 right-6 inline-flex items-center gap-1.5 rounded-full bg-[#738368] px-3 py-1 text-[9px] font-semibold text-white">
+                      <span className="absolute -top-3 right-6 inline-flex items-center gap-1.5 rounded-full bg-[#b8a586] px-3 py-1 text-[9px] font-semibold text-white">
                         <Sparkles className="h-3 w-3" />
                         Operação completa
                       </span>
                     )}
                     <h3 className="font-display text-lg">{plan.name}</h3>
                     <p
-                      className={`mt-3 min-h-10 text-xs leading-5 ${plan.featured ? "text-[#64705f]" : "text-muted-foreground"}`}
+                      className={`mt-3 min-h-10 text-xs leading-5 ${plan.featured ? "text-[#6b5b43]" : "text-muted-foreground"}`}
                     >
                       {plan.description}
                     </p>
                     <div className="my-6">
                       <span className="font-display text-4xl tracking-[-.06em]">{plan.price}</span>
                       <span
-                        className={`ml-1 text-xs ${plan.featured ? "text-[#64705f]" : "text-muted-foreground"}`}
+                        className={`ml-1 text-xs ${plan.featured ? "text-[#6b5b43]" : "text-muted-foreground"}`}
                       >
                         {plan.period}
                       </span>
@@ -570,7 +570,7 @@ function LandingPage() {
                     <Link
                       to="/auth"
                       search={{ mode: "signup", redirect: `/settings?plan=${plan.slug}` }}
-                      className={`flux-button w-full ${plan.featured ? "bg-[#233529] text-[#f7f4ea]" : "border border-border bg-background/40 text-foreground"}`}
+                      className={`flux-button w-full ${plan.featured ? "bg-[#27221b] text-[#f7f4ea]" : "border border-border bg-background/40 text-foreground"}`}
                     >
                       Escolher {plan.name}
                       <ArrowRight className="h-3.5 w-3.5" />
@@ -580,10 +580,10 @@ function LandingPage() {
                       {plan.features.map((feature) => (
                         <li
                           key={feature}
-                          className={`flex items-start gap-2 text-xs leading-5 ${plan.featured ? "text-[#52604c]" : "text-muted-foreground"}`}
+                          className={`flex items-start gap-2 text-xs leading-5 ${plan.featured ? "text-[#6b5b43]" : "text-muted-foreground"}`}
                         >
                           <Check
-                            className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${plan.featured ? "text-[#506c49]" : "text-[#a8bf9e]"}`}
+                            className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${plan.featured ? "text-[#6b5b43]" : "text-[#d5c3a4]"}`}
                           />
                           {feature}
                         </li>
@@ -604,7 +604,7 @@ function LandingPage() {
           viewport={{ once: true, amount: 0.06 }}
           transition={{ duration: reducedMotion ? 0 : 0.75, ease: [0.22, 1, 0.36, 1] }}
           id="faq"
-          className="mx-auto grid max-w-7xl gap-8 px-5 pb-20 sm:px-8 lg:grid-cols-[.8fr_1.2fr]"
+          className="mx-auto grid max-w-7xl gap-8 px-5 pb-20 sm:px-8 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]"
         >
           <FadeIn>
             <p className="flux-eyebrow text-primary">Antes de sentar à mesa</p>

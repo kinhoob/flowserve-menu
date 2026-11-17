@@ -10,7 +10,7 @@ export function ArPreview() {
   const animate = playing && !reduced;
   return (
     <div className="mt-6">
-      <div className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-[#33392e]">
+      <div className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-[#27221b]">
         <div
           aria-hidden
           className="absolute inset-0 bg-[linear-gradient(115deg,#b5a08028,transparent_55%),repeating-linear-gradient(92deg,#ffffff06_0px,#ffffff06_1px,transparent_1px,transparent_42px)]"

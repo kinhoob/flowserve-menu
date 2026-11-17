@@ -67,13 +67,13 @@
 :root {
   --radius: 1rem;
 
-  --background: #101312;
-  --foreground: oklch(0.96 0.012 80);
+  --background: #0b0b0b;
+  --foreground: #faf8f3;
 
-  --surface: #191e1b;
-  --surface-2: #232b25;
+  --surface: #171614;
+  --surface-2: #24211d;
 
-  --card: #191e1b;
+  --card: #171614;
   --card-foreground: var(--foreground);
 
   --popover: oklch(0.21 0 0);
@@ -89,7 +89,7 @@
   --secondary-foreground: var(--foreground);
 
   --muted: oklch(0.235 0 0);
-  --muted-foreground: oklch(0.74 0.012 70);
+  --muted-foreground: #bfb5a5;
 
   --accent: oklch(0.27 0 0);
   --accent-foreground: var(--foreground);
@@ -100,7 +100,7 @@
   --success: oklch(0.66 0.13 152);
   --success-foreground: oklch(0.12 0 0);
 
-  --border: #2c352e;
+  --border: #363027;
   --input: oklch(0.295 0 0);
   --ring: oklch(0.78 0.13 84 / 0.5);
 
@@ -121,6 +121,7 @@
 @layer base {
   html {
     color-scheme: dark;
+    overflow-x: clip;
     background-color: var(--color-background);
     scroll-behavior: smooth;
   }
@@ -128,6 +129,9 @@
     border-color: var(--color-border);
   }
   body {
+    min-width: 0;
+    margin: 0;
+    overflow-x: clip;
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
@@ -301,7 +305,7 @@
     height: 5px;
   }
   ::-webkit-scrollbar-thumb {
-    background: #3c463f;
+    background: #51473a;
     border-radius: 8px;
   }
   html {
@@ -327,7 +331,7 @@
     transform: translateY(-2px);
   }
   .flux-dot-grid {
-    background-image: radial-gradient(#6b7c6535 0.8px, transparent 0.8px);
+    background-image: radial-gradient(#c5ad8230 0.8px, transparent 0.8px);
     background-size: 22px 22px;
   }
   .menu-discovery {

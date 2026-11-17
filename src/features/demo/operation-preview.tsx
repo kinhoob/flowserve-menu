@@ -27,18 +27,18 @@ export function OperationPreview({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-[20px] border border-[#39423b] bg-[#191e1b] shadow-[0_30px_90px_-30px_#000a]",
+        "overflow-hidden rounded-[20px] border border-[#27221b] bg-[#171614] shadow-[0_30px_90px_-30px_#000a]",
         compact && "text-[11px]",
       )}
     >
-      <div className="flex items-center gap-2 border-b border-white/7 bg-[#1f2721] px-4 py-3">
-        <span className="h-2 w-2 rounded-full bg-[#637b69]" />
-        <span className="h-2 w-2 rounded-full bg-[#a2aa78]" />
+      <div className="flex items-center gap-2 border-b border-white/7 bg-[#171614] px-4 py-3">
+        <span className="h-2 w-2 rounded-full bg-[#6b5b43]" />
+        <span className="h-2 w-2 rounded-full bg-[#b8a586]" />
         <span className="h-2 w-2 rounded-full bg-[#e7bd73]" />
-        <span className="mx-auto flex items-center gap-1.5 text-[10px] text-[#a0ada3]">
+        <span className="mx-auto flex items-center gap-1.5 text-[10px] text-[#d5c3a4]">
           <QrCode className="h-3 w-3" /> fluxmenu · exemplo de operação
         </span>
-        <MoreHorizontal className="h-4 w-4 text-[#738077]" />
+        <MoreHorizontal className="h-4 w-4 text-[#b8a586]" />
       </div>
       <div className="flex">
         <aside
@@ -48,22 +48,22 @@ export function OperationPreview({
           <div className="rounded-lg bg-primary/15 p-2 text-primary">
             <LayoutGrid className="h-4 w-4" />
           </div>
-          <Receipt className="h-4 w-4 text-[#708275]" />
-          <UtensilsCrossed className="h-4 w-4 text-[#708275]" />
-          <QrCode className="h-4 w-4 text-[#708275]" />
+          <Receipt className="h-4 w-4 text-[#b8a586]" />
+          <UtensilsCrossed className="h-4 w-4 text-[#b8a586]" />
+          <QrCode className="h-4 w-4 text-[#b8a586]" />
         </aside>
         <div className={cn("min-w-0 flex-1", compact ? "p-4 sm:p-5" : "p-4 sm:p-7")}>
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-[9px] font-medium uppercase tracking-[.2em] text-[#96a69a]">
+              <p className="text-[9px] font-medium uppercase tracking-[.2em] text-[#b8a586]">
                 Seu restaurante
               </p>
               <h3 className="mt-1 font-display text-lg text-[#f4f4ed] sm:text-xl">
                 O salão está no fluxo.
               </h3>
             </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#56715b]/40 bg-[#314e38]/30 px-2 py-1 text-[9px] text-[#b0cfb4]">
-              <span className="h-1 w-1 rounded-full bg-[#a7cfae]" /> Exemplo
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#6b5b43]/40 bg-[#27221b]/30 px-2 py-1 text-[9px] text-[#d5c3a4]">
+              <span className="h-1 w-1 rounded-full bg-[#d5c3a4]" /> Exemplo
             </span>
           </div>
           <div className="mb-5 grid grid-cols-3 gap-2">
@@ -85,9 +85,9 @@ export function OperationPreview({
             ].map(({ label, value, icon: Icon }) => (
               <div
                 key={label}
-                className="rounded-xl border border-white/6 bg-[#222a24] p-2.5 sm:p-3.5"
+                className="rounded-xl border border-white/6 bg-[#171614] p-2.5 sm:p-3.5"
               >
-                <div className="mb-2 flex items-center justify-between gap-1 text-[9px] text-[#a1afa4]">
+                <div className="mb-2 flex items-center justify-between gap-1 text-[9px] text-[#d5c3a4]">
                   <span>{label}</span>
                   <Icon className="hidden h-3 w-3 sm:block" />
                 </div>
@@ -99,7 +99,7 @@ export function OperationPreview({
           </div>
           <div className="mb-3 flex items-center justify-between">
             <h4 className="text-xs font-semibold text-[#eeeae0]">Pedidos do salão</h4>
-            <span className="text-[9px] text-[#93a398]">Dados ilustrativos</span>
+            <span className="text-[9px] text-[#b8a586]">Dados ilustrativos</span>
           </div>
           <div className="space-y-2">
             {orders.slice(0, compact ? 3 : orders.length).map((order) => {
@@ -107,16 +107,16 @@ export function OperationPreview({
               return (
                 <div
                   key={order.id}
-                  className="flex flex-wrap items-center gap-3 rounded-xl border border-white/6 bg-[#1d241f] p-3"
+                  className="flex flex-wrap items-center gap-3 rounded-xl border border-white/6 bg-[#171614] p-3"
                 >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#2d3830] text-xs font-semibold text-[#e4dbc7]">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#27221b] text-xs font-semibold text-[#e4dbc7]">
                     {order.table}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[11px] font-medium text-[#e7ebe5]">
                       {order.itemsSummary ?? `${order.qty}× ${order.item}`}
                     </p>
-                    <p className="mt-1 flex items-center gap-1 text-[9px] text-[#839b8b]">
+                    <p className="mt-1 flex items-center gap-1 text-[9px] text-[#b8a586]">
                       <Clock3 className="h-2.5 w-2.5" />#{order.id} · {order.time}
                     </p>
                   </div>
@@ -143,13 +143,13 @@ export function OperationPreview({
                     </button>
                   )}
                   {!compact && order.status === "served" && (
-                    <Check className="h-4 w-4 text-[#9fc7a9]" />
+                    <Check className="h-4 w-4 text-[#d5c3a4]" />
                   )}
                 </div>
               );
             })}
           </div>
-          <div className="mt-4 flex items-center gap-2 border-t border-white/6 pt-3 text-[9px] text-[#91a695]">
+          <div className="mt-4 flex items-center gap-2 border-t border-white/6 pt-3 text-[9px] text-[#b8a586]">
             <ChefHat className="h-3.5 w-3.5 text-primary" />
             <span>Da escolha à cozinha. Da cozinha à mesa.</span>
             <ArrowDownLeft className="ml-auto h-3.5 w-3.5" />
