@@ -145,12 +145,9 @@ function WaiterPage() {
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
       <details open className="mb-5 rounded-2xl border border-border bg-surface p-4">
-        <summary className="cursor-pointer text-sm font-medium">
-          Códigos temporários das mesas
-        </summary>
+        <summary className="cursor-pointer text-sm font-medium">Códigos das mesas</summary>
         <p className="mt-2 text-xs text-muted-foreground">
-          Gere quatro dígitos para o cliente no salão. Finalizar e liberar encerra o código; o
-          próximo atendimento recebe outro.
+          Entregue no salão. Ao liberar a mesa, o código expira.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(tables ?? []).map((t) => (

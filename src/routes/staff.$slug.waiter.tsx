@@ -173,11 +173,9 @@ function StaffWaiter() {
     <main className="mx-auto max-w-4xl px-4 py-6">
       <ConnectionNotice />
       <details open className="mb-5 rounded-2xl border border-border bg-surface p-4">
-        <summary className="cursor-pointer text-sm font-medium">
-          Códigos temporários das mesas
-        </summary>
+        <summary className="cursor-pointer text-sm font-medium">Códigos das mesas</summary>
         <p className="mt-2 text-xs text-muted-foreground">
-          Entregue o código ao cliente no salão. Ao trocar, o código anterior deixa de funcionar.
+          Entregue no salão. Ao liberar a mesa, o código expira.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(tablesQ.data ?? []).map((t) => (

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Copy, KeyRound, Loader2, RefreshCw } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -7,12 +7,10 @@ const schema = z
   .object({ code: z.string().regex(/^[0-9]{4}$/), expires_at: z.string() })
   .nullable();
 export function TableAccessCode({ tableId, staffToken }: { tableId: string; staffToken?: string }) {
-  const [revealed, setRevealed] = useState(true);
   const qc = useQueryClient();
   const queryKey = ["table-access-code", tableId, staffToken];
   const current = useQuery({
     queryKey,
-    enabled: revealed,
     refetchInterval: 15000,
     retry: false,
     queryFn: async () => {
@@ -41,80 +39,113 @@ export function TableAccessCode({ tableId, staffToken }: { tableId: string; staf
     },
     onSuccess: (value) => {
       qc.setQueryData(queryKey, value);
-      setRevealed(true);
     },
     onError: () =>
       toast.error("Não foi possível obter o código. Confira a atualização SQL e seu acesso."),
   });
+  const busy = request.isPending || current.isFetching;
   return (
     <div
-      className="mt-3 rounded-xl border border-border bg-background/60 p-3 text-xs"
+      className="mt-2 rounded-2xl border border-border bg-background/50 p-3.5"
       onClick={(e) => e.stopPropagation()}
     >
-      <p className="mb-2 text-muted-foreground">Código para pedidos nesta mesa</p>
-      {current.isError && (
-        <p className="mb-2 text-amber-400">
-          Não foi possível atualizar. Consulte novamente antes de entregar ao cliente.
-        </p>
-      )}
-      {code && (
-        <>
-          <p className="select-all break-all font-mono text-lg tracking-widest text-primary">
-            {code.code}
-          </p>
-          <p className="mt-1 text-muted-foreground">
-            Expira ao liberar a mesa. Limite de segurança:{" "}
-            {new Date(code.expires_at).toLocaleTimeString("pt-BR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-            . Entregue apenas no salão.
-          </p>
-        </>
-      )}
-      {revealed && !code && !current.isFetching && !request.isPending && !current.isError && (
-        <p className="mb-2 text-muted-foreground">
-          Sem código ativo. Gere um novo para o próximo atendimento.
-        </p>
-      )}
-      <div className="mt-2 flex flex-wrap gap-3">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <KeyRound className="h-3.5 w-3.5" /> Código da mesa
+        </span>
+        <span
+          title={
+            code ? "Válido até " + new Date(code.expires_at).toLocaleString("pt-BR") : undefined
+          }
+          className={
+            code
+              ? "rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+              : "text-[10px] text-muted-foreground"
+          }
+        >
+          {current.isError
+            ? "Indisponível"
+            : current.isPending
+              ? "Consultando…"
+              : code
+                ? "Ativo"
+                : "Não gerado"}
+        </span>
+      </div>
+      <div
+        role="status"
+        aria-label={code ? "Código da mesa: " + code.code.split("").join(" ") : "Sem código ativo"}
+        className="flex justify-center gap-2 py-2"
+      >
+        {(code?.code.split("") ?? ["–", "–", "–", "–"]).map((digit, index) => (
+          <span
+            key={index}
+            aria-hidden="true"
+            className={
+              "flex h-11 w-10 items-center justify-center rounded-lg border font-mono text-2xl font-semibold tabular-nums " +
+              (code
+                ? "border-primary/20 bg-primary/5 text-primary"
+                : "border-border bg-surface text-muted-foreground/35")
+            }
+          >
+            {digit}
+          </span>
+        ))}
+      </div>
+      {current.isError ? (
         <button
           type="button"
-          disabled={request.isPending || current.isFetching}
-          onClick={() => {
-            setRevealed(true);
-            if (!code) request.mutate();
-            else void current.refetch();
-          }}
-          className="underline"
+          onClick={() => void current.refetch()}
+          disabled={busy}
+          className="mt-3 min-h-10 w-full rounded-lg border border-border text-xs text-muted-foreground disabled:opacity-50"
         >
-          {request.isPending ? "Aguarde…" : code ? "Consultar atual" : "Gerar código de 4 dígitos"}
+          Tentar novamente
         </button>
-        {code && (
-          <>
-            <button
-              type="button"
-              onClick={() =>
-                void navigator.clipboard
-                  .writeText(code.code)
-                  .then(() => toast.success("Código copiado"))
-                  .catch(() => toast.error("Selecione o código para copiar"))
+      ) : (
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              if (!code) {
+                request.mutate();
+                return;
               }
-              className="underline"
-            >
-              Copiar
-            </button>
+              void navigator.clipboard
+                .writeText(code.code)
+                .then(() => toast.success("Código copiado"))
+                .catch(() => toast.error("Não foi possível copiar o código"));
+            }}
+            className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            {request.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            ) : code ? (
+              <Copy className="h-3.5 w-3.5" />
+            ) : (
+              <KeyRound className="h-3.5 w-3.5" />
+            )}
+            {request.isPending ? "Gerando…" : code ? "Copiar" : "Gerar código"}
+          </button>
+          {code && (
             <button
               type="button"
-              disabled={request.isPending}
+              disabled={busy}
               onClick={() => request.mutate()}
-              className="underline"
+              aria-label="Trocar código da mesa"
+              title="Trocar código — invalida o anterior"
+              className="flex min-h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-50"
             >
-              Trocar código
+              <RefreshCw className="h-3.5 w-3.5" />
             </button>
-          </>
-        )}
-      </div>
+          )}
+        </div>
+      )}
+      {code && (
+        <p className="mt-2.5 text-center text-[10px] text-muted-foreground">
+          Encerra ao liberar a mesa.
+        </p>
+      )}
     </div>
   );
 }
