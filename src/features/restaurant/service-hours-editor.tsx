@@ -148,8 +148,9 @@ export function ServiceHoursEditor({ restaurant }: { restaurant: Tables<"restaur
         <span>
           Código temporário por mesa{" "}
           <small className="block max-w-xl text-muted-foreground">
-            Recomendado: o garçom entrega o código no salão. Expira em 2 horas, pode ser trocado e é
-            invalidado ao encerrar a última conta. O QR continua servindo para consultar o cardápio.
+            Opcional: o garçom entrega quatro dígitos no salão. O código é encerrado ao liberar a
+            mesa e tem limite de segurança de 24 horas. Desligar não desativa o bloqueio por
+            horário; durante o expediente, qualquer pessoa com o link poderá pedir.
           </small>
         </span>
         <Switch

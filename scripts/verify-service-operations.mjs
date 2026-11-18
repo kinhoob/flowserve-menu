@@ -41,8 +41,9 @@ export async function verifyServiceOperations(client, { rid, other, product, opt
   await client.query("SET ROLE authenticated");
   const getCode = async (rotate = false) =>
     (await client.query("SELECT table_order_code($1,NULL,$2) AS c", [tid, rotate])).rows[0].c;
-  const first = await getCode();
-  assert.match(first.code, /^[a-f0-9]{12}$/);
+  assert.equal(await getCode(), null); // polling must never open a new table session
+  const first = await getCode(true);
+  assert.match(first.code, /^[0-9]{4}$/);
   assert.equal((await getCode()).code, first.code);
   await fail("SELECT * FROM table_order_codes");
   await client.query("RESET ROLE");
@@ -96,6 +97,27 @@ export async function verifyServiceOperations(client, { rid, other, product, opt
     JSON.stringify([{ menu_item_id: beer, quantity: 1 }]),
   ]);
   await client.query("UPDATE restaurants SET bar_open=true WHERE id=$1", [rid]);
+  // Schedule protection applies to anonymous QR orders even when table codes are disabled.
+  const closedHours = {
+    kitchen: hours.kitchen.map((d) => ({ ...d, enabled: false })),
+    bar: hours.bar.map((d) => ({ ...d, enabled: false })),
+  };
+  await client.query(
+    "UPDATE restaurants SET operating_hours=$2,require_table_code=false WHERE id=$1",
+    [rid, JSON.stringify(closedHours)],
+  );
+  await client.query("SET ROLE anon");
+  await assert.rejects(place(null));
+  await fail(
+    "SELECT place_order($1,'Mesa Segurança','Visitante','21912345678','BRL',$2::jsonb,$3,NULL)",
+    [rid, JSON.stringify([{ menu_item_id: beer, quantity: 1 }]), crypto.randomUUID()],
+  );
+  await client.query("RESET ROLE");
+  await client.query(
+    "UPDATE restaurants SET operating_hours=NULL,require_table_code=true WHERE id=$1",
+    [rid],
+  );
+
   await client.query("SELECT set_config('request.jwt.claim.sub',$1,false)", [owner]);
   await client.query("SET ROLE authenticated");
   const second = await getCode(true);
@@ -120,12 +142,50 @@ export async function verifyServiceOperations(client, { rid, other, product, opt
     second.code,
   ]);
   await client.query("RESET ROLE");
-  await client.query("UPDATE orders SET archived=true WHERE table_id=$1", [tid]);
+  await client.query("SELECT set_config('request.jwt.claim.sub',$1,false)", [owner]);
+  await client.query("SET ROLE authenticated");
+  const released = (
+    await client.query("SELECT release_table($1,'Mesa Segurança',NULL,2,3) AS ids", [rid])
+  ).rows[0].ids;
+  assert.ok(released.includes(order));
+  const finished = (
+    await client.query("SELECT archived,status,service_fee,cover_charge FROM orders WHERE id=$1", [
+      order,
+    ])
+  ).rows[0];
+  assert.equal(finished.archived, true);
+  assert.equal(finished.status, "served");
+  assert.equal(Number(finished.service_fee), 2);
+  assert.equal(Number(finished.cover_charge), 3);
+  assert.equal(
+    (
+      await client.query(
+        "SELECT count(*)::integer AS n FROM waiter_calls WHERE restaurant_id=$1 AND table_label='Mesa Segurança' AND NOT resolved",
+        [rid],
+      )
+    ).rows[0].n,
+    0,
+  );
+  await client.query("RESET ROLE");
   await client.query("SET ROLE anon");
   await assert.rejects(place(second.code));
   await client.query("RESET ROLE");
   await client.query("SELECT set_config('request.jwt.claim.sub',$1,false)", [owner]);
-  const expiring = await getCode();
+  assert.equal(await getCode(), null); // archived table stays without a code
+  const emptyCode = await getCode(true);
+  await client.query("SET ROLE authenticated");
+  await client.query("SELECT release_table($1,'Mesa Segurança')", [rid]);
+  assert.equal(await getCode(), null); // releasing an empty table also revokes its code
+  await client.query("RESET ROLE");
+  await client.query("SET ROLE anon");
+  await client.query("SELECT set_config('request.jwt.claim.sub','',false)");
+  await assert.rejects(place(emptyCode.code));
+  await fail("SELECT release_table($1,'Mesa Segurança')", [rid]);
+  await client.query("SELECT release_table($1,'Mesa Segurança',$2)", [rid, staffToken]);
+  await fail("SELECT release_table($1,'Mesa Segurança',$2)", [other, staffToken]);
+  await client.query("RESET ROLE");
+  await client.query("SELECT set_config('request.jwt.claim.sub',$1,false)", [owner]);
+  const expiring = await getCode(true);
   await client.query(
     "UPDATE table_order_codes SET expires_at=now()-interval '1 second' WHERE table_id=$1",
     [tid],

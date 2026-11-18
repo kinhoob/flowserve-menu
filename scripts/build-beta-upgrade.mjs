@@ -34,6 +34,7 @@ ${read("20261116000500_service_hours_notifications.sql")}
 ${read("20261116000600_platform_management.sql")}
 ${read("20261116000700_analytics_item_history.sql")}
 ${read("20261116000800_platform_growth.sql")}
+${read("20261118000100_table_sessions.sql")}
 COMMIT;
 NOTIFY pgrst,'reload schema';
 SELECT 'Flux atualizado: gestão de clientes, horários, códigos, notificações e links prontos' AS resultado,

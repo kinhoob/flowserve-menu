@@ -1,3 +1,4 @@
+import { releaseTable } from "@/features/tables/release-table";
 import { TableAccessCode } from "@/features/tables/table-access-code";
 import { FeatureLocked } from "@/features/billing/trial-guard";
 import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
@@ -7,7 +8,6 @@ import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
 import { QuickOrderModal } from "@/features/waiter/quick-order-dialog";
 import { useResolveWaiterCall, useWaiterCalls } from "@/features/waiter/waiter-queries";
-import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/format";
 import { normalizeTableLabel } from "@/lib/operations";
 import { playChime } from "@/lib/sound";
@@ -144,12 +144,13 @@ function WaiterPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
-      <details className="mb-5 rounded-2xl border border-border bg-surface p-4">
+      <details open className="mb-5 rounded-2xl border border-border bg-surface p-4">
         <summary className="cursor-pointer text-sm font-medium">
           Códigos temporários das mesas
         </summary>
         <p className="mt-2 text-xs text-muted-foreground">
-          Entregue o código ao cliente no salão. Ao trocar, o código anterior deixa de funcionar.
+          Gere quatro dígitos para o cliente no salão. Finalizar e liberar encerra o código; o
+          próximo atendimento recebe outro.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(tables ?? []).map((t) => (
@@ -388,24 +389,6 @@ function BillModal({
   const cover = coverPerPerson * people;
   const total = subtotal + serviceFee + cover;
 
-  const normalize = (s: string | null | undefined) =>
-    (s ?? "").replace(/^(?:Mesa\s*)+/i, "").trim();
-
-  async function resolveCallsForTable() {
-    const target = normalize(tableLabel);
-    const { data: rows } = await supabase
-      .from("waiter_calls")
-      .select("id, table_label")
-      .eq("restaurant_id", restaurantId)
-      .eq("resolved", false);
-    const ids = (rows ?? []).filter((r) => normalize(r.table_label) === target).map((r) => r.id);
-    if (ids.length === 0) return;
-    await supabase
-      .from("waiter_calls")
-      .update({ resolved: true, resolved_at: new Date().toISOString() })
-      .in("id", ids);
-  }
-
   function optimisticallyArchive(ids: string[]) {
     qc.setQueriesData<Order[]>({ queryKey: ["orders"] }, (prev) =>
       prev ? prev.filter((o) => !ids.includes(o.id)) : prev,
@@ -414,33 +397,14 @@ function BillModal({
 
   const close = useMutation({
     networkMode: "always",
-    mutationFn: async () => {
-      if (!navigator.onLine) throw new Error("Reconecte antes de fechar a conta");
-      const ids = orders.map((o) => o.id);
-      const primaryId = ids[0];
-      if ((serviceFee > 0 || cover > 0) && primaryId) {
-        const { error: feeErr } = await supabase
-          .from("orders")
-          .update({ service_fee: serviceFee, cover_charge: cover })
-          .eq("id", primaryId);
-        if (feeErr) throw feeErr;
-      }
-      if (ids.length > 0) {
-        const { error } = await supabase
-          .from("orders")
-          .update({ status: "served", archived: true })
-          .in("id", ids);
-        if (error) throw error;
-      }
-      await resolveCallsForTable();
-      return ids;
-    },
+    mutationFn: () => releaseTable(restaurantId, tableLabel, { serviceFee, coverCharge: cover }),
     onSuccess: (ids) => {
       optimisticallyArchive(ids);
       onFreed(tableLabel);
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.refetchQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["waiter_calls"] });
+      qc.invalidateQueries({ queryKey: ["table-access-code"] });
       toast.success(`${tableLabel} liberada`);
       onClose();
     },
@@ -451,33 +415,14 @@ function BillModal({
   // e resolve chamados. Usado quando a mesa aparece "ocupada" mas não há itens visíveis.
   const forceFree = useMutation({
     networkMode: "always",
-    mutationFn: async () => {
-      if (!navigator.onLine) throw new Error("Reconecte antes de liberar a mesa");
-      const target = normalize(tableLabel);
-      const { data: rows, error: selErr } = await supabase
-        .from("orders")
-        .select("id, table_label, status")
-        .eq("restaurant_id", restaurantId)
-        .eq("archived", false)
-        .in("status", ACTIVE);
-      if (selErr) throw selErr;
-      const ids = (rows ?? []).filter((r) => normalize(r.table_label) === target).map((r) => r.id);
-      if (ids.length > 0) {
-        const { error } = await supabase
-          .from("orders")
-          .update({ archived: true, status: "served" })
-          .in("id", ids);
-        if (error) throw error;
-      }
-      await resolveCallsForTable();
-      return ids;
-    },
+    mutationFn: () => releaseTable(restaurantId, tableLabel),
     onSuccess: (ids) => {
       optimisticallyArchive(ids);
       onFreed(tableLabel);
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.refetchQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["waiter_calls"] });
+      qc.invalidateQueries({ queryKey: ["table-access-code"] });
       toast.success(`${tableLabel} marcada como livre`);
       onClose();
     },

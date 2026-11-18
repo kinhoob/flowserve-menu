@@ -171,7 +171,7 @@ function KitchenPage() {
       )}
       {statusFilter && (
         <div className="flex items-center justify-between rounded-xl border border-border p-3 text-sm">
-          <span>Exibindo: {STATUS_LABELS[statusFilter]}</span>
+          <span>Destaque: {STATUS_LABELS[statusFilter]} · todas as etapas continuam visíveis</span>
           <Link to="/kitchen" search={{}} className="text-primary underline">
             Ver todos os pedidos
           </Link>
@@ -269,18 +269,17 @@ function KitchenPage() {
             "sm:grid-cols-2",
           )}
         >
-          {columns
-            .filter((col) => !statusFilter || col.status === statusFilter)
-            .map((col) => (
-              <KitchenColumn
-                key={col.status}
-                status={col.status}
-                orders={col.orders}
-                onAdvance={(id, next) => advance(id, next)}
-                onCancel={setCancelId}
-                currency={restaurant?.currency ?? "BRL"}
-              />
-            ))}
+          {columns.map((col) => (
+            <KitchenColumn
+              key={col.status}
+              highlighted={col.status === statusFilter}
+              status={col.status}
+              orders={col.orders}
+              onAdvance={(id, next) => advance(id, next)}
+              onCancel={setCancelId}
+              currency={restaurant?.currency ?? "BRL"}
+            />
+          ))}
         </div>
       )}
       <CancelOrderDialog
@@ -317,12 +316,14 @@ function KitchenPage() {
 }
 
 function KitchenColumn({
+  highlighted = false,
   status,
   orders,
   onAdvance,
   onCancel,
   currency,
 }: {
+  highlighted?: boolean;
   status: OrderStatus;
   orders: Order[];
   onAdvance: (id: string, next: OrderStatus) => void;
@@ -335,6 +336,7 @@ function KitchenColumn({
     <div
       className={cn(
         "flex flex-col rounded-2xl border border-border bg-gradient-to-b p-3",
+        highlighted && "ring-2 ring-primary/60",
         COLUMN_STYLES[status],
       )}
     >

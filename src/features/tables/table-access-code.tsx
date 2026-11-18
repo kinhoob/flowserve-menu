@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-const schema = z.object({ code: z.string(), expires_at: z.string() });
+const schema = z
+  .object({ code: z.string().regex(/^[0-9]{4}$/), expires_at: z.string() })
+  .nullable();
 export function TableAccessCode({ tableId, staffToken }: { tableId: string; staffToken?: string }) {
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(true);
   const qc = useQueryClient();
   const queryKey = ["table-access-code", tableId, staffToken];
   const current = useQuery({
@@ -23,13 +25,16 @@ export function TableAccessCode({ tableId, staffToken }: { tableId: string; staf
       return schema.parse(data);
     },
   });
-  const code = current.isError ? null : current.data;
+  const code =
+    current.isError || (current.data && Date.parse(current.data.expires_at) <= Date.now())
+      ? null
+      : current.data;
   const request = useMutation({
-    mutationFn: async (rotate: boolean) => {
+    mutationFn: async () => {
       const { data, error } = await supabase.rpc("table_order_code", {
         p_table_id: tableId,
         p_staff_token: staffToken ?? null,
-        p_rotate: rotate,
+        p_rotate: true,
       });
       if (error) throw error;
       return schema.parse(data);
@@ -58,7 +63,7 @@ export function TableAccessCode({ tableId, staffToken }: { tableId: string; staf
             {code.code}
           </p>
           <p className="mt-1 text-muted-foreground">
-            Válido até{" "}
+            Expira ao liberar a mesa. Limite de segurança:{" "}
             {new Date(code.expires_at).toLocaleTimeString("pt-BR", {
               hour: "2-digit",
               minute: "2-digit",
@@ -67,14 +72,23 @@ export function TableAccessCode({ tableId, staffToken }: { tableId: string; staf
           </p>
         </>
       )}
+      {revealed && !code && !current.isFetching && !request.isPending && !current.isError && (
+        <p className="mb-2 text-muted-foreground">
+          Sem código ativo. Gere um novo para o próximo atendimento.
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap gap-3">
         <button
           type="button"
-          disabled={request.isPending}
-          onClick={() => request.mutate(false)}
+          disabled={request.isPending || current.isFetching}
+          onClick={() => {
+            setRevealed(true);
+            if (!code) request.mutate();
+            else void current.refetch();
+          }}
           className="underline"
         >
-          {request.isPending ? "Aguarde…" : code ? "Consultar atual" : "Mostrar código"}
+          {request.isPending ? "Aguarde…" : code ? "Consultar atual" : "Gerar código de 4 dígitos"}
         </button>
         {code && (
           <>
@@ -93,7 +107,7 @@ export function TableAccessCode({ tableId, staffToken }: { tableId: string; staf
             <button
               type="button"
               disabled={request.isPending}
-              onClick={() => request.mutate(true)}
+              onClick={() => request.mutate()}
               className="underline"
             >
               Trocar código

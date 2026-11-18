@@ -745,6 +745,16 @@ export type Database = {
         Returns: Json;
       };
       get_service_status: { Args: { p_restaurant_id: string }; Returns: Json };
+      release_table: {
+        Args: {
+          p_restaurant_id: string | null;
+          p_table_label: string;
+          p_staff_token?: string | null;
+          p_service_fee?: number;
+          p_cover_charge?: number;
+        };
+        Returns: string[];
+      };
       table_order_code: {
         Args: { p_table_id: string; p_staff_token?: string | null; p_rotate?: boolean };
         Returns: Json;

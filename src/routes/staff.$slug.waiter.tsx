@@ -1,9 +1,9 @@
+import { releaseTable } from "@/features/tables/release-table";
 import { TableAccessCode } from "@/features/tables/table-access-code";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
 import { SplitBillDialog } from "@/features/experience/split-bill-dialog";
 import type { StaffOrder } from "@/features/staff/staff-rpc";
 import {
-  staffArchiveOrders,
   staffListCalls,
   staffListOrders,
   staffListTables,
@@ -109,11 +109,16 @@ function StaffWaiter() {
 
   const archive = useMutation({
     networkMode: "always",
-    mutationFn: async (ids: string[]) => staffArchiveOrders(session!.token, ids),
+    mutationFn: async (label: string) =>
+      releaseTable(session!.restaurant_id ?? null, label, { staffToken: session!.token }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staff-orders", session?.token] });
-      toast.success("Mesa liberada");
+      qc.invalidateQueries({ queryKey: ["table-access-code"] });
+      qc.invalidateQueries({ queryKey: ["staff-calls", session?.token] });
+      setBillTable(null);
+      toast.success("Mesa liberada e código encerrado");
     },
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const resolveCall = useMutation({
@@ -167,7 +172,7 @@ function StaffWaiter() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-6">
       <ConnectionNotice />
-      <details className="mb-5 rounded-2xl border border-border bg-surface p-4">
+      <details open className="mb-5 rounded-2xl border border-border bg-surface p-4">
         <summary className="cursor-pointer text-sm font-medium">
           Códigos temporários das mesas
         </summary>
@@ -345,13 +350,8 @@ function StaffWaiter() {
                 currency={currency}
                 onClose={() => setBillTable(null)}
                 onFinalize={() => {
-                  if (tableOrders.length === 0) {
-                    setBillTable(null);
-                    return;
-                  }
                   if (confirm(`Finalizar e liberar ${billTable}?`)) {
-                    archive.mutate(tableOrders.map((o) => o.id));
-                    setBillTable(null);
+                    archive.mutate(billTable);
                   }
                 }}
                 onAddItems={() => {

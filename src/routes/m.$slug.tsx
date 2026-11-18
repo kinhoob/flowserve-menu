@@ -520,10 +520,10 @@ function PublicMenuPage() {
                 autoCapitalize="none"
                 spellCheck={false}
                 value={tableCode}
-                onChange={(e) =>
-                  setTableCode(e.target.value.replace(/[^a-fA-F0-9]/g, "").slice(0, 12))
-                }
-                placeholder="12 caracteres fornecidos no salão"
+                onChange={(e) => setTableCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="4 dígitos fornecidos no salão"
                 className="mt-3 w-full rounded-lg border border-border bg-background p-3 font-mono"
               />
             </label>
@@ -1032,10 +1032,12 @@ function PublicMenuPage() {
                         Código da mesa{" "}
                         <input
                           aria-label="Código da mesa para enviar pedido"
+                          inputMode="numeric"
+                          maxLength={4}
                           autoComplete="off"
                           value={tableCode}
                           onChange={(e) =>
-                            setTableCode(e.target.value.replace(/[^a-fA-F0-9]/g, "").slice(0, 12))
+                            setTableCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))
                           }
                           placeholder="Peça o código ao garçom"
                           className="mt-2 w-full rounded-xl border border-border bg-background px-4 py-3 font-mono"
@@ -1081,7 +1083,7 @@ function PublicMenuPage() {
                       disabled={
                         submitting ||
                         cart.length === 0 ||
-                        (data.requireCode && tableCode.length !== 12) ||
+                        (data.requireCode && tableCode.length !== 4) ||
                         !customerName.trim() ||
                         customerPhone.replace(/\D/g, "").length < 10
                       }
