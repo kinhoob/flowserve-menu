@@ -9,14 +9,14 @@ O resultado deve mostrar a atualização concluída e `agendador_automatico_ativ
 1. Em **Configurações → Estabelecimento**, confira o fuso horário.
 2. Em **Configurações → Operação**, habilite a agenda semanal. Preencha os sete dias da cozinha e do bar e salve. Dias desmarcados ficam fechados. Os horários sugeridos só entram em vigor ao salvar.
 3. Um fechamento menor que a abertura pertence ao dia seguinte: sexta 18:00–01:00 termina no sábado à 01:00. Horários iguais não são aceitos. As pausas manuais prevalecem sobre a agenda.
-4. Mantenha **Código temporário por mesa** ligado. Em **QR Codes** ou **Garçom → Códigos temporários das mesas**, consulte o código e entregue-o apenas no salão. Não o imprima no cartão do QR.
+4. Escolha se deseja exigir **Código temporário por mesa**. É uma proteção opcional durante o expediente. Em **QR Codes** ou **Garçom → selecionar mesa**, consulte o código e entregue-o apenas no salão. Não o imprima no cartão do QR.
 5. No cardápio, cada categoria deve estar corretamente marcada como Cozinha ou Bar. O setor determina a autorização para novos pedidos.
 
 Sem agenda, valem as pausas manuais. Restaurantes existentes não recebem horários inventados automaticamente. O código da mesa fica habilitado por padrão ao aplicar a atualização.
 
 ## Atendimento
 
-O cliente informa o código no cardápio ou na revisão do carrinho. O código tem 12 caracteres, vale por duas horas e funciona apenas naquela mesa. Pode ser trocado pela equipe. Ao encerrar a última conta ou cancelar o último pedido ativo da mesa, o código é invalidado. A equipe deve consultar o código atual para o próximo cliente. O painel atualiza os códigos revelados a cada 15 segundos.
+O cliente informa o código no cardápio ou na revisão do carrinho. O código tem quatro dígitos, funciona apenas naquela mesa e tem limite de segurança de 24 horas. É gerado explicitamente pela equipe; consultar não gera outro código. Pode ser trocado pela equipe. Ao confirmar a liberação da mesa, o código é invalidado. Cancelar um pedido não encerra sozinho o acesso da mesa. A equipe deve consultar o código atual para o próximo cliente. O painel atualiza os códigos revelados a cada 15 segundos.
 
 O QR sem código permite consultar o cardápio. O link geral, sem mesa, também é apenas para consulta. Pedidos e chamados do público passam por funções protegidas no banco; clientes antigos não conseguem contornar a proteção pela função anterior. Pedidos da equipe continuam usando suas próprias autorizações. A validação de horários também vale para pedidos registrados pela equipe.
 
@@ -37,3 +37,9 @@ O período vai do fechamento anterior do bar até o atual, incluindo vendas da c
 ## Verificação
 
 `npm run test:db` recria um banco local isolado e verifica preços, permissões, horários, meia-noite, códigos por mesa, validade, fechamento de conta, isolamento entre restaurantes e resumo financeiro. Também executa o pacote consolidado no cenário em que os links personalizados ainda estão pendentes e testa sua reaplicação. Não utiliza nem altera os dados do Supabase real. O agendador Cron deve ser confirmado no projeto Supabase após a execução do SQL.
+
+## Atualização da operação do beta
+
+Aplique `supabase/fluxqr-melhorias-beta.sql` depois da atualização de mesas. Recarregue todos os aparelhos para usar os novos RPCs de envio com limite de tentativas. `Ocultar entregues` organiza a cozinha e preserva a conta, a ocupação e o código. `Encerrar atendimento` libera a mesa e exige entregar ou cancelar os pedidos pendentes; não registra pagamento.
+
+Novos pedidos públicos têm orçamento por mesa (20 tentativas/minuto, bloqueio após cinco falhas) e por restaurante (120 ações/minuto). Chamados têm até seis tentativas/minuto e continuam deduplicados enquanto aguardam atendimento. Falhas de validação consomem orçamento mesmo quando o pedido não é criado. Reenvios do mesmo pedido confirmado reutilizam a identificação e não criam outro registro. Os limites são compartilhados pela mesa e não são confirmação de localização física.

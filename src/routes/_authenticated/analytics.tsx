@@ -1,3 +1,4 @@
+import { ReportQuickAnswers } from "@/features/analytics/report-quick-answers";
 import { orderCsv } from "@/features/analytics/report-export";
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -52,6 +53,7 @@ function AnalyticsPage() {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
+  const [comparison, setComparison] = useState<"previous" | "weekday">("weekday");
   const [preset, setPreset] = useState("7d");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -100,14 +102,30 @@ function AnalyticsPage() {
       category,
       shiftStart,
       shiftEnd,
+      comparison,
       targetMinutes: Number.isInteger(target) && target >= 1 && target <= 180 ? target : 20,
     }),
-    [start, end, today, timezone, cutoff, department, category, shiftStart, shiftEnd, target],
+    [
+      start,
+      end,
+      today,
+      timezone,
+      cutoff,
+      department,
+      category,
+      shiftStart,
+      shiftEnd,
+      target,
+      comparison,
+    ],
   );
   const authorized = !!plan.data && canAccess(plan.data, "analytics");
   const query = useReportOrders(
     restaurant?.id,
-    filters.start - (filters.end - filters.start + 1),
+    filters.start -
+      (comparison === "weekday"
+        ? Math.ceil((filters.end - filters.start + 1) / 7) * 7
+        : filters.end - filters.start + 1),
     filters.end,
     !error && authorized,
   );
@@ -162,6 +180,11 @@ function AnalyticsPage() {
       ["Início", startInput, dayInput(report.previousStart)],
       ["Fim", endInput, dayInput(report.previousEnd)],
       ["Fuso", timezone, timezone],
+      [
+        "Comparação",
+        comparison === "weekday" ? "Mesmos dias da semana" : "Período anterior",
+        "Mesma seleção",
+      ],
       ["Dia começa às", cutoffInput, cutoffInput],
       ["Setor", DEPARTMENTS[department], DEPARTMENTS[department]],
       [
@@ -267,10 +290,25 @@ function AnalyticsPage() {
           </button>
         </div>
       </header>
-      <section
+      {report && !query.isError && <ReportQuickAnswers report={report} currency={currency} />}
+      <details
         aria-label="Filtros das análises"
         className="space-y-5 rounded-2xl border border-border bg-surface p-4 md:p-5"
       >
+        <summary className="min-h-11 cursor-pointer text-sm font-medium">
+          Período e filtros · {startInput} a {endInput}
+        </summary>
+        <label className="block text-sm">
+          Comparar com
+          <select
+            value={comparison}
+            onChange={(e) => setComparison(e.target.value as "previous" | "weekday")}
+            className="ml-3 rounded-xl border border-border bg-background p-3"
+          >
+            <option value="weekday">Mesmos dias da semana anteriores</option>
+            <option value="previous">Período imediatamente anterior</option>
+          </select>
+        </label>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((p) => (
             <button
@@ -437,7 +475,7 @@ function AnalyticsPage() {
           Fuso: {timezone} · Dia vira às {cutoffInput} ·{" "}
           {shift === "custom" ? `${shiftFrom}–${shiftTo}` : SHIFTS[shift].label}
         </p>
-      </section>
+      </details>
       {error ? (
         <p role="alert" className="rounded-xl border border-amber-400/40 p-4 text-sm">
           {error}

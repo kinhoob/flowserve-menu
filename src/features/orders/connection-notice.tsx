@@ -34,7 +34,7 @@ export function ConnectionNotice() {
       className="sticky top-0 z-40 border-b border-border bg-surface px-4 py-3 text-center text-sm"
     >
       {online
-        ? "Conexão restabelecida. Atualizando os dados…"
+        ? "Conexão restabelecida. Confira a atualização dos dados antes de continuar."
         : "Você está sem conexão. Os dados exibidos podem estar desatualizados. Reconecte antes de enviar ou alterar pedidos."}
     </div>
   );

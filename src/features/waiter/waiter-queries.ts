@@ -1,3 +1,5 @@
+import { z } from "zod";
+const publicCallSchema = z.object({ ok: z.boolean(), message: z.string().optional() });
 import { fetchAllPages } from "@/lib/operations";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -73,7 +75,7 @@ export async function callWaiter(input: {
   kind?: "call" | "bill";
   table_code?: string;
 }) {
-  const { error } = await supabase.rpc("public_waiter_call", {
+  const { data, error } = await supabase.rpc("submit_public_call", {
     p_restaurant_id: input.restaurant_id,
     p_table_label: input.table_label ?? "",
     p_customer_name: input.customer_name ?? null,
@@ -82,4 +84,6 @@ export async function callWaiter(input: {
     p_table_code: input.table_code ?? null,
   });
   if (error) throw error;
+  const result = publicCallSchema.parse(data);
+  if (!result.ok) throw new Error(result.message ?? "Não foi possível chamar o garçom");
 }

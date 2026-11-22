@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { NewOrderAlarm } from "@/features/orders/new-order-alarm";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
 import type { StaffOrder } from "@/features/staff/staff-rpc";
@@ -59,8 +60,19 @@ function StaffKitchen() {
 
   const updateStatus = useMutation({
     networkMode: "always",
-    mutationFn: async ({ id, status }: { id: string; status: string }) =>
-      staffUpdateOrderStatus(session!.token, id, status, session!.name),
+    mutationFn: async ({
+      id,
+      status,
+      expected,
+    }: {
+      id: string;
+      status: string;
+      expected: string;
+    }) => staffUpdateOrderStatus(session!.token, id, status, session!.name, expected),
+    onError: (error: Error) => {
+      void qc.invalidateQueries({ queryKey: ["staff-orders", session?.token] });
+      toast.error(error.message);
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff-orders", session?.token] }),
   });
 
@@ -153,20 +165,29 @@ function StaffKitchen() {
                           </li>
                         ))}
                       </ul>
-                      {col.next && (
-                        <button
-                          onClick={() => updateStatus.mutate({ id: o.id, status: col.next! })}
-                          disabled={updateStatus.isPending}
-                          className="mt-3 w-full rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                        >
-                          <CheckCircle2 className="mr-1 inline h-3 w-3" /> Marcar como{" "}
-                          {col.next === "preparing"
-                            ? "preparando"
-                            : col.next === "ready"
-                              ? "pronto"
-                              : "entregue"}
-                        </button>
-                      )}
+                      {col.next &&
+                        (col.next !== "served" ||
+                          session.role === "both" ||
+                          session.role === "waiter") && (
+                          <button
+                            onClick={() =>
+                              updateStatus.mutate({
+                                id: o.id,
+                                status: col.next!,
+                                expected: o.status,
+                              })
+                            }
+                            disabled={updateStatus.isPending}
+                            className="mt-3 w-full rounded-lg bg-primary px-3 min-h-11 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                          >
+                            <CheckCircle2 className="mr-1 inline h-3 w-3" /> Marcar como{" "}
+                            {col.next === "preparing"
+                              ? "preparando"
+                              : col.next === "ready"
+                                ? "pronto"
+                                : "entregue"}
+                          </button>
+                        )}
                     </article>
                   ))
                 )}

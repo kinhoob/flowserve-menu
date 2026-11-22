@@ -22,6 +22,7 @@ export type ReportFilters = {
   shiftStart: number | null;
   shiftEnd: number | null;
   targetMinutes: number;
+  comparison?: "previous" | "weekday";
 };
 export type ReportRow = {
   order: ReportOrder;
@@ -323,8 +324,9 @@ export function buildReport(orders: ReportOrder[], filters: ReportFilters, now =
   if (!Number.isInteger(start) || !Number.isInteger(end) || end < start || end - start >= 93)
     throw new Error("Selecione um período de até 93 dias.");
   const length = end - start + 1,
-    previousStart = start - length,
-    previousEnd = start - 1;
+    offset = filters.comparison === "weekday" ? Math.ceil(length / 7) * 7 : length,
+    previousStart = start - offset,
+    previousEnd = end - offset;
   const currentClock = localClock(now, timezone);
   const today = businessDay(now, timezone, cutoff);
   const elapsed = ((currentClock.minute - cutoff + 1440) % 1440) * 60 + currentClock.second;
@@ -343,6 +345,7 @@ export function buildReport(orders: ReportOrder[], filters: ReportFilters, now =
     const day = clock.ordinal - (clock.minute < cutoff ? 1 : 0);
     if (day < previousStart || day > end || !inShift(clock.minute, shiftStart, shiftEnd)) continue;
     const isCurrent = day >= start;
+    if (!isCurrent && day > previousEnd) continue;
     if (
       !isCurrent &&
       end === today &&

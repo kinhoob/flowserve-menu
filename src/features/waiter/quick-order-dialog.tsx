@@ -10,7 +10,7 @@ import { formatPrice } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Minus, Plus, Search, Send, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 type WItem = {
@@ -48,9 +48,18 @@ export function QuickOrderModal({
   onDone?: () => void;
   staffIdentity?: { token: string; name: string };
 }) {
+  const attempt = useRef<string | null>(null);
   const [q, setQ] = useState("");
-  const [lines, setLines] = useState<Line[]>([]);
+  const [lines, commitLines] = useState<Line[]>([]);
+  const setLines: typeof commitLines = (next) => {
+    if (attempt.current) {
+      toast.info("Confirme o envio pendente antes de alterar os itens.");
+      return;
+    }
+    commitLines(next);
+  };
   const [submitting, setSubmitting] = useState(false);
+  const [sendError, setSendError] = useState("");
   const [pickerItem, setPickerItem] = useState<WItem | null>(null);
   const modifiers = useQuery({
     queryKey: ["modifiers", restaurantId],
@@ -157,6 +166,7 @@ export function QuickOrderModal({
       return;
     }
     if (lines.length === 0) return;
+    setSendError("");
     setSubmitting(true);
     try {
       const items = lines.map((l) => ({
@@ -166,19 +176,16 @@ export function QuickOrderModal({
         notes: l.notes || null,
         modifier_option_ids: l.modifiers.map((m) => m.id),
       }));
-      const { error } = staffIdentity
-        ? await supabase.rpc("staff_place_order", {
-            p_token: staffIdentity.token,
-            p_table_id: tableId,
-            p_items: items,
-          })
-        : await supabase.rpc("owner_place_order", {
-            p_restaurant_id: restaurantId,
-            p_table_id: tableId,
-            p_created_by_name: createdByName,
-            p_items: items,
-          });
+      attempt.current ??= crypto.randomUUID();
+      const { error } = await supabase.rpc("submit_internal_order", {
+        p_table_id: tableId,
+        p_request_token: attempt.current,
+        p_items: items,
+        p_staff_token: staffIdentity?.token ?? null,
+        p_created_by: createdByName,
+      });
       if (error) throw error;
+      attempt.current = null;
       toast.success(`Pedido enviado · ${tableLabel}`, {
         description: `${lines.reduce((s, l) => s + l.qty, 0)} item(s) · ${formatPrice(subtotal, currency)}`,
       });
@@ -186,7 +193,11 @@ export function QuickOrderModal({
       onClose();
     } catch (caught: unknown) {
       const e = getErrorDetails(caught);
-      toast.error(e.message ?? "Erro ao enviar pedido");
+      setSendError(
+        e.message ??
+          "Não foi possível confirmar o envio. Confira a fila antes de tentar novamente.",
+      );
+      toast.error(e.message ?? "Não foi possível confirmar o envio");
     } finally {
       setSubmitting(false);
     }
@@ -247,6 +258,14 @@ export function QuickOrderModal({
               </button>
             </div>
 
+            {sendError && (
+              <p
+                role="alert"
+                className="mx-5 mt-3 rounded-xl border border-amber-400/30 p-3 text-sm"
+              >
+                {sendError}
+              </p>
+            )}
             <div className="px-5 py-3">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

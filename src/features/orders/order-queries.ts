@@ -11,7 +11,10 @@ export type OrderStatus = Database["public"]["Enums"]["order_status"];
 export type OrderItem = Tables<"order_items"> & {
   menu_items?: { category_id: string; categories: { kind: string } | null } | null;
 };
-export type Order = Tables<"orders"> & { order_items: OrderItem[] };
+export type Order = Omit<Tables<"orders">, "kitchen_hidden"> & {
+  kitchen_hidden?: boolean;
+  order_items: OrderItem[];
+};
 
 export const STATUS_FLOW: OrderStatus[] = ["pending", "accepted", "preparing", "ready", "served"];
 
@@ -24,44 +27,70 @@ export const STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: "Cancelados",
 };
 
+const streams = new WeakMap<object, Map<string, { users: number; stop: () => void }>>();
+
 export function useOrders(restaurantId: string | undefined, includeRecentArchived = false) {
   const qc = useQueryClient();
 
   useEffect(() => {
     if (!restaurantId) return;
-    const channel = supabase
-      .channel(`orders-${restaurantId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "orders",
-          filter: `restaurant_id=eq.${restaurantId}`,
+    let entries = streams.get(qc);
+    if (!entries) {
+      entries = new Map();
+      streams.set(qc, entries);
+    }
+    let entry = entries.get(restaurantId);
+    if (!entry) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const refresh = () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          void qc.invalidateQueries({ queryKey: ["orders", restaurantId] });
+          void qc.invalidateQueries({ queryKey: ["table-history", restaurantId] });
+          void qc.invalidateQueries({ queryKey: ["orders-archived", restaurantId] });
+          void qc.invalidateQueries({ queryKey: ["table-access-code"] });
+        }, 150);
+      };
+      const channel = supabase
+        .channel("orders-" + restaurantId + "-" + crypto.randomUUID())
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "orders",
+            filter: "restaurant_id=eq." + restaurantId,
+          },
+          (payload) => {
+            recordRealtimeEvent("orders", payload);
+            refresh();
+          },
+        )
+        .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, refresh)
+        .subscribe();
+      entry = {
+        users: 0,
+        stop: () => {
+          clearTimeout(timer);
+          void supabase.removeChannel(channel);
         },
-        (payload) => {
-          recordRealtimeEvent("orders", payload);
-          qc.invalidateQueries({ queryKey: ["orders", restaurantId] });
-          qc.invalidateQueries({ queryKey: ["table-history", restaurantId] });
-          qc.invalidateQueries({ queryKey: ["orders-archived", restaurantId] });
-        },
-      )
-      .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, (payload) => {
-        recordRealtimeEvent("orders", payload);
-        qc.invalidateQueries({ queryKey: ["orders", restaurantId] });
-        qc.invalidateQueries({ queryKey: ["table-history", restaurantId] });
-        qc.invalidateQueries({ queryKey: ["orders-archived", restaurantId] });
-      })
-      .subscribe();
+      };
+      entries.set(restaurantId, entry);
+    }
+    entry.users++;
     return () => {
-      supabase.removeChannel(channel);
+      entry.users--;
+      if (entry.users === 0) {
+        entry.stop();
+        entries.delete(restaurantId);
+      }
     };
   }, [restaurantId, qc]);
 
   return useQuery({
     queryKey: ["orders", restaurantId, includeRecentArchived],
     enabled: !!restaurantId,
-    refetchInterval: 15000,
+    refetchInterval: 60000,
     refetchOnReconnect: "always",
     queryFn: async (): Promise<Order[]> => {
       return fetchAllPages<Order>((from, to) =>
@@ -87,19 +116,19 @@ export function useArchiveServedOrders(restaurantId: string | undefined) {
   return useMutation({
     networkMode: "always",
     mutationFn: async () => {
-      if (!navigator.onLine) throw new Error("Reconecte antes de arquivar pedidos");
-      const cutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-      const { error, count } = await supabase
-        .from("orders")
-        .update({ archived: true }, { count: "exact" })
-        .eq("restaurant_id", restaurantId!)
-        .in("status", ["served", "cancelled"])
-        .lt("created_at", cutoff)
-        .eq("archived", false);
+      if (!navigator.onLine) throw new Error("Reconecte antes de organizar a cozinha");
+      const { data, error } = await supabase.rpc("hide_completed_orders", {
+        p_restaurant_id: restaurantId!,
+      });
       if (error) throw error;
-      return count ?? 0;
+      return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders", restaurantId] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["orders", restaurantId] });
+      toast.success("Entregues ocultados da cozinha. As mesas e contas continuam abertas.");
+    },
+    onError: (error) =>
+      toast.error(getErrorDetails(error).message ?? "Não foi possível organizar a cozinha"),
   });
 }
 
@@ -107,23 +136,31 @@ export function useUpdateOrderStatus(restaurantId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({
     networkMode: "always",
-    onError: (error) =>
-      toast.error(getErrorDetails(error).message ?? "Não foi possível alterar o pedido"),
+    onError: (error) => {
+      void qc.invalidateQueries({ queryKey: ["orders", restaurantId] });
+      toast.error(getErrorDetails(error).message ?? "Não foi possível alterar o pedido");
+    },
     mutationFn: async ({
       id,
       status,
       reason,
+      expectedStatus,
+      deliveredBy,
     }: {
       id: string;
       status: OrderStatus;
       reason?: string;
+      expectedStatus: OrderStatus;
+      deliveredBy?: string;
     }) => {
       if (!navigator.onLine) throw new Error("Reconecte antes de alterar o pedido");
-      const { error } = await supabase
-        .from("orders")
-        .update({ status, ...(reason ? { cancellation_reason: reason } : {}) })
-        .eq("id", id)
-        .eq("restaurant_id", restaurantId!);
+      const { error } = await supabase.rpc("transition_order", {
+        p_order_id: id,
+        p_expected_status: expectedStatus,
+        p_next_status: status,
+        p_reason: reason ?? null,
+        p_delivered_by: deliveredBy ?? null,
+      });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["orders", restaurantId] }),

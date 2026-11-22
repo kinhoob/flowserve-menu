@@ -1,5 +1,7 @@
+import { SyncStatus } from "@/features/orders/sync-status";
+import { QueryError, DashboardSkeleton } from "@/features/dashboard/query-feedback";
 import { releaseTable } from "@/features/tables/release-table";
-import { TableAccessCode } from "@/features/tables/table-access-code";
+import { TableServicePanel } from "@/features/tables/table-service-panel";
 import { FeatureLocked } from "@/features/billing/trial-guard";
 import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
 import { SplitBillDialog } from "@/features/experience/split-bill-dialog";
@@ -30,35 +32,21 @@ export const Route = createFileRoute("/_authenticated/waiter")({
 
 function WaiterPage() {
   const { data: restaurant } = useRestaurant();
-  const { data: tables } = useTables(restaurant?.id);
-  const { data: orders } = useOrders(restaurant?.id);
+  const tablesQuery = useTables(restaurant?.id);
+  const { data: tables } = tablesQuery;
+  const ordersQuery = useOrders(restaurant?.id);
+  const { data: orders } = ordersQuery;
   const { data: trial } = useTrialStatus();
   const { data: waiterCalls = [] } = useWaiterCalls(restaurant?.id);
   const resolveCall = useResolveWaiterCall(restaurant?.id);
   const [openTable, setOpenTable] = useState<string | null>(null);
+  const [serviceTable, setServiceTable] = useState<{ id: string; label: string } | null>(null);
   const [billTable, setBillTable] = useState<string | null>(null);
   const [ready, setReady] = useState<{ label: string; id: string } | null>(null);
-  const [recentlyFreed, setRecentlyFreed] = useState<Set<string>>(new Set());
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
 
   // Normaliza "Mesa 1", "Mesa Mesa 1", "  Mesa   1  " → "1"
-
-  const markFreed = (label: string) => {
-    const key = normalizeTableLabel(label);
-    setRecentlyFreed((prev) => {
-      const next = new Set(prev);
-      next.add(key);
-      return next;
-    });
-    setTimeout(() => {
-      setRecentlyFreed((prev) => {
-        const next = new Set(prev);
-        next.delete(key);
-        return next;
-      });
-    }, 10000);
-  };
 
   // Calls "pedir conta" e "chamar garçom" por table_label (qualquer chamado não resolvido)
   const callsByLabel = useMemo(() => {
@@ -90,12 +78,12 @@ function WaiterPage() {
     for (const o of orders ?? []) {
       if (ACTIVE.includes(o.status) && o.table_label) {
         const key = normalizeTableLabel(o.table_label);
-        if (!key || recentlyFreed.has(key)) continue;
+        if (!key) continue;
         s.add(key);
       }
     }
     return s;
-  }, [orders, recentlyFreed]);
+  }, [orders]);
 
   // Detect newly-ready orders
   useEffect(() => {
@@ -134,6 +122,13 @@ function WaiterPage() {
     );
   }, [tables]);
 
+  const selectedOrders = (orders ?? []).filter(
+    (o) =>
+      !o.archived &&
+      o.status !== "cancelled" &&
+      serviceTable &&
+      normalizeTableLabel(o.table_label) === normalizeTableLabel(serviceTable.label),
+  );
   if (trial && !canAccess(trial, "waiter")) {
     return (
       <div className="mx-auto w-full max-w-4xl py-10">
@@ -142,22 +137,50 @@ function WaiterPage() {
     );
   }
 
+  if (ordersQuery.isError || tablesQuery.isError)
+    return (
+      <QueryError
+        message="Não foi possível atualizar as mesas. Atualize os pedidos antes de atender."
+        retry={() => {
+          void ordersQuery.refetch();
+          void tablesQuery.refetch();
+        }}
+      />
+    );
+  if (ordersQuery.isPending || tablesQuery.isPending) return <DashboardSkeleton />;
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
-      <details open className="mb-5 rounded-2xl border border-border bg-surface p-4">
-        <summary className="cursor-pointer text-sm font-medium">Códigos das mesas</summary>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Entregue no salão. Ao liberar a mesa, o código expira.
-        </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(tables ?? []).map((t) => (
-            <div key={t.id}>
-              <p className="text-sm">{t.label}</p>
-              <TableAccessCode tableId={t.id} />
-            </div>
-          ))}
-        </div>
-      </details>
+      <SyncStatus
+        updatedAt={ordersQuery.dataUpdatedAt}
+        busy={ordersQuery.isFetching}
+        error={ordersQuery.isError}
+        retry={() => void ordersQuery.refetch()}
+      />
+      {serviceTable && (
+        <TableServicePanel
+          tableId={serviceTable.id}
+          label={serviceTable.label}
+          requireCode={restaurant?.require_table_code ?? true}
+          count={selectedOrders.length}
+          ready={selectedOrders.filter((o) => o.status === "ready").length}
+          total={selectedOrders.reduce(
+            (sum, o) =>
+              sum + Number(o.subtotal) + Number(o.service_fee ?? 0) + Number(o.cover_charge ?? 0),
+            0,
+          )}
+          currency={restaurant?.currency ?? "BRL"}
+          oldest={selectedOrders.map((o) => o.created_at).sort()[0]}
+          onClose={() => setServiceTable(null)}
+          onOrder={() => {
+            setOpenTable(serviceTable.id);
+            setServiceTable(null);
+          }}
+          onBill={() => {
+            setBillTable(serviceTable.label);
+            setServiceTable(null);
+          }}
+        />
+      )}
       <div>
         <p className="text-xs uppercase tracking-[0.18em] text-primary">Operação ao vivo</p>
         <h1 className="mt-2 font-sans font-semibold text-3xl tracking-tight">
@@ -181,18 +204,18 @@ function WaiterPage() {
             <motion.button
               key={t.id}
               whileTap={{ scale: 0.96 }}
-              onClick={() => (isBusy || hasAnyCall ? setBillTable(t.label) : setOpenTable(t.id))}
+              onClick={() => setServiceTable({ id: t.id, label: t.label })}
               className={cn(
                 "relative aspect-square rounded-2xl border p-4 text-left transition",
                 hasAnyCall
-                  ? "border-[oklch(0.78_0.18_84_/_0.7)] bg-[oklch(0.78_0.18_84_/_0.12)] animate-pulse shadow-[0_0_30px_-8px_oklch(0.78_0.18_84_/_0.6)]"
+                  ? "border-[oklch(0.78_0.18_84_/_0.7)] bg-[oklch(0.78_0.18_84_/_0.12)] shadow-[0_0_30px_-8px_oklch(0.78_0.18_84_/_0.6)]"
                   : isBusy
                     ? "border-[oklch(0.62_0.21_25_/_0.55)] bg-[oklch(0.62_0.21_25_/_0.08)]"
                     : "border-border bg-surface hover:border-[oklch(0.78_0.13_84_/_0.4)]",
               )}
             >
               {hasAnyCall && (
-                <span className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background animate-pulse">
+                <span className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background">
                   {billCall ? (
                     <DollarSign className="h-3.5 w-3.5" />
                   ) : (
@@ -200,9 +223,9 @@ function WaiterPage() {
                   )}
                 </span>
               )}
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Mesa</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Mesa</div>
               <div className="mt-1 font-sans font-semibold text-3xl tracking-tight">{stripped}</div>
-              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px]">
+              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs">
                 <span
                   className={cn(
                     "inline-flex items-center gap-1.5",
@@ -217,9 +240,9 @@ function WaiterPage() {
                     className={cn(
                       "h-1.5 w-1.5 rounded-full",
                       hasAnyCall
-                        ? "bg-primary animate-pulse"
+                        ? "bg-primary"
                         : isBusy
-                          ? "bg-[oklch(0.7_0.18_25)] animate-pulse"
+                          ? "bg-[oklch(0.7_0.18_25)]"
                           : "bg-emerald-400",
                     )}
                   />
@@ -250,7 +273,7 @@ function WaiterPage() {
       {billCallsByLabel.size > 0 && (
         <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft p-4 animate-fade-up">
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
-            <DollarSign className="h-4 w-4 animate-pulse" />
+            <DollarSign className="h-4 w-4" />
             {billCallsByLabel.size}{" "}
             {billCallsByLabel.size === 1 ? "mesa pedindo a conta" : "mesas pedindo a conta"}
           </div>
@@ -264,13 +287,13 @@ function WaiterPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setBillTable(`Mesa ${label}`)}
-                    className="rounded-lg border border-border bg-background px-3 py-1 text-xs transition hover:border-primary/40"
+                    className="rounded-lg border border-border bg-background px-3 min-h-11 py-2 text-sm transition hover:border-primary/40"
                   >
                     Abrir conta
                   </button>
                   <button
                     onClick={() => resolveCall.mutate(c.id)}
-                    className="rounded-lg bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+                    className="rounded-lg bg-primary px-3 min-h-11 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
                   >
                     Atendido
                   </button>
@@ -310,7 +333,6 @@ function WaiterPage() {
                 orders={tableOrders}
                 currency={restaurant.currency}
                 onClose={() => setBillTable(null)}
-                onFreed={markFreed}
                 onAddItems={() => {
                   const t = sorted.find((x) => x.label === billTable);
                   if (t) {
@@ -332,11 +354,10 @@ function WaiterPage() {
             className="fixed left-1/2 top-6 z-[60] -translate-x-1/2"
           >
             <div className="flex items-center gap-3 rounded-2xl border border-[oklch(0.78_0.13_84_/_0.5)] bg-gradient-to-r from-[oklch(0.78_0.13_84_/_0.25)] to-[oklch(0.7_0.18_150_/_0.18)] px-5 py-3 shadow-xl backdrop-blur">
-              <Bell className="h-5 w-5 text-primary animate-pulse" />
+              <Bell className="h-5 w-5 text-primary" />
+
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-primary">
-                  Pedido pronto
-                </div>
+                <div className="text-xs uppercase tracking-wider text-primary">Pedido pronto</div>
                 <div className="font-sans font-semibold text-lg tracking-tight">
                   {ready.label.startsWith("Mesa") ? ready.label : `Mesa ${ready.label}`} pronta!
                 </div>
@@ -362,7 +383,6 @@ function BillModal({
   currency,
   onClose,
   onAddItems,
-  onFreed,
 }: {
   tableLabel: string;
   restaurantId: string;
@@ -370,7 +390,6 @@ function BillModal({
   currency: string;
   onClose: () => void;
   onAddItems: () => void;
-  onFreed: (label: string) => void;
 }) {
   const qc = useQueryClient();
   const allItems = orders.flatMap((o) => o.order_items);
@@ -397,7 +416,6 @@ function BillModal({
     mutationFn: () => releaseTable(restaurantId, tableLabel, { serviceFee, coverCharge: cover }),
     onSuccess: (ids) => {
       optimisticallyArchive(ids);
-      onFreed(tableLabel);
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.refetchQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["waiter_calls"] });
@@ -415,7 +433,6 @@ function BillModal({
     mutationFn: () => releaseTable(restaurantId, tableLabel),
     onSuccess: (ids) => {
       optimisticallyArchive(ids);
-      onFreed(tableLabel);
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.refetchQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["waiter_calls"] });
@@ -431,6 +448,9 @@ function BillModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Conta da mesa"
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
       onClick={onClose}
     >
@@ -444,7 +464,7 @@ function BillModal({
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">
               Conta da mesa
             </div>
             <h2 className="font-sans font-semibold text-xl tracking-tight">{tableLabel}</h2>
@@ -467,7 +487,7 @@ function BillModal({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground">
                 <span>Histórico da mesa</span>
                 <span>
                   {orders.length} {orders.length === 1 ? "pedido" : "pedidos"}
@@ -522,7 +542,7 @@ function BillModal({
                         </div>
                         <span
                           className={cn(
-                            "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+                            "shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium uppercase tracking-wider",
                             st.cls,
                           )}
                         >
@@ -530,7 +550,7 @@ function BillModal({
                         </span>
                       </div>
                       {o.customer_name && (
-                        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-2 py-0.5 text-[11px] font-medium text-primary">
+                        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-gold-soft px-2 py-0.5 text-xs font-medium text-primary">
                           Cliente: {o.customer_name}
                         </div>
                       )}
@@ -547,14 +567,14 @@ function BillModal({
                               </span>
                             </div>
                             {it.notes && (
-                              <span className="pl-5 text-[11px] italic text-muted-foreground">
+                              <span className="pl-5 text-xs italic text-muted-foreground">
                                 obs: {it.notes}
                               </span>
                             )}
                           </li>
                         ))}
                       </ul>
-                      <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5 text-[11px]">
+                      <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5 text-xs">
                         <span className="text-muted-foreground">Subtotal do pedido</span>
                         <span className="font-medium">{formatPrice(orderSubtotal, currency)}</span>
                       </div>
@@ -604,12 +624,12 @@ function BillModal({
             </div>
 
             <div className="rounded-xl border border-border bg-background px-3 py-2 space-y-2">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
                 Couvert Artístico (por pessoa)
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <label className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">Pessoas</span>
+                  <span className="text-xs text-muted-foreground">Pessoas</span>
                   <input
                     type="number"
                     inputMode="numeric"
@@ -621,7 +641,7 @@ function BillModal({
                   />
                 </label>
                 <label className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">{currency}/pessoa</span>
+                  <span className="text-xs text-muted-foreground">{currency}/pessoa</span>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -676,20 +696,16 @@ function BillModal({
               onClick={() => {
                 if (
                   confirm(
-                    `Marcar ${tableLabel} como livre? Qualquer pedido residual será arquivado sem cobrança.`,
+                    `Encerrar o atendimento de ${tableLabel} e invalidar o código? Isso não registra pagamento.`,
                   )
                 ) {
                   forceFree.mutate();
                 }
               }}
-              disabled={forceFree.isPending}
+              disabled={forceFree.isPending || orders.length > 0}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border bg-transparent text-sm font-medium text-muted-foreground transition hover:border-emerald-400/50 hover:text-emerald-400 disabled:opacity-50"
             >
-              {forceFree.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Marcar mesa como livre (sem cobrança)"
-              )}
+              {forceFree.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Liberar mesa"}
             </button>
           </div>
         </div>

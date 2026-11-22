@@ -76,6 +76,7 @@ export async function staffUpdateOrderStatus(
   order_id: string,
   status: string,
   staff_name?: string,
+  expected_status?: string,
 ) {
   if (typeof navigator !== "undefined" && !navigator.onLine)
     throw new Error("Reconecte antes de alterar o pedido");
@@ -86,11 +87,12 @@ export async function staffUpdateOrderStatus(
     )
   )
     return;
-  const { error } = await supabase.rpc("staff_update_order_status", {
-    p_token: token,
+  const { error } = await supabase.rpc("transition_order", {
+    p_staff_token: token,
+    p_expected_status: expected_status ?? "",
     p_order_id: order_id,
-    p_status: status,
-    p_staff_name: staff_name ?? null,
+    p_next_status: status,
+    p_delivered_by: staff_name ?? null,
   });
   if (error) throw error;
 }

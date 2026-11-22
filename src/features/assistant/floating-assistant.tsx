@@ -48,6 +48,24 @@ export function FloatingAssistant({ hidden = false }: { hidden?: boolean }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const tools = useDashboardTools();
   const preferences = useMascotPreferences();
+  const [quiet, setQuiet] = useState(false);
+  useEffect(() => {
+    const check = () =>
+      setQuiet(
+        [...document.querySelectorAll<HTMLElement>('[role="dialog"], [aria-modal="true"]')].some(
+          (el) => !el.closest(".flux-assistant") && el.getClientRects().length > 0,
+        ),
+      );
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-state", "aria-hidden", "open"],
+    });
+    return () => observer.disconnect();
+  }, []);
   const [help, setHelp] = useState(false);
   const [open, setOpen] = useState(false),
     [pinned, setPinned] = useState(false),
@@ -78,7 +96,7 @@ export function FloatingAssistant({ hidden = false }: { hidden?: boolean }) {
     setHelp(false);
     drag.current = null;
     setMoving(false);
-  }, [pathname, hidden, preferences.enabled]);
+  }, [pathname, hidden, quiet, preferences.enabled]);
   useEffect(() => {
     const resize = () => {
       const viewport = window.visualViewport;
@@ -158,7 +176,7 @@ export function FloatingAssistant({ hidden = false }: { hidden?: boolean }) {
     if (e.currentTarget.hasPointerCapture(e.pointerId))
       e.currentTarget.releasePointerCapture(e.pointerId);
   }
-  if (hidden || !preferences.enabled || !view) return null;
+  if (hidden || quiet || !preferences.enabled || !view) return null;
   const pos = clampMascot(point, view),
     bubble = bubblePlacement(pos, view);
   return (

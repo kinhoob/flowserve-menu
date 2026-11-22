@@ -2,6 +2,7 @@ import EmbeddedPostgres from "embedded-postgres";
 import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
+import { verifyBetaHardening } from "./verify-beta-hardening.mjs";
 import { verifyServiceOperations } from "./verify-service-operations.mjs";
 import { betaUpgradeSQL } from "./build-beta-upgrade.mjs";
 import { verifyPlatformManagement } from "./verify-platform-management.mjs";
@@ -41,11 +42,12 @@ try {
     .readdirSync(root + "/supabase/migrations")
     .filter((f) => f.endsWith(".sql"))
     .sort()) {
+    if (file === "20261123000100_beta_operation_hardening.sql") continue;
     try {
       // Reproduce the owner's existing database: named links are still pending.
       await client.query(
         file === "20261116000400_restaurant_menu_links.sql"
-          ? betaUpgradeSQL()
+          ? betaUpgradeSQL(false)
           : fs.readFileSync(root + "/supabase/migrations/" + file, "utf8"),
       );
     } catch (e) {
@@ -573,6 +575,7 @@ try {
   await verifyPlatformManagement(client, { rid, other });
   await verifyAnalyticsHistory(client, { rid, other });
   await verifyPlatformGrowth(client);
+  await verifyBetaHardening(client, { rid, other, product, option });
 } finally {
   if (client) await client.end();
   await pg.stop();

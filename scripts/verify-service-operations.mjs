@@ -290,10 +290,10 @@ export async function verifyServiceOperations(client, { rid, other, product, opt
   console.log(
     "PASS: weekly/overnight hours, exact closing, manual overrides, private rotating table codes, legacy bypass blocked, public calls, checkout revocation, closing summary and tenant isolation",
   );
-  await client.query(betaUpgradeSQL());
-  await client.query(betaUpgradeSQL());
+  await client.query(betaUpgradeSQL(false));
+  await client.query(betaUpgradeSQL(false));
   await client.query("DROP FUNCTION public.resolve_restaurant_slug(text)");
-  await client.query(betaUpgradeSQL());
+  await client.query(betaUpgradeSQL(false));
   assert.ok(
     (
       await client.query(

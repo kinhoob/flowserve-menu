@@ -164,9 +164,10 @@ function PublicMenuPage() {
   const { favorites, toggleFavorite } = useMenuFavorites(slug);
   const [modelItem, setModelItem] = useState<PublicItem | null>(null);
   const [activeCat, setActiveCat] = useState<string | null>(null);
-  const [cart, setCart] = useState<CartLine[]>([]);
+  const [cart, commitCart] = useState<CartLine[]>([]);
   const [openCart, setOpenCart] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [sendMessage, setSendMessage] = useState("");
   const [sent, setSent] = useState(false);
   const [placedOrder, setPlacedOrder] = useState<{
     id: string;
@@ -174,6 +175,13 @@ function PublicMenuPage() {
     token: string;
   } | null>(null);
   const orderAttempt = useRef<string | null>(null);
+  const setCart: typeof commitCart = (next) => {
+    if (orderAttempt.current) {
+      toast.info("Confirme o envio pendente antes de alterar o carrinho.");
+      return;
+    }
+    commitCart(next);
+  };
   const [tableCode, setTableCode] = useState("");
   useEffect(() => {
     setTableCode("");
@@ -342,11 +350,12 @@ function PublicMenuPage() {
       toast.error("Peça o código da mesa ao garçom e preencha antes de enviar.");
       return;
     }
+    setSendMessage("Enviando. Aguarde a confirmação do restaurante…");
     setSubmitting(true);
     try {
       orderAttempt.current ??= crypto.randomUUID();
       const trackingToken = orderAttempt.current;
-      const { data: orderId, error } = await supabase.rpc("place_order", {
+      const { data: orderId, error } = await supabase.rpc("submit_public_order", {
         p_restaurant_id: data.restaurant.id,
         p_tracking_token: trackingToken,
         p_table_code: tableCode.trim().toLowerCase(),
@@ -365,8 +374,26 @@ function PublicMenuPage() {
         })),
       });
       if (error) throw error;
+      const result = z
+        .object({
+          ok: z.boolean(),
+          order_id: z.string().optional(),
+          message: z.string().optional(),
+          code: z.string().optional(),
+        })
+        .parse(orderId);
+      if (!result.ok) {
+        orderAttempt.current = null;
+        throw {
+          message: result.message ?? "Não foi possível enviar o pedido",
+          code: result.code ?? "VALIDATION",
+        };
+      }
+      if (!result.order_id)
+        throw new Error("Confirmação não recebida. Tente novamente para consultar o envio.");
+      setSendMessage("Pedido confirmado pelo restaurante.");
       setSent(true);
-      setPlacedOrder({ id: orderId as string, status: "pending", token: trackingToken });
+      setPlacedOrder({ id: result.order_id, status: "pending", token: trackingToken });
       orderAttempt.current = null;
       setCart([]);
     } catch (caught: unknown) {
@@ -379,8 +406,11 @@ function PublicMenuPage() {
       } catch {
         /* ignore */
       }
-      if (e?.code) orderAttempt.current = null;
-      const message = e?.message ?? "Não foi possível enviar o pedido";
+
+      const message =
+        e?.message ??
+        "Não foi possível confirmar o envio. Tente novamente; o mesmo pedido não será duplicado.";
+      setSendMessage(message);
       const hint = e?.hint as string | undefined;
       const retry = details?.retry_after_seconds as number | undefined;
       const description = retry ? `Tente novamente em ${retry}s.${hint ? ` ${hint}` : ""}` : hint;
@@ -400,7 +430,7 @@ function PublicMenuPage() {
         table_label: table ? `Mesa ${table}` : null,
         customer_name: customerName.trim() || null,
       });
-      toast.success("Garçom a caminho", { duration: 2000 });
+      toast.success("Chamado enviado à equipe", { duration: 2000 });
     } catch (caught: unknown) {
       const e = getErrorDetails(caught);
       toast.error(e.message ?? "Não foi possível chamar o garçom");
@@ -1027,6 +1057,11 @@ function PublicMenuPage() {
                     </AnimatePresence>
                   </ul>
                   <div className="border-t border-border px-5 py-4">
+                    {sendMessage && (
+                      <p role="status" className="mb-3 rounded-xl border border-border p-3 text-sm">
+                        {sendMessage}
+                      </p>
+                    )}
                     {data.requireCode && (
                       <label className="mb-3 block text-sm">
                         Código da mesa{" "}

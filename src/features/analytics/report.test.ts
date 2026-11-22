@@ -306,3 +306,21 @@ describe("restaurant analytical reports", () => {
     expect(() => buildReport([], { ...filters, end: filters.start + 93 }, now)).toThrow("93 dias");
   });
 });
+
+it("compares equivalent weekdays and excludes the gap between comparison windows", () => {
+  const today = parseDay("2026-11-16")!;
+  const result = buildReport(
+    [
+      order("current", { created_at: "2026-11-16T13:00:00Z" }),
+      order("same-weekday", { created_at: "2026-11-09T13:00:00Z" }),
+      order("gap", { created_at: "2026-11-12T13:00:00Z" }),
+      order("later-previous", { created_at: "2026-11-09T20:00:00Z" }),
+    ],
+    { ...filters, start: today, end: today, comparison: "weekday" },
+    now,
+  );
+  expect(result.previousStart).toBe(today - 7);
+  expect(result.previousEnd).toBe(today - 7);
+  expect(result.current.total).toBe(1);
+  expect(result.previous.total).toBe(1);
+});

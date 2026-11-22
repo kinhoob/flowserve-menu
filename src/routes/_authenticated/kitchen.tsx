@@ -1,3 +1,4 @@
+import { SyncStatus } from "@/features/orders/sync-status";
 import { DashboardSkeleton } from "@/features/dashboard/query-feedback";
 import { CancelOrderDialog } from "@/features/orders/cancel-order-dialog";
 import { FeatureLocked } from "@/features/billing/trial-guard";
@@ -43,7 +44,7 @@ export const Route = createFileRoute("/_authenticated/kitchen")({
 });
 
 const COLUMN_STYLES: Record<OrderStatus, string> = {
-  pending: "from-[oklch(0.78_0.13_84_/_0.18)] to-transparent",
+  pending: "from-sky-500/10 to-transparent",
   accepted: "from-[oklch(0.65_0.18_250_/_0.15)] to-transparent",
   preparing: "from-[oklch(0.7_0.18_55_/_0.15)] to-transparent",
   ready: "from-[oklch(0.7_0.18_150_/_0.15)] to-transparent",
@@ -67,6 +68,7 @@ function KitchenPage() {
   const {
     data: orders,
     isLoading,
+    isFetching,
     isError: ordersError,
     dataUpdatedAt,
     refetch,
@@ -80,15 +82,14 @@ function KitchenPage() {
       toast.error("Reconecte antes de marcar a entrega");
       return;
     }
-    const { error } = await supabase
-      .from("orders")
-      .update({
-        status: "served",
-        delivered_by_name: deliveredByName,
-        delivered_at: new Date().toISOString(),
-      })
-      .eq("id", id);
+    const { error } = await supabase.rpc("transition_order", {
+      p_order_id: id,
+      p_expected_status: "ready",
+      p_next_status: "served",
+      p_delivered_by: deliveredByName,
+    });
     if (error) {
+      void qc.invalidateQueries({ queryKey: ["orders", restaurant?.id] });
       toast.error(error.message);
       return;
     }
@@ -97,10 +98,12 @@ function KitchenPage() {
   }
 
   function advance(id: string, next: OrderStatus) {
+    if (update.isPending) return;
     if (next === "served") {
       setPendingDeliver(id);
     } else {
-      update.mutate({ id, status: next });
+      const expectedStatus = orders?.find((o) => o.id === id)?.status;
+      if (expectedStatus) update.mutate({ id, status: next, expectedStatus });
     }
   }
 
@@ -112,8 +115,9 @@ function KitchenPage() {
   const initialized = useRef(false);
 
   const scopedOrders = useMemo(() => {
-    if (scope === "all") return orders ?? [];
-    return (orders ?? [])
+    const visible = (orders ?? []).filter((o) => !o.kitchen_hidden);
+    if (scope === "all") return visible;
+    return visible
       .map((o) => {
         const items = o.order_items.filter((it) => {
           const kind = it?.menu_items?.categories?.kind ?? "food";
@@ -160,6 +164,12 @@ function KitchenPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6">
+      <SyncStatus
+        updatedAt={dataUpdatedAt}
+        busy={isFetching}
+        error={ordersError}
+        retry={() => void refetch()}
+      />
       {ordersError && (
         <div role="alert" className="rounded-xl border border-destructive p-4 text-sm">
           Falha ao atualizar pedidos. Última atualização:{" "}
@@ -247,7 +257,7 @@ function KitchenPage() {
             disabled={archive.isPending}
             className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground disabled:opacity-60"
           >
-            <Archive className="h-4 w-4" /> Arquivar concluídos
+            <Archive className="h-4 w-4" /> Ocultar entregues
           </button>
           <span className="inline-flex items-center gap-2 rounded-full bg-gold-soft px-3 py-1.5 text-xs text-primary ring-1 ring-[oklch(0.78_0.13_84_/_0.3)]">
             <span className="relative flex h-2 w-2">
@@ -290,7 +300,12 @@ function KitchenPage() {
         onConfirm={(reason) => {
           if (cancelId)
             update.mutate(
-              { id: cancelId, status: "cancelled", reason },
+              {
+                id: cancelId,
+                status: "cancelled",
+                reason,
+                expectedStatus: orders?.find((o) => o.id === cancelId)?.status ?? "pending",
+              },
               {
                 onSuccess: () => setCancelId(null),
               },

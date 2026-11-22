@@ -32,3 +32,9 @@ Teste cobrança exclusivamente no ambiente sandbox. Confirme em produção a con
 ## Retorno à versão anterior
 
 Não reverta as proteções de dados para restaurar um frontend antigo. Em caso de falha, mantenha novos pedidos suspensos e publique a correção compatível com as novas RPCs. O backup é a proteção para problemas de migração; nenhuma migração destrutiva de rollback foi criada.
+
+## Regras de operação do beta
+
+A revisão atual exige também `20261123000100_beta_operation_hardening.sql`, disponível como `supabase/fluxqr-melhorias-beta.sql` para o banco existente com as regras anteriores de horários/mesas. O pacote consolidado inclui essa revisão. Faça backup antes de aplicar. Recarregue os aparelhos após a migração: as funções públicas antigas de envio perdem autorização direta para impedir contorno dos limites.
+
+Verifique: ocultar entregues sem liberar mesa; dois funcionários atualizando a mesma etapa; bloqueio de retrocesso; encerrar mesa com pendências; repetir envio após timeout; limites de códigos/chamados com e sem código exigido; comparação das análises pelos mesmos dias da semana. O cliente não garante operação offline e não deve tratar dados em cache como confirmação de envio.

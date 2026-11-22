@@ -70,8 +70,8 @@ export const HELP = [
     keywords: "ocupação conta histórico salão",
     steps: [
       "Localize a mesa pelo nome ou pela busca.",
-      "Abra a mesa para conferir pedidos e histórico.",
-      "Confira os itens antes de concluir o atendimento.",
+      "Abra a mesa para ver pedidos, tempo de atendimento e código, ou iniciar um pedido.",
+      "Entregue ou cancele os pedidos pendentes. Depois confira a conta e encerre o atendimento para liberar a mesa.",
     ],
   },
 ] as const;

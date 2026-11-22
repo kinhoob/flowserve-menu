@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..");
 const read = (name) => fs.readFileSync(path.join(root, "supabase/migrations", name), "utf8");
-export function betaUpgradeSQL() {
+export function betaUpgradeSQL(includeHardening = true) {
   const links = read("20261116000400_restaurant_menu_links.sql")
     .replace(
       "CREATE TABLE public.restaurant_slug_aliases",
@@ -35,6 +35,7 @@ ${read("20261116000600_platform_management.sql")}
 ${read("20261116000700_analytics_item_history.sql")}
 ${read("20261116000800_platform_growth.sql")}
 ${read("20261118000100_table_sessions.sql")}
+${includeHardening ? read("20261123000100_beta_operation_hardening.sql") : ""}
 COMMIT;
 NOTIFY pgrst,'reload schema';
 SELECT 'Flux atualizado: gestão de clientes, horários, códigos, notificações e links prontos' AS resultado,

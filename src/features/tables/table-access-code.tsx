@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Copy, KeyRound, Loader2, RefreshCw } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
@@ -6,12 +7,23 @@ import { supabase } from "@/integrations/supabase/client";
 const schema = z
   .object({ code: z.string().regex(/^[0-9]{4}$/), expires_at: z.string() })
   .nullable();
-export function TableAccessCode({ tableId, staffToken }: { tableId: string; staffToken?: string }) {
+export function TableAccessCode({
+  tableId,
+  staffToken,
+  autoLoad = false,
+}: {
+  tableId: string;
+  staffToken?: string;
+  autoLoad?: boolean;
+}) {
+  const [active, setActive] = useState(autoLoad);
   const qc = useQueryClient();
   const queryKey = ["table-access-code", tableId, staffToken];
   const current = useQuery({
     queryKey,
-    refetchInterval: 15000,
+    enabled: active,
+    staleTime: 30000,
+    refetchInterval: 60000,
     retry: false,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("table_order_code", {
@@ -44,6 +56,16 @@ export function TableAccessCode({ tableId, staffToken }: { tableId: string; staf
       toast.error("Não foi possível obter o código. Confira a atualização SQL e seu acesso."),
   });
   const busy = request.isPending || current.isFetching;
+  if (!active)
+    return (
+      <button
+        type="button"
+        onClick={() => setActive(true)}
+        className="mt-3 min-h-11 w-full rounded-xl border border-border px-3 text-sm text-muted-foreground"
+      >
+        Consultar código da mesa
+      </button>
+    );
   return (
     <div
       className="mt-2 rounded-2xl border border-border bg-background/50 p-3.5"
@@ -111,10 +133,14 @@ export function TableAccessCode({ tableId, staffToken }: { tableId: string; staf
                 request.mutate();
                 return;
               }
-              void navigator.clipboard
-                .writeText(code.code)
+              void current
+                .refetch()
+                .then((result) => {
+                  if (result.isError || !result.data) throw new Error("Código expirado");
+                  return navigator.clipboard.writeText(result.data.code);
+                })
                 .then(() => toast.success("Código copiado"))
-                .catch(() => toast.error("Não foi possível copiar o código"));
+                .catch(() => toast.error("Confira o código atual antes de compartilhar"));
             }}
             className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >

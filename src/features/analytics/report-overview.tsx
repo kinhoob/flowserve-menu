@@ -93,7 +93,7 @@ export function ReportOverview({
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
           <section key={s.name} className="rounded-2xl border border-border bg-surface p-5">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground">{s.name}</p>
+            <p className="text-sm uppercase tracking-wider text-muted-foreground">{s.name}</p>
             <p className="mt-3 font-display text-3xl tracking-tight">{s.value}</p>
             <div className="mt-3">
               <Change
@@ -182,7 +182,7 @@ export function ReportOverview({
                 className="group flex h-full min-w-0 flex-1 items-end gap-0.5 rounded-t-lg border-b border-border px-0.5 outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <span
-                  className="w-1/2 rounded-t-sm bg-primary/85 transition-all duration-300 group-hover:bg-primary"
+                  className="w-1/2 rounded-t-sm bg-primary/85 transition-[height] duration-200 motion-reduce:transition-none group-hover:bg-primary"
                   style={{ height: `${Math.max(d.cents ? 2 : 0, (d.cents / max) * 100)}%` }}
                 />
                 <span

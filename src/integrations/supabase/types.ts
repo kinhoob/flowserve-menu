@@ -295,6 +295,7 @@ export type Database = {
           cancellation_reason: string | null;
           tracking_token_hash: string | null;
           archived: boolean;
+          kitchen_hidden: boolean;
           cover_charge: number | null;
           created_at: string;
           created_by_name: string | null;
@@ -320,6 +321,7 @@ export type Database = {
           cancellation_reason?: string | null;
           tracking_token_hash?: string | null;
           archived?: boolean;
+          kitchen_hidden?: boolean;
           cover_charge?: number | null;
           created_at?: string;
           created_by_name?: string | null;
@@ -345,6 +347,7 @@ export type Database = {
           cancellation_reason?: string | null;
           tracking_token_hash?: string | null;
           archived?: boolean;
+          kitchen_hidden?: boolean;
           cover_charge?: number | null;
           created_at?: string;
           created_by_name?: string | null;
@@ -745,6 +748,52 @@ export type Database = {
         Returns: Json;
       };
       get_service_status: { Args: { p_restaurant_id: string }; Returns: Json };
+      submit_internal_order: {
+        Args: {
+          p_table_id: string;
+          p_request_token: string;
+          p_items: Json;
+          p_staff_token?: string | null;
+          p_created_by?: string | null;
+        };
+        Returns: string;
+      };
+      transition_order: {
+        Args: {
+          p_order_id: string;
+          p_expected_status: string;
+          p_next_status: string;
+          p_staff_token?: string | null;
+          p_delivered_by?: string | null;
+          p_reason?: string | null;
+        };
+        Returns: undefined;
+      };
+      hide_completed_orders: { Args: { p_restaurant_id: string }; Returns: number };
+      submit_public_order: {
+        Args: {
+          p_restaurant_id: string;
+          p_table_label: string | null;
+          p_customer_name: string | null;
+          p_customer_phone: string | null;
+          p_currency: string;
+          p_items: Json;
+          p_tracking_token: string;
+          p_table_code: string | null;
+        };
+        Returns: Json;
+      };
+      submit_public_call: {
+        Args: {
+          p_restaurant_id: string;
+          p_table_label: string;
+          p_customer_name: string | null;
+          p_message: string | null;
+          p_kind: string;
+          p_table_code: string | null;
+        };
+        Returns: Json;
+      };
       release_table: {
         Args: {
           p_restaurant_id: string | null;

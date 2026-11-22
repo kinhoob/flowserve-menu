@@ -1,5 +1,8 @@
+import { getServiceStatus } from "@/features/restaurant/service-hours";
+import { SyncStatus } from "@/features/orders/sync-status";
+import { QueryError, DashboardSkeleton } from "@/features/dashboard/query-feedback";
 import { releaseTable } from "@/features/tables/release-table";
-import { TableAccessCode } from "@/features/tables/table-access-code";
+import { TableServicePanel } from "@/features/tables/table-service-panel";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
 import { SplitBillDialog } from "@/features/experience/split-bill-dialog";
 import type { StaffOrder } from "@/features/staff/staff-rpc";
@@ -44,7 +47,7 @@ function StaffWaiter() {
   const tablesQ = useQuery({
     queryKey: ["staff-tables", session?.token],
     enabled: !!session?.token,
-    refetchInterval: 5000,
+    refetchInterval: 15000,
     queryFn: () => staffListTables(session!.token),
   });
 
@@ -64,6 +67,13 @@ function StaffWaiter() {
 
   const restaurantId: string | undefined =
     tablesQ.data?.[0]?.restaurant_id ?? ordersQ.data?.[0]?.restaurant_id;
+
+  const serviceQ = useQuery({
+    queryKey: ["staff-service", restaurantId],
+    enabled: !!restaurantId,
+    queryFn: () => getServiceStatus(restaurantId!),
+    refetchInterval: 60000,
+  });
 
   // Fetch restaurant currency via slug (public)
   const restaurantQ = useQuery({
@@ -165,27 +175,64 @@ function StaffWaiter() {
   }, [calls]);
 
   const [openTable, setOpenTable] = useState<{ id: string; label: string } | null>(null);
+  const [serviceTable, setServiceTable] = useState<{ id: string; label: string } | null>(null);
   const [billTable, setBillTable] = useState<string | null>(null);
 
+  const selectedOrders = (orders ?? []).filter(
+    (o) =>
+      !o.archived &&
+      o.status !== "cancelled" &&
+      serviceTable &&
+      normalizeTableLabel(o.table_label) === normalizeTableLabel(serviceTable.label),
+  );
   if (!session) return null;
+  if (ordersQ.isError || tablesQ.isError)
+    return (
+      <QueryError
+        message="Falha ao atualizar o salão. Confira a conexão antes de atender."
+        retry={() => {
+          void ordersQ.refetch();
+          void tablesQ.refetch();
+        }}
+      />
+    );
+  if (ordersQ.isPending || tablesQ.isPending) return <DashboardSkeleton />;
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-6">
+      {serviceTable && (
+        <TableServicePanel
+          tableId={serviceTable.id}
+          label={serviceTable.label}
+          staffToken={session.token}
+          requireCode={serviceQ.data?.require_table_code ?? true}
+          count={selectedOrders.length}
+          ready={selectedOrders.filter((o) => o.status === "ready").length}
+          total={selectedOrders.reduce(
+            (sum, o) =>
+              sum + Number(o.subtotal) + Number(o.service_fee ?? 0) + Number(o.cover_charge ?? 0),
+            0,
+          )}
+          currency={currency}
+          oldest={selectedOrders.map((o) => o.created_at).sort()[0]}
+          onClose={() => setServiceTable(null)}
+          onOrder={() => {
+            setOpenTable(serviceTable);
+            setServiceTable(null);
+          }}
+          onBill={() => {
+            setBillTable(serviceTable.label);
+            setServiceTable(null);
+          }}
+        />
+      )}
       <ConnectionNotice />
-      <details open className="mb-5 rounded-2xl border border-border bg-surface p-4">
-        <summary className="cursor-pointer text-sm font-medium">Códigos das mesas</summary>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Entregue no salão. Ao liberar a mesa, o código expira.
-        </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(tablesQ.data ?? []).map((t) => (
-            <div key={t.id}>
-              <p className="text-sm">{t.label}</p>
-              <TableAccessCode tableId={t.id} staffToken={session?.token} />
-            </div>
-          ))}
-        </div>
-      </details>
+      <SyncStatus
+        updatedAt={ordersQ.dataUpdatedAt}
+        busy={ordersQ.isFetching}
+        error={ordersQ.isError}
+        retry={() => void ordersQ.refetch()}
+      />
       <Link
         to="/staff/$slug"
         params={{ slug }}
@@ -223,7 +270,7 @@ function StaffWaiter() {
                 </div>
                 <button
                   onClick={() => resolveCall.mutate(c.id)}
-                  className="rounded-md border border-border px-2 py-1 text-xs hover:bg-surface"
+                  className="rounded-md border border-border px-2 min-h-11 py-2 text-sm hover:bg-surface"
                 >
                   Atender
                 </button>
@@ -246,15 +293,11 @@ function StaffWaiter() {
             <motion.button
               key={t.id}
               whileTap={{ scale: 0.96 }}
-              onClick={() =>
-                isBusy || hasAnyCall
-                  ? setBillTable(t.label)
-                  : setOpenTable({ id: t.id, label: t.label })
-              }
+              onClick={() => setServiceTable({ id: t.id, label: t.label })}
               className={cn(
                 "relative aspect-square rounded-2xl border p-4 text-left transition",
                 hasAnyCall
-                  ? "border-[oklch(0.78_0.18_84_/_0.7)] bg-[oklch(0.78_0.18_84_/_0.12)] animate-pulse"
+                  ? "border-[oklch(0.78_0.18_84_/_0.7)] bg-[oklch(0.78_0.18_84_/_0.12)]"
                   : isBusy
                     ? "border-[oklch(0.62_0.21_25_/_0.55)] bg-[oklch(0.62_0.21_25_/_0.08)]"
                     : "border-border bg-surface hover:border-[oklch(0.78_0.13_84_/_0.4)]",
@@ -269,12 +312,10 @@ function StaffWaiter() {
                   )}
                 </span>
               )}
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Mesa</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Mesa</div>
               <div className="mt-1 font-display text-3xl tracking-tight">{stripped}</div>
-              {isBusy && (
-                <div className="mt-1 text-[11px] text-primary">{fmt(total, currency)}</div>
-              )}
-              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-[11px]">
+              {isBusy && <div className="mt-1 text-xs text-primary">{fmt(total, currency)}</div>}
+              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs">
                 <span
                   className={cn(
                     "inline-flex items-center gap-1.5",
@@ -289,7 +330,7 @@ function StaffWaiter() {
                     className={cn(
                       "h-1.5 w-1.5 rounded-full",
                       hasAnyCall
-                        ? "bg-primary animate-pulse"
+                        ? "bg-primary"
                         : isBusy
                           ? "bg-[oklch(0.7_0.18_25)]"
                           : "bg-emerald-400",
@@ -415,6 +456,9 @@ function BillModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Conta da mesa"
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
       onClick={onClose}
     >
@@ -428,7 +472,7 @@ function BillModal({
       >
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">
               Conta da mesa
             </div>
             <h2 className="font-display text-xl tracking-tight">{tableLabel}</h2>
@@ -448,7 +492,7 @@ function BillModal({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
+              <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground">
                 <span>Histórico da mesa</span>
                 <span>
                   {sorted.length} {sorted.length === 1 ? "pedido" : "pedidos"}
@@ -476,7 +520,7 @@ function BillModal({
                       </div>
                       <span
                         className={cn(
-                          "shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+                          "shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium uppercase tracking-wider",
                           st.cls,
                         )}
                       >
@@ -484,7 +528,7 @@ function BillModal({
                       </span>
                     </div>
                     {o.customer_name && (
-                      <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+                      <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                         Cliente: {o.customer_name}
                       </div>
                     )}
@@ -501,14 +545,14 @@ function BillModal({
                             </span>
                           </div>
                           {it.notes && (
-                            <span className="pl-5 text-[11px] italic text-muted-foreground">
+                            <span className="pl-5 text-xs italic text-muted-foreground">
                               obs: {it.notes}
                             </span>
                           )}
                         </li>
                       ))}
                     </ul>
-                    <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5 text-[11px]">
+                    <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5 text-xs">
                       <span className="text-muted-foreground">Subtotal do pedido</span>
                       <span className="font-medium">{fmt(orderSubtotal, currency)}</span>
                     </div>
