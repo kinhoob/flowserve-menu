@@ -1,9 +1,12 @@
+import type { OrderConnection } from "./order-connection";
 export function SyncStatus({
   updatedAt,
   busy,
   error,
   retry,
+  connection,
 }: {
+  connection?: OrderConnection;
   updatedAt: number;
   busy?: boolean;
   error?: boolean;
@@ -26,6 +29,11 @@ export function SyncStatus({
               ? "Atualizado às " + new Date(updatedAt).toLocaleTimeString("pt-BR")
               : "Aguardando dados do restaurante…"}
       </span>
+      {connection && connection !== "live" && (
+        <span className="text-xs text-amber-300">
+          Canal ao vivo em recuperação · consulta a cada 5 segundos
+        </span>
+      )}
       <button
         onClick={retry}
         disabled={busy}

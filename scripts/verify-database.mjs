@@ -2,6 +2,7 @@ import EmbeddedPostgres from "embedded-postgres";
 import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
+import { verifyServiceRecovery } from "./verify-service-recovery.mjs";
 import { verifyBetaHardening } from "./verify-beta-hardening.mjs";
 import { verifyServiceOperations } from "./verify-service-operations.mjs";
 import { betaUpgradeSQL } from "./build-beta-upgrade.mjs";
@@ -42,7 +43,7 @@ try {
     .readdirSync(root + "/supabase/migrations")
     .filter((f) => f.endsWith(".sql"))
     .sort()) {
-    if (file === "20261123000100_beta_operation_hardening.sql") continue;
+    if (file >= "20261123000100_beta_operation_hardening.sql") continue;
     try {
       // Reproduce the owner's existing database: named links are still pending.
       await client.query(
@@ -576,6 +577,7 @@ try {
   await verifyAnalyticsHistory(client, { rid, other });
   await verifyPlatformGrowth(client);
   await verifyBetaHardening(client, { rid, other, product, option });
+  await verifyServiceRecovery(client, { rid, other, product, option });
 } finally {
   if (client) await client.end();
   await pg.stop();

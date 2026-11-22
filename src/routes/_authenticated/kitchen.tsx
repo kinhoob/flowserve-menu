@@ -1,8 +1,12 @@
 import { SyncStatus } from "@/features/orders/sync-status";
 import { DashboardSkeleton } from "@/features/dashboard/query-feedback";
 import { CancelOrderDialog } from "@/features/orders/cancel-order-dialog";
-import { FeatureLocked } from "@/features/billing/trial-guard";
-import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
+import { FeatureLocked, ServiceWindDownNotice } from "@/features/billing/trial-guard";
+import {
+  canContinueService,
+  isTrialExpired,
+  useTrialStatus,
+} from "@/features/billing/trial-status";
 import {
   STATUS_FLOW,
   STATUS_LABELS,
@@ -69,6 +73,7 @@ function KitchenPage() {
     data: orders,
     isLoading,
     isFetching,
+    realtime,
     isError: ordersError,
     dataUpdatedAt,
     refetch,
@@ -154,7 +159,7 @@ function KitchenPage() {
     if (orders) initialized.current = true;
   }, [orders, soundOn]);
 
-  if (trial && !canAccess(trial, "kitchen")) {
+  if (trial && !canContinueService(trial, "kitchen")) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <FeatureLocked feature="kitchen" />
@@ -164,7 +169,9 @@ function KitchenPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6">
+      {isTrialExpired(trial) && <ServiceWindDownNotice />}
       <SyncStatus
+        connection={realtime}
         updatedAt={dataUpdatedAt}
         busy={isFetching}
         error={ordersError}
@@ -264,7 +271,7 @@ function KitchenPage() {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-60" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
             </span>
-            Ao vivo
+            {realtime === "live" ? "Ao vivo" : "Consulta periódica"}
           </span>
         </div>
       </div>

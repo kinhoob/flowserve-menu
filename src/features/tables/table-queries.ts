@@ -15,6 +15,7 @@ export function useTables(restaurantId: string | undefined) {
   return useQuery({
     queryKey: ["venue_tables", restaurantId],
     enabled: !!restaurantId,
+    refetchInterval: 15000,
     queryFn: async (): Promise<VenueTable[]> => {
       const { data, error } = await supabase
         .from("venue_tables")

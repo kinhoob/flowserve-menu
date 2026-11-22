@@ -2,8 +2,12 @@ import { SyncStatus } from "@/features/orders/sync-status";
 import { QueryError, DashboardSkeleton } from "@/features/dashboard/query-feedback";
 import { releaseTable } from "@/features/tables/release-table";
 import { TableServicePanel } from "@/features/tables/table-service-panel";
-import { FeatureLocked } from "@/features/billing/trial-guard";
-import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
+import { FeatureLocked, ServiceWindDownNotice } from "@/features/billing/trial-guard";
+import {
+  canContinueService,
+  isTrialExpired,
+  useTrialStatus,
+} from "@/features/billing/trial-status";
 import { SplitBillDialog } from "@/features/experience/split-bill-dialog";
 import { useOrders, type Order } from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
@@ -129,7 +133,7 @@ function WaiterPage() {
       serviceTable &&
       normalizeTableLabel(o.table_label) === normalizeTableLabel(serviceTable.label),
   );
-  if (trial && !canAccess(trial, "waiter")) {
+  if (trial && !canContinueService(trial, "waiter")) {
     return (
       <div className="mx-auto w-full max-w-4xl py-10">
         <FeatureLocked feature="waiter" />
@@ -150,7 +154,9 @@ function WaiterPage() {
   if (ordersQuery.isPending || tablesQuery.isPending) return <DashboardSkeleton />;
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
+      {isTrialExpired(trial) && <ServiceWindDownNotice />}
       <SyncStatus
+        connection={ordersQuery.realtime}
         updatedAt={ordersQuery.dataUpdatedAt}
         busy={ordersQuery.isFetching}
         error={ordersQuery.isError}
@@ -160,6 +166,10 @@ function WaiterPage() {
         <TableServicePanel
           tableId={serviceTable.id}
           label={serviceTable.label}
+          serviceId={tables?.find((t) => t.id === serviceTable.id)?.active_service_id}
+          serviceStartedAt={tables?.find((t) => t.id === serviceTable.id)?.service_started_at}
+          serviceState={tables?.find((t) => t.id === serviceTable.id)?.service_state}
+          allowNew={!isTrialExpired(trial)}
           requireCode={restaurant?.require_table_code ?? true}
           count={selectedOrders.length}
           ready={selectedOrders.filter((o) => o.status === "ready").length}
@@ -194,7 +204,7 @@ function WaiterPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {sorted.map((t) => {
           const stripped = normalizeTableLabel(t.label);
-          const isBusy = occupied.has(stripped);
+          const isBusy = !!t.active_service_id || occupied.has(stripped);
           const callList = callsByLabel.get(stripped) ?? [];
           const billCall = billCallsByLabel.get(stripped);
           const waiterCall = callList.find((c) => c.kind === "call");
@@ -420,6 +430,9 @@ function BillModal({
       qc.refetchQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: ["waiter_calls"] });
       qc.invalidateQueries({ queryKey: ["table-access-code"] });
+      qc.invalidateQueries({ queryKey: ["venue_tables"] });
+      qc.invalidateQueries({ queryKey: ["staff-tables"] });
+      qc.invalidateQueries({ queryKey: ["table-events"] });
       toast.success(`${tableLabel} liberada`);
       onClose();
     },

@@ -1,3 +1,4 @@
+import { useOrderConnection, setOrderConnection, orderPollInterval } from "./order-connection";
 import { toast } from "sonner";
 import { getErrorDetails } from "@/lib/errors";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +32,7 @@ const streams = new WeakMap<object, Map<string, { users: number; stop: () => voi
 
 export function useOrders(restaurantId: string | undefined, includeRecentArchived = false) {
   const qc = useQueryClient();
+  const realtime = useOrderConnection(restaurantId);
 
   useEffect(() => {
     if (!restaurantId) return;
@@ -41,6 +43,7 @@ export function useOrders(restaurantId: string | undefined, includeRecentArchive
     }
     let entry = entries.get(restaurantId);
     if (!entry) {
+      setOrderConnection(restaurantId, "connecting");
       let timer: ReturnType<typeof setTimeout> | undefined;
       const refresh = () => {
         clearTimeout(timer);
@@ -49,6 +52,8 @@ export function useOrders(restaurantId: string | undefined, includeRecentArchive
           void qc.invalidateQueries({ queryKey: ["table-history", restaurantId] });
           void qc.invalidateQueries({ queryKey: ["orders-archived", restaurantId] });
           void qc.invalidateQueries({ queryKey: ["table-access-code"] });
+          void qc.invalidateQueries({ queryKey: ["venue_tables", restaurantId] });
+          void qc.invalidateQueries({ queryKey: ["table-events"] });
         }, 150);
       };
       const channel = supabase
@@ -67,7 +72,16 @@ export function useOrders(restaurantId: string | undefined, includeRecentArchive
           },
         )
         .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, refresh)
-        .subscribe();
+        .subscribe((status) => {
+          setOrderConnection(
+            restaurantId,
+            status === "SUBSCRIBED"
+              ? "live"
+              : status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED"
+                ? "fallback"
+                : "connecting",
+          );
+        });
       entry = {
         users: 0,
         stop: () => {
@@ -87,10 +101,10 @@ export function useOrders(restaurantId: string | undefined, includeRecentArchive
     };
   }, [restaurantId, qc]);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["orders", restaurantId, includeRecentArchived],
     enabled: !!restaurantId,
-    refetchInterval: 60000,
+    refetchInterval: orderPollInterval(realtime),
     refetchOnReconnect: "always",
     queryFn: async (): Promise<Order[]> => {
       return fetchAllPages<Order>((from, to) =>
@@ -109,6 +123,7 @@ export function useOrders(restaurantId: string | undefined, includeRecentArchive
       );
     },
   });
+  return { ...query, realtime };
 }
 
 export function useArchiveServedOrders(restaurantId: string | undefined) {

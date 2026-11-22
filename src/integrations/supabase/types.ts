@@ -654,6 +654,9 @@ export type Database = {
           position: number;
           restaurant_id: string;
           short_code: string;
+          active_service_id?: string | null;
+          service_started_at?: string | null;
+          service_state?: "free" | "active" | "bill_requested";
           updated_at: string;
         };
         Insert: {
@@ -663,6 +666,9 @@ export type Database = {
           position?: number;
           restaurant_id: string;
           short_code: string;
+          active_service_id?: string | null;
+          service_started_at?: string | null;
+          service_state?: "free" | "active" | "bill_requested";
           updated_at?: string;
         };
         Update: {
@@ -672,6 +678,9 @@ export type Database = {
           position?: number;
           restaurant_id?: string;
           short_code?: string;
+          active_service_id?: string | null;
+          service_started_at?: string | null;
+          service_state?: "free" | "active" | "bill_requested";
           updated_at?: string;
         };
         Relationships: [
@@ -757,6 +766,22 @@ export type Database = {
           p_created_by?: string | null;
         };
         Returns: string;
+      };
+      recover_public_order: {
+        Args: { p_restaurant_id: string; p_tracking_token: string };
+        Returns: Json;
+      };
+      recover_internal_order: {
+        Args: { p_table_id: string; p_request_token: string; p_staff_token?: string | null };
+        Returns: string | null;
+      };
+      start_table_service: {
+        Args: { p_table_id: string; p_staff_token?: string | null };
+        Returns: string;
+      };
+      get_table_events: {
+        Args: { p_table_id: string; p_staff_token?: string | null };
+        Returns: Json;
       };
       transition_order: {
         Args: {

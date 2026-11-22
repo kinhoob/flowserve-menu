@@ -37,3 +37,6 @@ dist-ssr
 
 # Generated one-time database installer
 supabase/bootstrap.sql
+
+# Supabase CLI local cache
+supabase/.temp/

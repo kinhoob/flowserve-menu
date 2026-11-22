@@ -30,6 +30,9 @@ const staffOrderSchema = z.object({
   ),
 });
 const staffTableSchema = z.object({
+  active_service_id: z.string().nullable().optional(),
+  service_started_at: z.string().nullable().optional(),
+  service_state: z.enum(["free", "active", "bill_requested"]).optional(),
   id: z.string(),
   restaurant_id: z.string(),
   label: z.string(),

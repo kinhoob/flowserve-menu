@@ -4,8 +4,12 @@ import { DashboardSkeleton, QueryError } from "@/features/dashboard/query-feedba
 import { MenuPreviewLink } from "@/features/dashboard/dashboard-tools";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/use-auth";
-import { TrialBanner, TrialExpiredBlock } from "@/features/billing/trial-guard";
-import { canAccess, isTrialExpired, useTrialStatus } from "@/features/billing/trial-status";
+import { TrialBanner, ServiceWindDownNotice } from "@/features/billing/trial-guard";
+import {
+  canContinueService,
+  isTrialExpired,
+  useTrialStatus,
+} from "@/features/billing/trial-status";
 import { STATUS_LABELS, useOrders, type Order } from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
@@ -71,13 +75,16 @@ function DashboardPage() {
     const validOrders = (orders ?? []).filter((o) => o.status !== "cancelled");
     const todayOrders = validOrders.filter((o) => restaurantDate(o.created_at, timezone) === today);
 
-    const activeTables = new Set(
+    const occupiedNames = new Set(
       validOrders
         .filter(isOpenOrder)
         .map((o) => normalizeTableLabel(o.table_label))
         .filter((label) => tables.some((t) => normalizeTableLabel(t.label) === label)),
-    ).size;
+    );
 
+    for (const table of tables)
+      if (table.active_service_id) occupiedNames.add(normalizeTableLabel(table.label));
+    const activeTables = occupiedNames.size;
     const itemCounts = new Map<string, number>();
     todayOrders.forEach((o) =>
       o.order_items.forEach((it) => {
@@ -119,7 +126,6 @@ function DashboardPage() {
         retry={() => void refetchRestaurant()}
       />
     );
-  if (trialExpired) return <TrialExpiredBlock />;
   if (ordersQuery.isPending || callsQuery.isPending || tablesQuery.isPending)
     return <DashboardSkeleton />;
   const refresh = () => {
@@ -148,7 +154,7 @@ function DashboardPage() {
     {
       label: "Mesas ativas",
       value: `${stats.activeTables} / ${tablesCount ?? 0}`,
-      delta: stats.activeTables > 0 ? "Com pedidos abertos" : "Sem mesas ocupadas",
+      delta: stats.activeTables > 0 ? "Em atendimento" : "Sem mesas ocupadas",
       icon: Users,
     },
     {
@@ -161,285 +167,283 @@ function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
-      {trialExpired ? (
-        <TrialExpiredBlock />
-      ) : (
-        <>
-          {trial && <TrialBanner info={trial} />}
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-            <div>
-              <p className="flux-eyebrow text-[#b2c4aa]">
-                {greeting}, {name}
-              </p>
-              <h1 className="mt-2 font-display text-4xl tracking-tight">Seu salão, em um olhar.</h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Pedidos, mesas e equipe no mesmo fluxo.
-              </p>
-            </div>
-            <button
-              onClick={tools.newOrder}
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
-            >
-              <Plus className="h-4 w-4" />
-              Novo pedido
-            </button>
+      {trialExpired && <ServiceWindDownNotice />}
+      <>
+        {trial && <TrialBanner info={trial} />}
+        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <p className="flux-eyebrow text-[#b2c4aa]">
+              {greeting}, {name}
+            </p>
+            <h1 className="mt-2 font-display text-4xl tracking-tight">Seu salão, em um olhar.</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Pedidos, mesas e equipe no mesmo fluxo.
+            </p>
           </div>
+          <button
+            disabled={trialExpired}
+            onClick={tools.newOrder}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+          >
+            <Plus className="h-4 w-4" />
+            Novo pedido
+          </button>
+        </div>
 
-          {(ordersQuery.isError || callsQuery.isError || tablesQuery.isError) && (
-            <QueryError
-              message="Falha ao atualizar. Os últimos dados recebidos continuam visíveis e podem estar desatualizados."
-              retry={refresh}
-            />
-          )}
-          <OperationalOverview
-            orders={orders ?? []}
-            calls={waiterCalls}
-            kitchen={canAccess(trial, "kitchen")}
-            resolve={(id) => resolveCall.mutate(id)}
-            pending={resolveCall.isPending}
+        {(ordersQuery.isError || callsQuery.isError || tablesQuery.isError) && (
+          <QueryError
+            message="Falha ao atualizar. Os últimos dados recebidos continuam visíveis e podem estar desatualizados."
+            retry={refresh}
           />
-          {billCalls.length > 0 && (
-            <div className="rounded-2xl border-2 border-[oklch(0.78_0.18_84_/_0.7)] bg-gold-soft p-4 shadow-[0_0_40px_-10px_oklch(0.78_0.18_84_/_0.7)] animate-pulse animate-fade-up">
-              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
-                <DollarSign className="h-4 w-4 animate-pulse" />
-                {billCalls.length}{" "}
-                {billCalls.length === 1 ? "mesa pedindo a conta" : "mesas pedindo a conta"}
-              </div>
-              <ul className="space-y-1.5">
-                {billCalls.map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex items-center justify-between gap-3 rounded-lg bg-background/70 px-3 py-2 text-sm"
-                  >
-                    <span>
-                      <DollarSign className="mr-1 inline h-3.5 w-3.5 text-primary" />
-                      <span className="font-medium">{c.table_label ?? "Balcão"}</span>
-                      {c.customer_name && (
-                        <span className="text-muted-foreground"> · {c.customer_name}</span>
-                      )}
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {new Date(c.created_at).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </span>
-                    <button
-                      onClick={() => resolveCall.mutate(c.id)}
-                      className="rounded-lg bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
-                    >
-                      Conta entregue
-                    </button>
-                  </li>
-                ))}
-              </ul>
+        )}
+        <OperationalOverview
+          orders={orders ?? []}
+          calls={waiterCalls}
+          kitchen={canContinueService(trial, "kitchen")}
+          resolve={(id) => resolveCall.mutate(id)}
+          pending={resolveCall.isPending}
+        />
+        {billCalls.length > 0 && (
+          <div className="rounded-2xl border-2 border-[oklch(0.78_0.18_84_/_0.7)] bg-gold-soft p-4 shadow-[0_0_40px_-10px_oklch(0.78_0.18_84_/_0.7)] animate-pulse animate-fade-up">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
+              <DollarSign className="h-4 w-4 animate-pulse" />
+              {billCalls.length}{" "}
+              {billCalls.length === 1 ? "mesa pedindo a conta" : "mesas pedindo a conta"}
             </div>
-          )}
-
-          {regularCalls.length > 0 && (
-            <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft p-4 animate-fade-up">
-              <div className="mb-2 flex items-center gap-2 text-sm font-medium text-primary">
-                <Bell className="h-4 w-4 animate-pulse" />
-                {regularCalls.length}{" "}
-                {regularCalls.length === 1 ? "chamada de garçom" : "chamadas de garçom"}
-              </div>
-              <ul className="space-y-1.5">
-                {regularCalls.map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2 text-sm"
-                  >
-                    <span>
-                      <span className="font-medium">{c.table_label ?? "Balcão"}</span>
-                      {c.customer_name && (
-                        <span className="text-muted-foreground"> · {c.customer_name}</span>
-                      )}
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {new Date(c.created_at).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
+            <ul className="space-y-1.5">
+              {billCalls.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between gap-3 rounded-lg bg-background/70 px-3 py-2 text-sm"
+                >
+                  <span>
+                    <DollarSign className="mr-1 inline h-3.5 w-3.5 text-primary" />
+                    <span className="font-medium">{c.table_label ?? "Balcão"}</span>
+                    {c.customer_name && (
+                      <span className="text-muted-foreground"> · {c.customer_name}</span>
+                    )}
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {new Date(c.created_at).toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
-                    <button
-                      onClick={() => resolveCall.mutate(c.id)}
-                      className="rounded-lg border border-border bg-background px-3 py-1 text-xs transition hover:border-primary/40"
-                    >
-                      Atender
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="grid gap-4 stagger sm:grid-cols-3">
-            {STATS.map(({ label, value, delta, icon: Icon }) => (
-              <div key={label} className="flux-panel p-6 transition-colors hover:border-primary/30">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {label}
                   </span>
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="mt-3 truncate font-display text-3xl tracking-tight">{value}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{delta}</div>
-              </div>
-            ))}
+                  <button
+                    onClick={() => resolveCall.mutate(c.id)}
+                    className="rounded-lg bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:opacity-90"
+                  >
+                    Conta entregue
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
+        )}
 
-          <section aria-label="Ações rápidas" className="flex flex-wrap gap-3">
-            <MenuPreviewLink className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium" />
-            <Link
-              to="/tables"
-              className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium"
-            >
-              Gerenciar mesas
-            </Link>
-            <Link
-              to="/menu"
-              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-xs font-medium"
-            >
-              Editar cardápio <ArrowUpRight className="h-4 w-4" />
-            </Link>
-            <Link
-              to="/qrcodes"
-              className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium"
-            >
-              QR Codes
-            </Link>
-          </section>
-          <div className="rounded-2xl border border-border bg-surface p-6 animate-fade-up">
-            <div className="flex items-center justify-between">
-              <h2 className="font-display text-xl tracking-tight">Atividade recente</h2>
-              <span className="text-xs text-muted-foreground">
-                {recent.length > 0 ? `${recent.length} mais recentes` : "Sem atividade ainda"}
-              </span>
+        {regularCalls.length > 0 && (
+          <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft p-4 animate-fade-up">
+            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-primary">
+              <Bell className="h-4 w-4 animate-pulse" />
+              {regularCalls.length}{" "}
+              {regularCalls.length === 1 ? "chamada de garçom" : "chamadas de garçom"}
             </div>
-            {recent.length === 0 ? (
-              <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-                  <Receipt className="h-5 w-5 text-primary" />
-                </div>
-                <p className="mt-4 text-sm font-medium">Nenhum pedido ainda</p>
-                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                  Quando os clientes escanearem um QR e fizerem um pedido, ele aparecerá aqui em
-                  tempo real.
-                </p>
-              </div>
-            ) : (
-              <ul className="mt-5 divide-y divide-border">
-                {recent.map((o) => (
-                  <li key={o.id}>
-                    <button
-                      onClick={() => setSelectedOrder(o)}
-                      className="flex w-full items-center justify-between gap-3 rounded-lg py-3 text-left transition hover:bg-background/60 px-2 -mx-2"
-                    >
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium">
-                          {o.table_label ?? "Balcão"}
-                          {o.customer_name ? ` · ${o.customer_name}` : ""}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {o.order_items.length} {o.order_items.length === 1 ? "item" : "itens"} ·{" "}
-                          {new Date(o.created_at).toLocaleTimeString("pt-BR", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="rounded-full bg-background px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground ring-1 ring-border">
-                          {STATUS_LABELS[o.status]}
-                        </span>
-                        <span className="font-display text-base tracking-tight">
-                          {formatPrice(Number(o.subtotal), currency)}
-                        </span>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <Dialog open={!!selectedOrder} onOpenChange={(v) => !v && setSelectedOrder(null)}>
-            <DialogContent className="max-w-md border-border bg-surface">
-              <DialogHeader>
-                <DialogTitle className="font-display text-2xl tracking-tight">
-                  {selectedOrder?.table_label ?? "Balcão"}
-                  {selectedOrder?.customer_name ? ` · ${selectedOrder.customer_name}` : ""}
-                </DialogTitle>
-              </DialogHeader>
-              {selectedOrder && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{new Date(selectedOrder.created_at).toLocaleString("pt-BR")}</span>
-                    <span className="rounded-full bg-gold-soft px-2 py-0.5 uppercase tracking-wider text-primary">
-                      {STATUS_LABELS[selectedOrder.status]}
+            <ul className="space-y-1.5">
+              {regularCalls.map((c) => (
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2 text-sm"
+                >
+                  <span>
+                    <span className="font-medium">{c.table_label ?? "Balcão"}</span>
+                    {c.customer_name && (
+                      <span className="text-muted-foreground"> · {c.customer_name}</span>
+                    )}
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {new Date(c.created_at).toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </span>
-                  </div>
-                  {selectedOrder.created_by_name && (
-                    <div className="text-xs text-muted-foreground">
-                      Lançado por:{" "}
-                      <span className="font-medium text-foreground">
-                        {selectedOrder.created_by_name}
+                  </span>
+                  <button
+                    onClick={() => resolveCall.mutate(c.id)}
+                    className="rounded-lg border border-border bg-background px-3 py-1 text-xs transition hover:border-primary/40"
+                  >
+                    Atender
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <div className="grid gap-4 stagger sm:grid-cols-3">
+          {STATS.map(({ label, value, delta, icon: Icon }) => (
+            <div key={label} className="flux-panel p-6 transition-colors hover:border-primary/30">
+              <div className="flex items-center justify-between">
+                <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {label}
+                </span>
+                <Icon className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <div className="mt-3 truncate font-display text-3xl tracking-tight">{value}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{delta}</div>
+            </div>
+          ))}
+        </div>
+
+        <section aria-label="Ações rápidas" className="flex flex-wrap gap-3">
+          <MenuPreviewLink className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium" />
+          <Link
+            to="/tables"
+            className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium"
+          >
+            Gerenciar mesas
+          </Link>
+          <Link
+            to="/menu"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-xs font-medium"
+          >
+            Editar cardápio <ArrowUpRight className="h-4 w-4" />
+          </Link>
+          <Link
+            to="/qrcodes"
+            className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium"
+          >
+            QR Codes
+          </Link>
+        </section>
+        <div className="rounded-2xl border border-border bg-surface p-6 animate-fade-up">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-xl tracking-tight">Atividade recente</h2>
+            <span className="text-xs text-muted-foreground">
+              {recent.length > 0 ? `${recent.length} mais recentes` : "Sem atividade ainda"}
+            </span>
+          </div>
+          {recent.length === 0 ? (
+            <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
+                <Receipt className="h-5 w-5 text-primary" />
+              </div>
+              <p className="mt-4 text-sm font-medium">Nenhum pedido ainda</p>
+              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                Quando os clientes escanearem um QR e fizerem um pedido, ele aparecerá aqui em tempo
+                real.
+              </p>
+            </div>
+          ) : (
+            <ul className="mt-5 divide-y divide-border">
+              {recent.map((o) => (
+                <li key={o.id}>
+                  <button
+                    onClick={() => setSelectedOrder(o)}
+                    className="flex w-full items-center justify-between gap-3 rounded-lg py-3 text-left transition hover:bg-background/60 px-2 -mx-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">
+                        {o.table_label ?? "Balcão"}
+                        {o.customer_name ? ` · ${o.customer_name}` : ""}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {o.order_items.length} {o.order_items.length === 1 ? "item" : "itens"} ·{" "}
+                        {new Date(o.created_at).toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="rounded-full bg-background px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground ring-1 ring-border">
+                        {STATUS_LABELS[o.status]}
+                      </span>
+                      <span className="font-display text-base tracking-tight">
+                        {formatPrice(Number(o.subtotal), currency)}
                       </span>
                     </div>
-                  )}
-                  {selectedOrder.delivered_by_name && (
-                    <div className="text-xs text-emerald-400/90">
-                      Entregue por:{" "}
-                      <span className="font-medium">{selectedOrder.delivered_by_name}</span>
-                      {selectedOrder.delivered_at && (
-                        <>
-                          {" "}
-                          às{" "}
-                          {new Date(selectedOrder.delivered_at).toLocaleTimeString("pt-BR", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </>
-                      )}
-                    </div>
-                  )}
-                  <ul className="divide-y divide-border rounded-xl border border-border">
-                    {selectedOrder.order_items.map((it) => {
-                      const mods = (it.modifiers_snapshot as unknown as { name: string }[]) ?? [];
-                      return (
-                        <li key={it.id} className="p-3">
-                          <div className="flex justify-between gap-2 text-sm">
-                            <span>
-                              <span className="font-medium text-primary">{it.quantity}×</span>{" "}
-                              {it.name_snapshot}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
-                            </span>
-                          </div>
-                          {Array.isArray(mods) && mods.length > 0 && (
-                            <ul className="mt-1 space-y-0.5 pl-3 text-[11px] text-muted-foreground">
-                              {mods.map((m, i) => (
-                                <li key={i}>· {m.name}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <div className="flex items-center justify-between border-t border-border pt-3">
-                    <span className="text-sm text-muted-foreground">Total</span>
-                    <span className="font-display text-2xl tracking-tight">
-                      {formatPrice(Number(selectedOrder.subtotal), currency)}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <Dialog open={!!selectedOrder} onOpenChange={(v) => !v && setSelectedOrder(null)}>
+          <DialogContent className="max-w-md border-border bg-surface">
+            <DialogHeader>
+              <DialogTitle className="font-display text-2xl tracking-tight">
+                {selectedOrder?.table_label ?? "Balcão"}
+                {selectedOrder?.customer_name ? ` · ${selectedOrder.customer_name}` : ""}
+              </DialogTitle>
+            </DialogHeader>
+            {selectedOrder && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{new Date(selectedOrder.created_at).toLocaleString("pt-BR")}</span>
+                  <span className="rounded-full bg-gold-soft px-2 py-0.5 uppercase tracking-wider text-primary">
+                    {STATUS_LABELS[selectedOrder.status]}
+                  </span>
+                </div>
+                {selectedOrder.created_by_name && (
+                  <div className="text-xs text-muted-foreground">
+                    Lançado por:{" "}
+                    <span className="font-medium text-foreground">
+                      {selectedOrder.created_by_name}
                     </span>
                   </div>
+                )}
+                {selectedOrder.delivered_by_name && (
+                  <div className="text-xs text-emerald-400/90">
+                    Entregue por:{" "}
+                    <span className="font-medium">{selectedOrder.delivered_by_name}</span>
+                    {selectedOrder.delivered_at && (
+                      <>
+                        {" "}
+                        às{" "}
+                        {new Date(selectedOrder.delivered_at).toLocaleTimeString("pt-BR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </>
+                    )}
+                  </div>
+                )}
+                <ul className="divide-y divide-border rounded-xl border border-border">
+                  {selectedOrder.order_items.map((it) => {
+                    const mods = (it.modifiers_snapshot as unknown as { name: string }[]) ?? [];
+                    return (
+                      <li key={it.id} className="p-3">
+                        <div className="flex justify-between gap-2 text-sm">
+                          <span>
+                            <span className="font-medium text-primary">{it.quantity}×</span>{" "}
+                            {it.name_snapshot}
+                          </span>
+                          <span className="text-muted-foreground">
+                            {formatPrice(Number(it.price_snapshot) * it.quantity, currency)}
+                          </span>
+                        </div>
+                        {Array.isArray(mods) && mods.length > 0 && (
+                          <ul className="mt-1 space-y-0.5 pl-3 text-[11px] text-muted-foreground">
+                            {mods.map((m, i) => (
+                              <li key={i}>· {m.name}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="flex items-center justify-between border-t border-border pt-3">
+                  <span className="text-sm text-muted-foreground">Total</span>
+                  <span className="font-display text-2xl tracking-tight">
+                    {formatPrice(Number(selectedOrder.subtotal), currency)}
+                  </span>
                 </div>
-              )}
-            </DialogContent>
-          </Dialog>
-        </>
-      )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </>
     </div>
   );
 }

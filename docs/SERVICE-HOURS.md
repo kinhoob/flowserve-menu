@@ -43,3 +43,13 @@ O período vai do fechamento anterior do bar até o atual, incluindo vendas da c
 Aplique `supabase/fluxqr-melhorias-beta.sql` depois da atualização de mesas. Recarregue todos os aparelhos para usar os novos RPCs de envio com limite de tentativas. `Ocultar entregues` organiza a cozinha e preserva a conta, a ocupação e o código. `Encerrar atendimento` libera a mesa e exige entregar ou cancelar os pedidos pendentes; não registra pagamento.
 
 Novos pedidos públicos têm orçamento por mesa (20 tentativas/minuto, bloqueio após cinco falhas) e por restaurante (120 ações/minuto). Chamados têm até seis tentativas/minuto e continuam deduplicados enquanto aguardam atendimento. Falhas de validação consomem orçamento mesmo quando o pedido não é criado. Reenvios do mesmo pedido confirmado reutilizam a identificação e não criam outro registro. Os limites são compartilhados pela mesa e não são confirmação de localização física.
+
+## Atendimento independente dos pedidos
+
+A atualização `fluxqr-atendimentos-recuperacao.sql` cria um atendimento próprio para cada ocupação da mesa. Em Garçom, selecione a mesa e use Iniciar atendimento. Gerar um código também garante um atendimento aberto. Sem código obrigatório, o primeiro pedido abre o atendimento automaticamente. Cancelar todos os itens não libera a mesa. A liberação encerra esse atendimento e o próximo recebe outra identificação.
+
+Últimas ações da mesa mostra abertura, pedidos, mudanças de etapa, ajustes, códigos emitidos e liberação, com responsável e horário. O histórico não armazena o código em texto. Os registros novos são somente de acréscimo para as contas do aplicativo; dados antigos não recebem responsáveis inventados.
+
+O rascunho e a tentativa pendente ficam no armazenamento local do navegador por até 24 horas, separados por restaurante/mesa e conta da equipe. Ao retornar, o Flux consulta a confirmação anterior antes de oferecer o reenvio. Não guarda telefone do cliente no rascunho. Navegadores que bloqueiam armazenamento mostram uma orientação para manter a tela aberta. Isso não é operação offline: a confirmação sempre depende do servidor.
+
+Trial expirado permite consultar a operação e o histórico, entregar/cancelar pedidos existentes e liberar mesas. Novos atendimentos e pedidos continuam bloqueados no banco. As análises separam Operação agora, sem filtros históricos, dos resultados do período selecionado.

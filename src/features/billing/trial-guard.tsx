@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Lock, Sparkles } from "lucide-react";
-import { daysLeft, type FeatureKey, type TrialInfo } from "./trial-status";
+import { minimumPlan, daysLeft, type FeatureKey, type TrialInfo } from "./trial-status";
 
 export function FeatureLocked({ feature }: { feature: FeatureKey }) {
   const labels: Record<FeatureKey, string> = {
@@ -17,11 +17,11 @@ export function FeatureLocked({ feature }: { feature: FeatureKey }) {
         <Lock className="h-6 w-6" />
       </div>
       <h2 className="mt-6 font-display text-2xl tracking-tight md:text-3xl">
-        {labels[feature]} está disponível no plano Pro
+        {labels[feature]} está disponível a partir do plano {minimumPlan(feature)}
       </h2>
       <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
-        Seu plano atual não inclui este recurso. Faça upgrade para o Pro e libere todo o potencial
-        do Flux Menu.
+        Seu plano atual não inclui este recurso. Confira os planos disponíveis e escolha o que
+        atende à operação do Flux Menu.
       </p>
       <Link
         to="/settings"
@@ -29,7 +29,7 @@ export function FeatureLocked({ feature }: { feature: FeatureKey }) {
         className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90"
       >
         <Sparkles className="h-4 w-4" />
-        Fazer Upgrade Agora
+        Ver planos
       </Link>
     </div>
   );
@@ -93,6 +93,18 @@ export function TrialBanner({ info }: { info: TrialInfo }) {
         to="/settings"
         className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90"
       >
+        Ver planos
+      </Link>
+    </div>
+  );
+}
+
+export function ServiceWindDownNotice() {
+  return (
+    <div role="status" className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-sm">
+      Seu teste terminou. Você pode entregar, cancelar e encerrar os atendimentos existentes. Para
+      novos atendimentos e pedidos, escolha um plano.{" "}
+      <Link to="/settings" search={{ tab: "billing" }} className="underline">
         Ver planos
       </Link>
     </div>

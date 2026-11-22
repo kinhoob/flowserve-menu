@@ -1,3 +1,6 @@
+import { readDraft, writeDraft, clearDraft } from "@/features/orders/draft-storage";
+import { useAuth } from "@/features/auth/use-auth";
+import { z } from "zod";
 import { QueryError } from "@/features/dashboard/query-feedback";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { withLivePrices } from "@/features/menu/live-prices";
@@ -10,7 +13,7 @@ import { formatPrice } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Minus, Plus, Search, Send, X } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { toast } from "sonner";
 
 type WItem = {
@@ -46,8 +49,18 @@ export function QuickOrderModal({
   currency: string;
   onClose: () => void;
   onDone?: () => void;
-  staffIdentity?: { token: string; name: string };
+  staffIdentity?: { token: string; name: string; id?: string };
 }) {
+  const { user } = useAuth();
+  const draftKey =
+    "flux:internal-draft:v1:" +
+    restaurantId +
+    ":" +
+    tableId +
+    ":" +
+    (staffIdentity?.id ?? user?.id ?? staffIdentity?.name ?? "owner");
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
   const attempt = useRef<string | null>(null);
   const [q, setQ] = useState("");
   const [lines, commitLines] = useState<Line[]>([]);
@@ -65,6 +78,83 @@ export function QuickOrderModal({
     queryKey: ["modifiers", restaurantId],
     queryFn: () => fetchModifiersForRestaurant(restaurantId),
   });
+
+  const [readyDraftKey, setReadyDraftKey] = useState<string | null>(null);
+  useEffect(() => {
+    let stopped = false;
+    const draft = readDraft(
+      draftKey,
+      z.object({
+        lines: z
+          .array(
+            z.object({
+              itemId: z.string(),
+              productId: z.string(),
+              name: z.string(),
+              price: z.number(),
+              qty: z.number().int().min(1).max(99),
+              notes: z.string(),
+              modifiers: z.array(
+                z.object({
+                  id: z.string(),
+                  group: z.string(),
+                  name: z.string(),
+                  price_delta: z.number(),
+                }),
+              ),
+            }),
+          )
+          .max(50),
+        attempt: z.string().uuid().nullable(),
+      }),
+    );
+    commitLines(draft?.lines ?? []);
+    attempt.current = draft?.attempt ?? null;
+    setReadyDraftKey(draftKey);
+    if (draft?.lines.length && !draft.attempt)
+      setSendError(
+        "Rascunho recuperado neste aparelho. Confira os itens e a mesa antes de enviar.",
+      );
+    if (draft?.attempt) {
+      setSendError("Verificando o envio anterior…");
+      void supabase
+        .rpc("recover_internal_order", {
+          p_table_id: tableId,
+          p_request_token: draft.attempt,
+          p_staff_token: staffIdentity?.token ?? null,
+        })
+        .then(({ data, error }) => {
+          if (stopped) return;
+          if (error) {
+            setSendError(
+              "Não foi possível verificar o envio anterior. Reconecte antes de continuar.",
+            );
+            return;
+          }
+          if (typeof data === "string") {
+            attempt.current = null;
+            commitLines([]);
+            clearDraft(draftKey);
+            setSendError("Pedido anterior confirmado na fila. Nenhum novo pedido foi enviado.");
+            onDoneRef.current?.();
+          } else
+            setSendError(
+              "Ainda sem confirmação. Confirme o envio novamente usando a mesma tentativa.",
+            );
+        });
+    }
+    return () => {
+      stopped = true;
+    };
+  }, [draftKey, tableId, staffIdentity?.token]);
+  useEffect(() => {
+    if (readyDraftKey !== draftKey) return;
+    if (!lines.length && !attempt.current) {
+      clearDraft(draftKey);
+      return;
+    }
+    writeDraft(draftKey, { lines, attempt: attempt.current });
+  }, [draftKey, readyDraftKey, lines, submitting]);
 
   const [pickingStaff, setPickingStaff] = useState(false);
 
@@ -177,6 +267,8 @@ export function QuickOrderModal({
         modifier_option_ids: l.modifiers.map((m) => m.id),
       }));
       attempt.current ??= crypto.randomUUID();
+      if (!writeDraft(draftKey, { lines, attempt: attempt.current }))
+        toast.info("Recuperação indisponível neste navegador. Mantenha esta tela aberta.");
       const { error } = await supabase.rpc("submit_internal_order", {
         p_table_id: tableId,
         p_request_token: attempt.current,
@@ -186,10 +278,12 @@ export function QuickOrderModal({
       });
       if (error) throw error;
       attempt.current = null;
+      clearDraft(draftKey);
+      commitLines([]);
       toast.success(`Pedido enviado · ${tableLabel}`, {
         description: `${lines.reduce((s, l) => s + l.qty, 0)} item(s) · ${formatPrice(subtotal, currency)}`,
       });
-      onDone?.();
+      onDoneRef.current?.();
       onClose();
     } catch (caught: unknown) {
       const e = getErrorDetails(caught);

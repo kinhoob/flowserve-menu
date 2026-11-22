@@ -124,6 +124,9 @@ function StaffWaiter() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staff-orders", session?.token] });
       qc.invalidateQueries({ queryKey: ["table-access-code"] });
+      qc.invalidateQueries({ queryKey: ["venue_tables"] });
+      qc.invalidateQueries({ queryKey: ["staff-tables"] });
+      qc.invalidateQueries({ queryKey: ["table-events"] });
       qc.invalidateQueries({ queryKey: ["staff-calls", session?.token] });
       setBillTable(null);
       toast.success("Mesa liberada e código encerrado");
@@ -204,6 +207,9 @@ function StaffWaiter() {
         <TableServicePanel
           tableId={serviceTable.id}
           label={serviceTable.label}
+          serviceId={tables?.find((t) => t.id === serviceTable.id)?.active_service_id}
+          serviceStartedAt={tables?.find((t) => t.id === serviceTable.id)?.service_started_at}
+          serviceState={tables?.find((t) => t.id === serviceTable.id)?.service_state}
           staffToken={session.token}
           requireCode={serviceQ.data?.require_table_code ?? true}
           count={selectedOrders.length}
@@ -284,7 +290,7 @@ function StaffWaiter() {
         {sorted.map((t) => {
           const stripped = normalizeTableLabel(t.label);
           const tableOrders = activeByLabel.get(stripped) ?? [];
-          const isBusy = tableOrders.length > 0;
+          const isBusy = !!t.active_service_id || tableOrders.length > 0;
           const callList = callsByLabel.get(stripped) ?? [];
           const billCall = callList.find((c) => c.kind === "bill");
           const hasAnyCall = callList.length > 0;
@@ -372,7 +378,7 @@ function StaffWaiter() {
             tableLabel={openTable.label}
             restaurantId={restId}
             currency={currency}
-            staffIdentity={{ name: session.name, token: session.token }}
+            staffIdentity={{ name: session.name, token: session.token, id: session.staff_id }}
             onClose={() => setOpenTable(null)}
             onDone={() => qc.invalidateQueries({ queryKey: ["staff-orders", session.token] })}
           />

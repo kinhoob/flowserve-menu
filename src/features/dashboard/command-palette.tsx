@@ -4,7 +4,7 @@ import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
 import { publicMenuUrl } from "@/lib/public-menu-url";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { canAccess, type TrialInfo } from "@/features/billing/trial-status";
+import { canContinueService, type TrialInfo } from "@/features/billing/trial-status";
 import { normalizeSearch } from "@/features/menu/discovery";
 import { useNavigate } from "@tanstack/react-router";
 import { Command } from "cmdk";
@@ -124,7 +124,7 @@ export function CommandPalette({
                 className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-widest [&_[cmdk-group-heading]]:text-muted-foreground"
               >
                 {NAV.map(({ to, label, icon: Icon, feature }) => {
-                  const locked = !!feature && !!trial && !canAccess(trial, feature);
+                  const locked = !!feature && !!trial && !canContinueService(trial, feature);
                   return (
                     <Command.Item
                       key={to}
@@ -154,7 +154,7 @@ export function CommandPalette({
                     value={"Mesa " + table.label}
                     onSelect={() => {
                       setOpen(false);
-                      if (!trial || !canAccess(trial, "tables")) onLocked("Mesas");
+                      if (!trial || !canContinueService(trial, "tables")) onLocked("Mesas");
                       else void navigate({ to: "/tables", search: { table: table.id } });
                     }}
                     className="dashboard-command-item"

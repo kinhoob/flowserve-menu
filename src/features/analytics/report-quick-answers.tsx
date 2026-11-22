@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import type { RestaurantReport } from "./report";
 import { formatPrice } from "@/lib/format";
 export function ReportQuickAnswers({
@@ -13,20 +12,8 @@ export function ReportQuickAnswers({
   return (
     <section
       aria-label="Respostas rápidas do restaurante"
-      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+      className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"
     >
-      <Link
-        to="/kitchen"
-        search={{}}
-        className={
-          "rounded-2xl border p-5 " +
-          (c.overdue ? "border-amber-400/40 bg-amber-400/5" : "border-border bg-surface")
-        }
-      >
-        <p className="text-sm text-muted-foreground">Onde olhar agora?</p>
-        <p className="mt-2 text-xl font-semibold">{c.overdue} em atraso</p>
-        <p className="mt-2 text-sm text-muted-foreground">No período selecionado · abrir fila →</p>
-      </Link>
       <div className="rounded-2xl border border-border bg-surface p-5">
         <p className="text-sm text-muted-foreground">Mais vendido em quantidade</p>
         <p className="mt-2 text-xl font-semibold">{top?.name ?? "Sem vendas no período"}</p>

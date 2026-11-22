@@ -46,14 +46,14 @@ export function UpgradeProModal({
                 <Lock className="h-7 w-7 text-primary" />
               </div>
               <h2 className="mt-6 font-display text-2xl tracking-tight">
-                Recurso Exclusivo do <span className="text-gradient-gold italic">Plano Pro</span>
+                Confira os <span className="text-gradient-gold italic">planos disponíveis</span>
               </h2>
               <p className="mx-auto mt-3 max-w-sm text-sm text-muted-foreground">
                 {featureLabel ? (
                   <>
                     <strong className="font-medium text-foreground">{featureLabel}</strong> não está
-                    incluído no seu plano atual. Faça upgrade para o Pro e libere todo o potencial
-                    do Flux Menu.
+                    incluído no seu plano atual. Escolha um plano compatível com a operação do Flux
+                    Menu.
                   </>
                 ) : (
                   <>
@@ -70,7 +70,7 @@ export function UpgradeProModal({
                 className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-[0_18px_40px_-15px_oklch(0.78_0.13_84_/_0.6)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_25px_60px_-18px_oklch(0.78_0.13_84_/_0.75)]"
               >
                 <Sparkles className="h-4 w-4" />
-                Fazer Upgrade Agora
+                Ver planos
               </button>
               <button
                 onClick={onClose}

@@ -56,6 +56,9 @@ function QRCodesPage() {
       .filter((label) => tables.some((t) => normalizeTableLabel(t.label) === label)),
   );
 
+  for (const table of tables)
+    if (table.active_service_id) occupiedLabels.add(normalizeTableLabel(table.label));
+
   const [label, setLabel] = useState("");
   const [bulk, setBulk] = useState({ from: 1, to: 10, prefix: "Mesa" });
   const [downloading, setDownloading] = useState(false);

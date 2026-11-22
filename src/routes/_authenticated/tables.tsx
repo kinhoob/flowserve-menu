@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { getTableLimit } from "@/features/billing/plan-limits";
 import { FeatureLocked } from "@/features/billing/trial-guard";
-import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
+import { canContinueService, useTrialStatus } from "@/features/billing/trial-status";
 import { useOrders } from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import {
@@ -134,8 +134,11 @@ function TablesPage() {
       cur.total += orderTotal(o);
       map.set(key, cur);
     }
+    for (const table of tables)
+      if (table.active_service_id && !map.has(normalizeLabel(table.label)))
+        map.set(normalizeLabel(table.label), { count: 0, total: 0 });
     return map;
-  }, [orders]);
+  }, [orders, tables]);
 
   // Faturamento histórico por label normalizado
   const revenueByTable = useMemo(() => {
@@ -163,7 +166,7 @@ function TablesPage() {
     return (
       <QueryError message="Não foi possível carregar as mesas." retry={() => void tRefetch()} />
     );
-  if (trial && !canAccess(trial, "tables")) {
+  if (trial && !canContinueService(trial, "tables")) {
     return (
       <div className="mx-auto max-w-6xl space-y-6">
         <FeatureLocked feature="tables" />

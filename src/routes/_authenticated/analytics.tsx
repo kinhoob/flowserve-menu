@@ -1,10 +1,11 @@
+import { LiveOperationSummary } from "@/features/analytics/live-operation-summary";
 import { ReportQuickAnswers } from "@/features/analytics/report-quick-answers";
 import { orderCsv } from "@/features/analytics/report-export";
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Download, RefreshCw } from "lucide-react";
 import { FeatureLocked } from "@/features/billing/trial-guard";
-import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
+import { canContinueService, useTrialStatus } from "@/features/billing/trial-status";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { downloadCsv } from "@/features/menu/catalog-csv";
 import { ReportOverview } from "@/features/analytics/report-overview";
@@ -119,7 +120,7 @@ function AnalyticsPage() {
       comparison,
     ],
   );
-  const authorized = !!plan.data && canAccess(plan.data, "analytics");
+  const authorized = !!plan.data && canContinueService(plan.data, "analytics");
   const query = useReportOrders(
     restaurant?.id,
     filters.start -
@@ -290,6 +291,7 @@ function AnalyticsPage() {
           </button>
         </div>
       </header>
+      <LiveOperationSummary restaurantId={restaurant?.id} />
       {report && !query.isError && <ReportQuickAnswers report={report} currency={currency} />}
       <details
         aria-label="Filtros das análises"

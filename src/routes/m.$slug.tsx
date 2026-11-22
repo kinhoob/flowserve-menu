@@ -1,3 +1,4 @@
+import { readDraft, writeDraft, clearDraft } from "@/features/orders/draft-storage";
 import { getServiceStatus } from "@/features/restaurant/service-hours";
 import { resolveRestaurantSlug } from "@/features/restaurant/resolve-restaurant-slug";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
@@ -67,6 +68,31 @@ type CartLine = {
   modifiers: { id: string; group: string; name: string; price_delta: number }[];
 };
 
+const cartDraftSchema = z.object({
+  cart: z
+    .array(
+      z.object({
+        lineId: z.string(),
+        itemId: z.string(),
+        name: z.string(),
+        basePrice: z.number(),
+        unitPrice: z.number(),
+        qty: z.number().int().min(1).max(99),
+        note: z.string(),
+        modifiers: z.array(
+          z.object({
+            id: z.string(),
+            group: z.string(),
+            name: z.string(),
+            price_delta: z.number(),
+          }),
+        ),
+      }),
+    )
+    .max(50),
+  attempt: z.string().uuid().nullable(),
+  placed: z.object({ id: z.string(), status: z.string(), token: z.string() }).nullable(),
+});
 type PublicItem = DishModel & {
   dietary_tags: string[];
   id: string;
@@ -191,6 +217,72 @@ function PublicMenuPage() {
   const [pickerItem, setPickerItem] = useState<PublicItem | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
   const [bump, setBump] = useState(0);
+
+  const draftKey = data?.restaurant.id
+    ? "flux:public-draft:v1:" + data.restaurant.id + ":" + (table ?? "view")
+    : null;
+  const [readyDraftKey, setReadyDraftKey] = useState<string | null>(null);
+  useEffect(() => {
+    if (!draftKey) return;
+    let stopped = false;
+    const draft = readDraft(draftKey, cartDraftSchema);
+    commitCart(draft?.cart ?? []);
+    orderAttempt.current = draft?.attempt ?? null;
+    setPlacedOrder(draft?.placed ?? null);
+    setReadyDraftKey(draftKey);
+    if (draft?.cart.length) {
+      setOpenCart(true);
+      setSendMessage(
+        "Carrinho recuperado neste aparelho. Confira os itens e a mesa antes de enviar.",
+      );
+    }
+    if (draft?.attempt && data?.restaurant.id) {
+      setSendMessage("Verificando se seu envio anterior foi recebido…");
+      void supabase
+        .rpc("recover_public_order", {
+          p_restaurant_id: data.restaurant.id,
+          p_tracking_token: draft.attempt,
+        })
+        .then(({ data: recovered, error }) => {
+          if (stopped) return;
+          if (error) {
+            setSendMessage(
+              "Não foi possível consultar o envio anterior. Reconecte e confirme novamente com a mesma tentativa.",
+            );
+            return;
+          }
+          const parsed = z
+            .object({ order_id: z.string(), status: z.string() })
+            .nullable()
+            .safeParse(recovered);
+          if (parsed.success && parsed.data) {
+            orderAttempt.current = null;
+            commitCart([]);
+            setPlacedOrder({
+              id: parsed.data.order_id,
+              status: parsed.data.status,
+              token: draft.attempt!,
+            });
+            setSent(true);
+            setSendMessage("Pedido anterior recuperado. Não foi enviado novamente.");
+          } else
+            setSendMessage(
+              "Envio ainda não confirmado. Preencha seus dados e confirme novamente; a tentativa será a mesma.",
+            );
+        });
+    }
+    return () => {
+      stopped = true;
+    };
+  }, [draftKey, data?.restaurant.id]);
+  useEffect(() => {
+    if (!draftKey || readyDraftKey !== draftKey) return;
+    if (!cart.length && !placedOrder && !orderAttempt.current) {
+      clearDraft(draftKey);
+      return;
+    }
+    writeDraft(draftKey, { cart, attempt: orderAttempt.current, placed: placedOrder });
+  }, [draftKey, readyDraftKey, cart, placedOrder, submitting]);
 
   // Keep an in-progress cart or private tracking session mounted during a restaurant rename.
   useEffect(() => {
@@ -355,6 +447,10 @@ function PublicMenuPage() {
     try {
       orderAttempt.current ??= crypto.randomUUID();
       const trackingToken = orderAttempt.current;
+      if (draftKey && !writeDraft(draftKey, { cart, attempt: trackingToken, placed: null }))
+        toast.info(
+          "O navegador não permitiu salvar a recuperação. Mantenha esta tela aberta até confirmar o envio.",
+        );
       const { data: orderId, error } = await supabase.rpc("submit_public_order", {
         p_restaurant_id: data.restaurant.id,
         p_tracking_token: trackingToken,

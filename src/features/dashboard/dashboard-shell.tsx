@@ -15,7 +15,7 @@ import { NAV } from "./navigation";
 
 import { FluxLogo } from "@/components/brand/logo";
 import { useAuth } from "@/features/auth/use-auth";
-import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
+import { canContinueService, useTrialStatus } from "@/features/billing/trial-status";
 import { UpgradeProModal } from "@/features/billing/upgrade-modal";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -55,7 +55,7 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
   const navBlock = (
     <nav className="flex-1 space-y-1 px-3">
       {NAV.map(({ label, to, icon: Icon, soon, id, feature }) => {
-        const locked = !!feature && !!trial && !canAccess(trial, feature);
+        const locked = !!feature && !!trial && !canContinueService(trial, feature);
         const active = pathname === to && !soon;
         return (
           <Link
@@ -233,7 +233,7 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
               to={to}
               aria-current={pathname === to ? "page" : undefined}
               onClick={(e) => {
-                if (feature && trial && !canAccess(trial, feature)) {
+                if (feature && trial && !canContinueService(trial, feature)) {
                   e.preventDefault();
                   setLockedLabel(label);
                 }

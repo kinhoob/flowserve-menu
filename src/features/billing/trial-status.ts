@@ -30,6 +30,27 @@ export function canAccess(info: TrialInfo | null | undefined, feature: FeatureKe
   return features.includes(feature);
 }
 
+export function canContinueService(
+  info: TrialInfo | null | undefined,
+  feature: FeatureKey,
+): boolean {
+  return (
+    canAccess(info, feature) ||
+    !!(
+      info &&
+      isTrialExpired(info) &&
+      ["dashboard", "kitchen", "waiter", "tables", "analytics"].includes(feature)
+    )
+  );
+}
+export function minimumPlan(feature: FeatureKey): string {
+  return ["menu", "dashboard"].includes(feature)
+    ? "Basic"
+    : ["kitchen", "tables"].includes(feature)
+      ? "Essential"
+      : "Pro";
+}
+
 export function useTrialStatus() {
   const { user } = useAuth();
   return useQuery({
