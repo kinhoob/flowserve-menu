@@ -37,7 +37,7 @@ export const HELP = [
     path: "/qrcodes",
     keywords: "mesa imprimir acesso longe segurança senha",
     steps: [
-      "Associe o QR Code à mesa e confira o endereço público antes de imprimir.",
+      "No Basic, baixe o QR geral para visualização. No Essential, selecione até 10 mesas operacionais.",
       "O QR abre o cardápio. Para pedir, o cliente informa o código temporário quando solicitado.",
       "Entregue o código no salão; não imprima o código temporário junto ao QR.",
     ],
@@ -70,7 +70,7 @@ export const HELP = [
     keywords: "ocupação conta histórico salão",
     steps: [
       "Localize a mesa pelo nome ou pela busca.",
-      "Abra a mesa para ver pedidos, tempo de atendimento e código, ou iniciar um pedido.",
+      "Use Mesas para emitir o código e encerrar o atendimento. O Pro também inclui pedidos manuais pela Rota do Garçom.",
       "Entregue ou cancele os pedidos pendentes. Depois confira a conta e encerre o atendimento para liberar a mesa.",
     ],
   },

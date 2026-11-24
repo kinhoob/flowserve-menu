@@ -1,3 +1,4 @@
+import { validateEnvironment } from "@/lib/payment-policy";
 import { processBillingWebhook } from "@/lib/billing-webhook";
 import { createFileRoute } from "@tanstack/react-router";
 export const Route = createFileRoute("/api/public/payments/webhook")({
@@ -8,10 +9,10 @@ export const Route = createFileRoute("/api/public/payments/webhook")({
         if (environment !== "sandbox" && environment !== "live")
           return new Response("Invalid environment", { status: 400 });
         try {
-          await processBillingWebhook(request, environment);
+          await processBillingWebhook(request, validateEnvironment(environment));
           return Response.json({ received: true });
-        } catch (error) {
-          console.error("Billing webhook failed", error);
+        } catch {
+          console.error("Billing webhook processing failed");
           return new Response("Webhook processing failed", { status: 500 });
         }
       },

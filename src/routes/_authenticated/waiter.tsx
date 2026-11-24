@@ -2,12 +2,8 @@ import { SyncStatus } from "@/features/orders/sync-status";
 import { QueryError, DashboardSkeleton } from "@/features/dashboard/query-feedback";
 import { releaseTable } from "@/features/tables/release-table";
 import { TableServicePanel } from "@/features/tables/table-service-panel";
-import { FeatureLocked, ServiceWindDownNotice } from "@/features/billing/trial-guard";
-import {
-  canContinueService,
-  isTrialExpired,
-  useTrialStatus,
-} from "@/features/billing/trial-status";
+import { FeatureLocked } from "@/features/billing/trial-guard";
+import { canContinueService, useTrialStatus } from "@/features/billing/trial-status";
 import { SplitBillDialog } from "@/features/experience/split-bill-dialog";
 import { useOrders, type Order } from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
@@ -121,9 +117,9 @@ function WaiterPage() {
   }, [ready]);
 
   const sorted = useMemo(() => {
-    return [...(tables ?? [])].sort((a, b) =>
-      a.label.localeCompare(b.label, "pt", { numeric: true }),
-    );
+    return (tables ?? [])
+      .filter((t) => t.operational || t.active_service_id)
+      .sort((a, b) => a.label.localeCompare(b.label, "pt", { numeric: true }));
   }, [tables]);
 
   const selectedOrders = (orders ?? []).filter(
@@ -133,7 +129,7 @@ function WaiterPage() {
       serviceTable &&
       normalizeTableLabel(o.table_label) === normalizeTableLabel(serviceTable.label),
   );
-  if (trial && !canContinueService(trial, "waiter")) {
+  if (!canContinueService(trial, "waiter")) {
     return (
       <div className="mx-auto w-full max-w-4xl py-10">
         <FeatureLocked feature="waiter" />
@@ -154,7 +150,6 @@ function WaiterPage() {
   if (ordersQuery.isPending || tablesQuery.isPending) return <DashboardSkeleton />;
   return (
     <div className="mx-auto w-full max-w-4xl space-y-6">
-      {isTrialExpired(trial) && <ServiceWindDownNotice />}
       <SyncStatus
         connection={ordersQuery.realtime}
         updatedAt={ordersQuery.dataUpdatedAt}
@@ -169,7 +164,7 @@ function WaiterPage() {
           serviceId={tables?.find((t) => t.id === serviceTable.id)?.active_service_id}
           serviceStartedAt={tables?.find((t) => t.id === serviceTable.id)?.service_started_at}
           serviceState={tables?.find((t) => t.id === serviceTable.id)?.service_state}
-          allowNew={!isTrialExpired(trial)}
+          allowNew={tables?.some((t) => t.id === serviceTable.id && t.operational) === true}
           requireCode={restaurant?.require_table_code ?? true}
           count={selectedOrders.length}
           ready={selectedOrders.filter((o) => o.status === "ready").length}

@@ -62,12 +62,6 @@ export function TrialExpiredBlock() {
             <Sparkles className="h-4 w-4" />
             Escolher um plano
           </Link>
-          <a
-            href="mailto:vendas@flux.app"
-            className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-3 text-sm font-medium text-foreground transition hover:-translate-y-0.5 hover:border-[oklch(0.78_0.13_84_/_0.4)]"
-          >
-            Falar com vendas
-          </a>
         </div>
       </div>
     </div>
@@ -86,7 +80,7 @@ export function TrialBanner({ info }: { info: TrialInfo }) {
           <strong className="font-semibold">
             {days} {days === 1 ? "dia" : "dias"}
           </strong>{" "}
-          de teste gratuito restantes. Assine o Plano Pro para não perder o acesso.
+          de teste gratuito restantes. O teste inclui os recursos do Pro.
         </span>
       </div>
       <Link
@@ -102,8 +96,8 @@ export function TrialBanner({ info }: { info: TrialInfo }) {
 export function ServiceWindDownNotice() {
   return (
     <div role="status" className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-4 text-sm">
-      Seu teste terminou. Você pode entregar, cancelar e encerrar os atendimentos existentes. Para
-      novos atendimentos e pedidos, escolha um plano.{" "}
+      Você pode entregar ou cancelar pedidos e encerrar atendimentos em andamento. Para iniciar
+      novos atendimentos ou receber pedidos, escolha um plano com operação de mesas.{" "}
       <Link to="/settings" search={{ tab: "billing" }} className="underline">
         Ver planos
       </Link>

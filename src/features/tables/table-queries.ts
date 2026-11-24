@@ -79,3 +79,18 @@ export function useDeleteTable(restaurantId: string | undefined) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["venue_tables", restaurantId] }),
   });
 }
+
+export function useSelectOperationalTables(restaurantId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (!restaurantId) throw new Error("Restaurante inválido");
+      const { error } = await supabase.rpc("select_operational_tables", {
+        p_restaurant_id: restaurantId,
+        p_table_ids: ids,
+      });
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["venue_tables", restaurantId] }),
+  });
+}

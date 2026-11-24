@@ -5,11 +5,7 @@ import { MenuPreviewLink } from "@/features/dashboard/dashboard-tools";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/use-auth";
 import { TrialBanner, ServiceWindDownNotice } from "@/features/billing/trial-guard";
-import {
-  canContinueService,
-  isTrialExpired,
-  useTrialStatus,
-} from "@/features/billing/trial-status";
+import { canAccess, canContinueService, useTrialStatus } from "@/features/billing/trial-status";
 import { STATUS_LABELS, useOrders, type Order } from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
@@ -63,7 +59,7 @@ function DashboardPage() {
   const regularCalls = pendingCalls.filter((c) => c.kind !== "bill");
   const currency = restaurant?.currency ?? "BRL";
   const { data: trial } = useTrialStatus();
-  const trialExpired = isTrialExpired(trial);
+  const canManageOrders = canContinueService(trial, "kitchen");
 
   const tablesQuery = useTables(restaurant?.id);
   const { data: tables = [] } = tablesQuery;
@@ -167,7 +163,7 @@ function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
-      {trialExpired && <ServiceWindDownNotice />}
+      {trial?.service_wind_down && <ServiceWindDownNotice />}
       <>
         {trial && <TrialBanner info={trial} />}
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
@@ -181,7 +177,8 @@ function DashboardPage() {
             </p>
           </div>
           <button
-            disabled={trialExpired}
+            disabled={!canAccess(trial, "waiter")}
+            title={canAccess(trial, "waiter") ? undefined : "Lançamento de pedidos no plano Pro"}
             onClick={tools.newOrder}
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
           >
@@ -196,14 +193,16 @@ function DashboardPage() {
             retry={refresh}
           />
         )}
-        <OperationalOverview
-          orders={orders ?? []}
-          calls={waiterCalls}
-          kitchen={canContinueService(trial, "kitchen")}
-          resolve={(id) => resolveCall.mutate(id)}
-          pending={resolveCall.isPending}
-        />
-        {billCalls.length > 0 && (
+        {canManageOrders && (
+          <OperationalOverview
+            orders={orders ?? []}
+            calls={waiterCalls}
+            kitchen={canManageOrders}
+            resolve={(id) => resolveCall.mutate(id)}
+            pending={resolveCall.isPending}
+          />
+        )}
+        {canManageOrders && billCalls.length > 0 && (
           <div className="rounded-2xl border-2 border-[oklch(0.78_0.18_84_/_0.7)] bg-gold-soft p-4 shadow-[0_0_40px_-10px_oklch(0.78_0.18_84_/_0.7)] animate-pulse animate-fade-up">
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary">
               <DollarSign className="h-4 w-4 animate-pulse" />
@@ -241,7 +240,7 @@ function DashboardPage() {
           </div>
         )}
 
-        {regularCalls.length > 0 && (
+        {canManageOrders && regularCalls.length > 0 && (
           <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft p-4 animate-fade-up">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium text-primary">
               <Bell className="h-4 w-4 animate-pulse" />
@@ -278,20 +277,22 @@ function DashboardPage() {
           </div>
         )}
 
-        <div className="grid gap-4 stagger sm:grid-cols-3">
-          {STATS.map(({ label, value, delta, icon: Icon }) => (
-            <div key={label} className="flux-panel p-6 transition-colors hover:border-primary/30">
-              <div className="flex items-center justify-between">
-                <span className="text-xs uppercase tracking-wider text-muted-foreground">
-                  {label}
-                </span>
-                <Icon className="h-4 w-4 text-muted-foreground" />
+        {canAccess(trial, "kitchen") && (
+          <div className="grid gap-4 stagger sm:grid-cols-3">
+            {STATS.map(({ label, value, delta, icon: Icon }) => (
+              <div key={label} className="flux-panel p-6 transition-colors hover:border-primary/30">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs uppercase tracking-wider text-muted-foreground">
+                    {label}
+                  </span>
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="mt-3 truncate font-display text-3xl tracking-tight">{value}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{delta}</div>
               </div>
-              <div className="mt-3 truncate font-display text-3xl tracking-tight">{value}</div>
-              <div className="mt-1 text-xs text-muted-foreground">{delta}</div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         <section aria-label="Ações rápidas" className="flex flex-wrap gap-3">
           <MenuPreviewLink className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium" />

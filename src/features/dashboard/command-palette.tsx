@@ -4,7 +4,7 @@ import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
 import { publicMenuUrl } from "@/lib/public-menu-url";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { canContinueService, type TrialInfo } from "@/features/billing/trial-status";
+import { canContinueService, minimumPlan, type TrialInfo } from "@/features/billing/trial-status";
 import { normalizeSearch } from "@/features/menu/discovery";
 import { useNavigate } from "@tanstack/react-router";
 import { Command } from "cmdk";
@@ -131,7 +131,7 @@ export function CommandPalette({
                       value={label}
                       onSelect={() => {
                         setOpen(false);
-                        if (locked) onLocked(label);
+                        if (locked) onLocked(label + " · " + minimumPlan(feature));
                         else void navigate({ to });
                       }}
                       className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl px-3 text-sm text-muted-foreground outline-none data-[selected=true]:bg-primary/10 data-[selected=true]:text-primary"
@@ -154,7 +154,8 @@ export function CommandPalette({
                     value={"Mesa " + table.label}
                     onSelect={() => {
                       setOpen(false);
-                      if (!trial || !canContinueService(trial, "tables")) onLocked("Mesas");
+                      if (!trial || !canContinueService(trial, "tables"))
+                        onLocked("Mesas · " + minimumPlan("tables"));
                       else void navigate({ to: "/tables", search: { table: table.id } });
                     }}
                     className="dashboard-command-item"

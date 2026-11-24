@@ -1,13 +1,7 @@
-// Per produto: Essential = 10 QR Codes, Pro = ilimitado,
-// Trial libera o limite do Pro, Enterprise é ilimitado.
-export const PLAN_TABLE_LIMITS: Record<string, number> = {
-  essential: 10,
-  pro: Number.POSITIVE_INFINITY,
-  trial: Number.POSITIVE_INFINITY,
-  enterprise: Number.POSITIVE_INFINITY,
-};
+import { ESSENTIAL_QR_LIMIT } from "./plan-matrix";
+import { canAccess, type TrialInfo } from "./trial-status";
 
-export function getTableLimit(plan: string | null | undefined): number {
-  const p = (plan ?? "trial").toLowerCase();
-  return PLAN_TABLE_LIMITS[p] ?? PLAN_TABLE_LIMITS.essential;
+export function getTableLimit(info: TrialInfo | null | undefined): number | null {
+  if (!canAccess(info, "tables")) return null;
+  return info?.plan_type === "essential" ? ESSENTIAL_QR_LIMIT : Number.POSITIVE_INFINITY;
 }

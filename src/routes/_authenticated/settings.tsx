@@ -1,3 +1,5 @@
+import { PAID_PLANS } from "@/features/billing/plan-matrix";
+import { plans } from "@/features/experience/plan-catalog";
 import { MascotPreference } from "@/features/assistant/mascot-preference";
 import { ServiceHoursEditor } from "@/features/restaurant/service-hours-editor";
 import { AppearanceEditor } from "@/features/menu/appearance/appearance-editor";
@@ -41,78 +43,12 @@ export const Route = createFileRoute("/_authenticated/settings")({
   component: SettingsPage,
 });
 
-type PlanId = "basic" | "essential" | "pro" | "enterprise";
-
-const PLANS: {
-  id: PlanId;
-  name: string;
-  price: string;
-  period: string;
-  icon: typeof Sparkles;
-  description: string;
-  features: string[];
-  priceId?: string;
-  comingSoon?: boolean;
-  featured?: boolean;
-}[] = [
-  {
-    id: "basic",
-    name: "Basic",
-    price: "R$ 30",
-    period: "/mês",
-    icon: Sparkles,
-    description: "Cardápio digital com QR Code, sem pedidos.",
-    features: ["Cardápio digital ilimitado", "QR Code para o salão", "Atualizações em tempo real"],
-    priceId: "basic_monthly",
-  },
-  {
-    id: "essential",
-    name: "Essential",
-    price: "R$ 99",
-    period: "/mês",
-    icon: Crown,
-    description: "Operação digital completa para começar.",
-    features: [
-      "Pedidos por QR Code",
-      "KDS para cozinha e bar",
-      "Até 10 QR Codes",
-      "Suporte por email",
-    ],
-    priceId: "essential_monthly",
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: "R$ 199",
-    period: "/mês",
-    icon: Crown,
-    description: "Gestão total com modo garçom e análises.",
-    features: [
-      "QR Codes ilimitados",
-      "Modo Garçom + alertas sonoros",
-      "Análises de pico e relatórios",
-      "Bar e Cozinha separados",
-      "Suporte prioritário",
-    ],
-    priceId: "pro_monthly",
-    featured: true,
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    price: "Sob consulta",
-    period: "",
-    icon: Rocket,
-    description: "Multi-unidades e integrações sob medida.",
-    features: [
-      "Multi-unidade & franquias",
-      "Integrações personalizadas",
-      "SLA dedicado",
-      "Onboarding presencial",
-    ],
-    comingSoon: true,
-  },
-];
+const PLANS = plans.map((plan) => ({
+  ...plan,
+  id: plan.slug ?? ("enterprise" as const),
+  icon: plan.slug === "basic" ? Sparkles : plan.comingSoon ? Rocket : Crown,
+  priceId: plan.slug ? PAID_PLANS[plan.slug].lookupKey : undefined,
+}));
 
 function SettingsPage() {
   const { tab, plan: planParam } = Route.useSearch();
@@ -246,8 +182,9 @@ function SettingsPage() {
       if ("error" in result) throw new Error(result.error);
       return result;
     },
-    onSuccess: () => {
-      toast.success("Plano atualizado! Atualizando seu acesso…");
+    onSuccess: ({ pending }) => {
+      if (pending) toast.info("Troca pendente. Confira a cobrança no portal de assinatura.");
+      else toast.info("Troca enviada. Seu acesso será atualizado após a confirmação do Stripe.");
       qc.invalidateQueries({ queryKey: ["subscription"] });
       qc.invalidateQueries({ queryKey: ["trial-status"] });
     },
@@ -299,24 +236,14 @@ function SettingsPage() {
     );
   }
 
-  const profilePlan = trialInfo?.plan_type ?? "trial";
+  const profilePlan = trialInfo?.plan_type ?? null;
   const trialDays = daysLeft(trialInfo);
   const isTrial = profilePlan === "trial";
 
-  // Resolve current paid plan from active subscription (price_id) → fallback to profile plan_type.
-  const currentPlanId: PlanId | null = (() => {
-    if (trialInfo?.plan_source === "manual")
-      return profilePlan === "trial" ? null : (profilePlan as PlanId);
-    if (subscription?.price_id) {
-      const found = PLANS.find((p) => p.priceId === subscription.price_id);
-      if (found) return found.id;
-    }
-    if (profilePlan && profilePlan !== "trial") return profilePlan as PlanId;
-    return null;
-  })();
+  const currentPlanId = PLANS.find((plan) => plan.id === profilePlan)?.id ?? null;
   const effectivePlanName = isTrial
     ? "Trial"
-    : (PLANS.find((p) => p.id === currentPlanId)?.name ?? profilePlan);
+    : (PLANS.find((plan) => plan.id === currentPlanId)?.name ?? "Indisponível");
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8">

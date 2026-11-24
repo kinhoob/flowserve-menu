@@ -2,11 +2,16 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { validateEnvironment, validatePlanPrice, validateReturnUrl } from "./payment-policy";
+import {
+  matchesPlanPrice,
+  validateEnvironment,
+  validatePlanPrice,
+  validateReturnUrl,
+} from "./payment-policy";
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
 type PortalSessionResult = { url: string } | { error: string };
-type UpdatePlanResult = { ok: true } | { error: string };
+type UpdatePlanResult = { ok: true; pending: boolean } | { error: string };
 
 async function resolveOrCreateCustomer(
   stripe: ReturnType<typeof createStripeClient>,
@@ -32,6 +37,18 @@ async function resolveOrCreateCustomer(
   return created.id;
 }
 
+async function resolvePlanPrice(
+  stripe: ReturnType<typeof createStripeClient>,
+  lookupKey: string,
+  environment: StripeEnv,
+) {
+  const { data } = await stripe.prices.list({ lookup_keys: [lookupKey], active: true, limit: 2 });
+  const [price] = data;
+  if (data.length !== 1 || !matchesPlanPrice(price, lookupKey, environment))
+    throw new Error("Preço mensal do plano indisponível");
+  return price;
+}
+
 export const createCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(
@@ -47,15 +64,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     try {
       const stripe = createStripeClient(data.environment);
 
-      let stripePrice;
-      if (data.priceId.startsWith("price_")) {
-        stripePrice = await stripe.prices.retrieve(data.priceId);
-      } else {
-        const prices = await stripe.prices.list({ lookup_keys: [data.priceId] });
-        if (!prices.data.length) throw new Error("Price not found");
-        stripePrice = prices.data[0];
-      }
-      const isRecurring = stripePrice.type === "recurring";
+      const stripePrice = await resolvePlanPrice(stripe, data.priceId, data.environment);
 
       const { userId, claims, supabase } = context;
       const { data: active, error: activeError } = await supabase
@@ -71,8 +80,6 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         userId,
         email: typeof claims.email === "string" ? claims.email : undefined,
       });
-      if (!stripePrice.active || !isRecurring || stripePrice.currency !== "brl")
-        throw new Error("Preço indisponível");
 
       const session = await stripe.checkout.sessions.create({
         line_items: [{ price: stripePrice.id, quantity: 1 }],
@@ -82,7 +89,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         ...(customerId && { customer: customerId }),
         ...(userId && {
           metadata: { userId },
-          ...(isRecurring && { subscription_data: { metadata: { userId } } }),
+          subscription_data: { metadata: { userId } },
         }),
       });
 
@@ -154,33 +161,56 @@ export const updateSubscriptionPlan = createServerFn({ method: "POST" })
     try {
       const stripe = createStripeClient(data.environment);
 
-      // Resolve new price by lookup_key (or accept native price_xxx id).
-      let newPrice;
-      if (data.newPriceId.startsWith("price_")) {
-        newPrice = await stripe.prices.retrieve(data.newPriceId);
-      } else {
-        const prices = await stripe.prices.list({ lookup_keys: [data.newPriceId] });
-        if (!prices.data.length) throw new Error("Price not found");
-        newPrice = prices.data[0];
-      }
-
-      if (!newPrice.active || newPrice.type !== "recurring" || newPrice.currency !== "brl")
-        throw new Error("Preço indisponível");
+      const newPrice = await resolvePlanPrice(stripe, data.newPriceId, data.environment);
 
       // Need the current subscription item id to swap its price.
       const current = await stripe.subscriptions.retrieve(sub.stripe_subscription_id as string);
       const itemId = current.items.data[0]?.id;
       if (!itemId) throw new Error("Subscription has no items");
 
-      await stripe.subscriptions.update(sub.stripe_subscription_id as string, {
+      const updated = await stripe.subscriptions.update(sub.stripe_subscription_id as string, {
         items: [{ id: itemId, price: newPrice.id }],
-        proration_behavior: "create_prorations",
-        // If they cancelled-at-period-end and are now upgrading, clear it.
-        cancel_at_period_end: false,
+        proration_behavior: "always_invoice",
+        payment_behavior: "pending_if_incomplete",
       });
 
-      return { ok: true };
+      return { ok: true, pending: !!updated.pending_update };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
     }
+  });
+
+export const verifyCheckoutSubscription = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { sessionId: string; environment: StripeEnv }) => {
+    validateEnvironment(data.environment);
+    if (!/^cs_(test|live)_[A-Za-z0-9]+$/.test(data.sessionId)) {
+      throw new Error("Sessão de pagamento inválida");
+    }
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<boolean> => {
+    const stripe = createStripeClient(data.environment);
+    const session = await stripe.checkout.sessions.retrieve(data.sessionId).catch(() => {
+      throw new Error("Não foi possível verificar a sessão do Stripe");
+    });
+    if (
+      session.metadata?.userId !== context.userId ||
+      session.status !== "complete" ||
+      session.livemode !== (data.environment === "live") ||
+      !session.subscription
+    )
+      return false;
+    const subscriptionId =
+      typeof session.subscription === "string" ? session.subscription : session.subscription.id;
+    const { data: subscription, error } = await context.supabase
+      .from("subscriptions")
+      .select("id")
+      .eq("user_id", context.userId)
+      .eq("environment", data.environment)
+      .eq("stripe_subscription_id", subscriptionId)
+      .in("status", ["active", "trialing"])
+      .maybeSingle();
+    if (error) throw new Error("Não foi possível consultar a confirmação da assinatura");
+    return !!subscription;
   });

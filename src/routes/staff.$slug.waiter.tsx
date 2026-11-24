@@ -1,3 +1,4 @@
+import { planHasFeature } from "@/features/billing/plan-matrix";
 import { getServiceStatus } from "@/features/restaurant/service-hours";
 import { SyncStatus } from "@/features/orders/sync-status";
 import { QueryError, DashboardSkeleton } from "@/features/dashboard/query-feedback";
@@ -44,6 +45,19 @@ function StaffWaiter() {
     if (!session) navigate({ to: "/staff/$slug", params: { slug } });
   }, [session, navigate, slug]);
 
+  const plan = useQuery({
+    queryKey: ["staff-plan", session?.restaurant_slug],
+    enabled: !!session,
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_restaurant_plan", {
+        p_slug: session!.restaurant_slug,
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+  const canOperate = planHasFeature(plan.data, "waiter");
   const tablesQ = useQuery({
     queryKey: ["staff-tables", session?.token],
     enabled: !!session?.token,
@@ -189,6 +203,11 @@ function StaffWaiter() {
       normalizeTableLabel(o.table_label) === normalizeTableLabel(serviceTable.label),
   );
   if (!session) return null;
+  if (plan.isPending) return <DashboardSkeleton />;
+  if (plan.isError)
+    return (
+      <QueryError message="Não foi possível verificar o plano." retry={() => void plan.refetch()} />
+    );
   if (ordersQ.isError || tablesQ.isError)
     return (
       <QueryError
@@ -201,6 +220,19 @@ function StaffWaiter() {
     );
   if (ordersQ.isPending || tablesQ.isPending) return <DashboardSkeleton />;
 
+  const visibleTables = sorted.filter(
+    (table) =>
+      (canOperate && table.operational === true) ||
+      table.active_service_id ||
+      activeByLabel.has(normalizeTableLabel(table.label)),
+  );
+  if (!canOperate && !visibleTables.length) {
+    return (
+      <p className="mx-auto max-w-md p-6 text-sm">
+        O painel do garçom está disponível a partir do plano Pro.
+      </p>
+    );
+  }
   return (
     <main className="mx-auto max-w-4xl px-4 py-6">
       {serviceTable && (
@@ -211,6 +243,9 @@ function StaffWaiter() {
           serviceStartedAt={tables?.find((t) => t.id === serviceTable.id)?.service_started_at}
           serviceState={tables?.find((t) => t.id === serviceTable.id)?.service_state}
           staffToken={session.token}
+          allowNew={
+            canOperate && tables.some((table) => table.id === serviceTable.id && table.operational)
+          }
           requireCode={serviceQ.data?.require_table_code ?? true}
           count={selectedOrders.length}
           ready={selectedOrders.filter((o) => o.status === "ready").length}
@@ -251,7 +286,9 @@ function StaffWaiter() {
         <p className="text-xs uppercase tracking-[0.18em] text-primary">Operação ao vivo</p>
         <h1 className="mt-1 font-display text-2xl tracking-tight">Painel do garçom</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Toque em uma mesa para lançar pedidos ou ver a conta.
+          {canOperate
+            ? "Toque em uma mesa para lançar pedidos ou ver a conta."
+            : "Finalize os atendimentos em andamento. O painel completo está disponível no Pro."}
         </p>
       </div>
 
@@ -287,7 +324,7 @@ function StaffWaiter() {
       )}
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-        {sorted.map((t) => {
+        {visibleTables.map((t) => {
           const stripped = normalizeTableLabel(t.label);
           const tableOrders = activeByLabel.get(stripped) ?? [];
           const isBusy = !!t.active_service_id || tableOrders.length > 0;
@@ -372,7 +409,7 @@ function StaffWaiter() {
       </div>
 
       <AnimatePresence>
-        {openTable && restId && (
+        {canOperate && openTable && restId && (
           <QuickOrderModal
             tableId={openTable.id}
             tableLabel={openTable.label}

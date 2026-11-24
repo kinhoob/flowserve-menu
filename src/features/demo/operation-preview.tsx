@@ -36,7 +36,7 @@ export function OperationPreview({
         <span className="h-2 w-2 rounded-full bg-[#b8a586]" />
         <span className="h-2 w-2 rounded-full bg-[#e7bd73]" />
         <span className="mx-auto flex items-center gap-1.5 text-[10px] text-[#d5c3a4]">
-          <QrCode className="h-3 w-3" /> fluxmenu · exemplo de operação
+          <QrCode className="h-3 w-3" /> fluxmenu · pedidos do Essential e Pro
         </span>
         <MoreHorizontal className="h-4 w-4 text-[#b8a586]" />
       </div>

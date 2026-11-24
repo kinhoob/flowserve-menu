@@ -162,15 +162,15 @@ export function TableServicePanel({
             </button>
           )}
           {active &&
-            (requireCode ? (
+            (requireCode && allowNew ? (
               <div className="mt-4">
                 <TableAccessCode tableId={tableId} staffToken={staffToken} autoLoad />
               </div>
-            ) : (
+            ) : allowNew ? (
               <p className="mt-4 rounded-xl border border-border p-3 text-sm text-muted-foreground">
                 Pedidos sem código. Os horários do restaurante continuam valendo.
               </p>
-            ))}
+            ) : null)}
           <div className="mt-5 grid gap-3">
             <button
               onClick={onOrder}

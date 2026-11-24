@@ -56,10 +56,7 @@ export function UpgradeProModal({
                     Menu.
                   </>
                 ) : (
-                  <>
-                    Este recurso não está incluído no seu plano atual. Faça upgrade para o Pro e
-                    libere todo o potencial do Flux Menu.
-                  </>
+                  <>O lançamento rápido de pedidos está disponível a partir do plano Pro.</>
                 )}
               </p>
               <button

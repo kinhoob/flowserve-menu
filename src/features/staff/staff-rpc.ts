@@ -30,6 +30,7 @@ const staffOrderSchema = z.object({
   ),
 });
 const staffTableSchema = z.object({
+  operational: z.boolean().optional(),
   active_service_id: z.string().nullable().optional(),
   service_started_at: z.string().nullable().optional(),
   service_state: z.enum(["free", "active", "bill_requested"]).optional(),

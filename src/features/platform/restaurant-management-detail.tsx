@@ -62,6 +62,16 @@ export function RestaurantManagementDetail({ id, onClose }: { id: string; onClos
 function DetailBody({ data }: { data: PlatformDetail }) {
   const qc = useQueryClient();
   const { user } = useAuth();
+  const permissions = useQuery({
+    queryKey: ["platform-owner", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("is_platform_owner");
+      if (error) throw error;
+      return data;
+    },
+  });
+  const canEditAccess = !permissions.isError && permissions.data === true;
   const [action, setAction] = useState(
     data.entitlement.plan_type === "trial" ? "extend_trial" : "set_plan",
   );
@@ -202,129 +212,135 @@ function DetailBody({ data }: { data: PlatformDetail }) {
           continuam sendo cobradas pelo provedor até serem ajustadas lá. Um acesso manual prevalece
           sobre atualizações da cobrança até vocês restaurarem o acesso padrão.
         </p>
-        <fieldset disabled={save.isPending} className="space-y-4">
-          {action === "restore_billing" && data.owner.billing_plan === "trial" && (
-            <p className="rounded-xl border border-border bg-background p-3 text-sm">
-              O trial padrão termina em {formatPlatformDate(data.owner.billing_trial_ends_at)}.
-              {new Date(data.owner.billing_trial_ends_at).getTime() < Date.now()
-                ? " Esse prazo já venceu; restaurar o padrão encerrará o acesso aos recursos de teste."
-                : " Ao restaurar, esse será o prazo de acesso."}
-            </p>
-          )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs text-muted-foreground">
-              Ação
-              <select
-                value={action}
-                onChange={(event) => {
-                  setAction(event.target.value);
-                  setReview(false);
-                }}
-                className="mt-1 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
-              >
-                <option value="extend_trial" disabled={e.plan_type !== "trial"}>
-                  Adicionar dias ao trial
-                </option>
-                <option value="set_plan">Definir plano de acesso</option>
-                <option value="restore_billing">Restaurar acesso padrão / assinatura</option>
-              </select>
-            </label>
-            {action === "set_plan" && (
+        {canEditAccess ? (
+          <fieldset disabled={save.isPending} className="space-y-4">
+            {action === "restore_billing" && data.owner.billing_plan === "trial" && (
+              <p className="rounded-xl border border-border bg-background p-3 text-sm">
+                O trial padrão termina em {formatPlatformDate(data.owner.billing_trial_ends_at)}.
+                {new Date(data.owner.billing_trial_ends_at).getTime() < Date.now()
+                  ? " Esse prazo já venceu; restaurar o padrão encerrará o acesso aos recursos de teste."
+                  : " Ao restaurar, esse será o prazo de acesso."}
+              </p>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-xs text-muted-foreground">
-                Novo plano
+                Ação
                 <select
-                  value={plan}
+                  value={action}
                   onChange={(event) => {
-                    setPlan(event.target.value);
+                    setAction(event.target.value);
                     setReview(false);
                   }}
                   className="mt-1 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
                 >
-                  {Object.entries(PLAN_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
+                  <option value="extend_trial" disabled={e.plan_type !== "trial"}>
+                    Adicionar dias ao trial
+                  </option>
+                  <option value="set_plan">Definir plano de acesso</option>
+                  <option value="restore_billing">Restaurar acesso padrão / assinatura</option>
                 </select>
               </label>
-            )}
-            {trial && (
-              <label className="text-xs text-muted-foreground">
-                Dias (1 a 365)
-                <input
-                  type="number"
-                  min={1}
-                  max={365}
-                  step={1}
-                  value={Number.isNaN(days) ? "" : days}
-                  onChange={(event) => {
-                    setDays(Number(event.target.value));
-                    setReview(false);
-                  }}
-                  className="mt-1 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
-                />
-              </label>
-            )}
-          </div>
-          {action === "extend_trial" && e.plan_type !== "trial" && (
-            <p className="text-sm text-amber-400">
-              Este cliente já tem plano. Para oferecer um teste, escolha Definir plano de acesso →
-              Trial.
-            </p>
-          )}
-          <label className="block text-xs text-muted-foreground">
-            Motivo da alteração
-            <textarea
-              value={reason}
-              maxLength={500}
-              onChange={(event) => {
-                setReason(event.target.value);
-                setReview(false);
-              }}
-              placeholder="Ex.: mais 14 dias para concluir a implantação do cardápio"
-              className="mt-1 min-h-20 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
-            />
-          </label>
-          {review ? (
-            <div
-              className="space-y-3 rounded-xl border border-primary/40 bg-background p-4"
-              role="status"
-            >
-              <p className="text-sm font-medium">Confirmar alteração para {r.name}?</p>
-              <p className="text-sm text-muted-foreground">
-                {action === "restore_billing"
-                  ? `Restaurar ${PLAN_LABELS[data.owner.billing_plan] ?? data.owner.billing_plan}, conforme o cadastro / assinatura atual.`
-                  : trial
-                    ? `Acesso Trial até aproximadamente ${formatPlatformDate(nextTrial)}. O banco confirma o prazo ao salvar.`
-                    : `Conceder acesso ${PLAN_LABELS[plan]}.`}
-              </p>
-              <p className="break-words text-xs">Motivo: {reason.trim()}</p>
-              <p className="text-xs text-muted-foreground">Responsável: {user?.email}</p>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={() => save.mutate()}
-                  className="rounded-xl bg-primary px-4 py-2.5 text-sm text-primary-foreground"
-                >
-                  {save.isPending ? "Salvando…" : "Confirmar alteração"}
-                </button>
-                <button
-                  onClick={() => setReview(false)}
-                  className="rounded-xl border border-border px-4 py-2.5 text-sm"
-                >
-                  Voltar
-                </button>
-              </div>
+              {action === "set_plan" && (
+                <label className="text-xs text-muted-foreground">
+                  Novo plano
+                  <select
+                    value={plan}
+                    onChange={(event) => {
+                      setPlan(event.target.value);
+                      setReview(false);
+                    }}
+                    className="mt-1 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+                  >
+                    {Object.entries(PLAN_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {trial && (
+                <label className="text-xs text-muted-foreground">
+                  Dias (1 a 365)
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    step={1}
+                    value={Number.isNaN(days) ? "" : days}
+                    onChange={(event) => {
+                      setDays(Number(event.target.value));
+                      setReview(false);
+                    }}
+                    className="mt-1 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+                  />
+                </label>
+              )}
             </div>
-          ) : (
-            <button
-              disabled={!valid}
-              onClick={() => setReview(true)}
-              className="rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground disabled:opacity-40"
-            >
-              Revisar alteração
-            </button>
-          )}
-        </fieldset>
+            {action === "extend_trial" && e.plan_type !== "trial" && (
+              <p className="text-sm text-amber-400">
+                Este cliente já tem plano. Para oferecer um teste, escolha Definir plano de acesso →
+                Trial.
+              </p>
+            )}
+            <label className="block text-xs text-muted-foreground">
+              Motivo da alteração
+              <textarea
+                value={reason}
+                maxLength={500}
+                onChange={(event) => {
+                  setReason(event.target.value);
+                  setReview(false);
+                }}
+                placeholder="Ex.: mais 14 dias para concluir a implantação do cardápio"
+                className="mt-1 min-h-20 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground"
+              />
+            </label>
+            {review ? (
+              <div
+                className="space-y-3 rounded-xl border border-primary/40 bg-background p-4"
+                role="status"
+              >
+                <p className="text-sm font-medium">Confirmar alteração para {r.name}?</p>
+                <p className="text-sm text-muted-foreground">
+                  {action === "restore_billing"
+                    ? `Restaurar ${PLAN_LABELS[data.owner.billing_plan] ?? data.owner.billing_plan}, conforme o cadastro / assinatura atual.`
+                    : trial
+                      ? `Acesso Trial até aproximadamente ${formatPlatformDate(nextTrial)}. O banco confirma o prazo ao salvar.`
+                      : `Conceder acesso ${PLAN_LABELS[plan]}.`}
+                </p>
+                <p className="break-words text-xs">Motivo: {reason.trim()}</p>
+                <p className="text-xs text-muted-foreground">Responsável: {user?.email}</p>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    onClick={() => save.mutate()}
+                    className="rounded-xl bg-primary px-4 py-2.5 text-sm text-primary-foreground"
+                  >
+                    {save.isPending ? "Salvando…" : "Confirmar alteração"}
+                  </button>
+                  <button
+                    onClick={() => setReview(false)}
+                    className="rounded-xl border border-border px-4 py-2.5 text-sm"
+                  >
+                    Voltar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                disabled={!valid}
+                onClick={() => setReview(true)}
+                className="rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground disabled:opacity-40"
+              >
+                Revisar alteração
+              </button>
+            )}
+          </fieldset>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Alterações de plano e de prazo de teste são restritas ao proprietário do Flux.
+          </p>
+        )}
       </section>
       <section className="rounded-2xl border border-border p-4">
         <h3 className="font-medium">Assinaturas registradas</h3>

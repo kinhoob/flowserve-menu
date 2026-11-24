@@ -651,6 +651,7 @@ export type Database = {
           created_at: string;
           id: string;
           label: string;
+          operational: boolean;
           position: number;
           restaurant_id: string;
           short_code: string;
@@ -738,7 +739,16 @@ export type Database = {
     };
     Functions: {
       platform_growth_overview: { Args: { p_days?: number }; Returns: Json };
+      is_platform_owner: { Args: Record<string, never>; Returns: boolean };
       is_platform_admin: { Args: Record<string, never>; Returns: boolean };
+      select_operational_tables: {
+        Args: { p_restaurant_id: string; p_table_ids: string[] };
+        Returns: undefined;
+      };
+      restaurant_table_is_operational: {
+        Args: { p_restaurant_id: string; p_table_label: string };
+        Returns: boolean;
+      };
       get_my_entitlement: { Args: Record<string, never>; Returns: Json };
       platform_list_restaurants: {
         Args: { p_search?: string; p_status?: string; p_page?: number };

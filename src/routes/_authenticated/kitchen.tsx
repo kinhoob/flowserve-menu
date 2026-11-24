@@ -2,11 +2,7 @@ import { SyncStatus } from "@/features/orders/sync-status";
 import { DashboardSkeleton } from "@/features/dashboard/query-feedback";
 import { CancelOrderDialog } from "@/features/orders/cancel-order-dialog";
 import { FeatureLocked, ServiceWindDownNotice } from "@/features/billing/trial-guard";
-import {
-  canContinueService,
-  isTrialExpired,
-  useTrialStatus,
-} from "@/features/billing/trial-status";
+import { canContinueService, useTrialStatus } from "@/features/billing/trial-status";
 import {
   STATUS_FLOW,
   STATUS_LABELS,
@@ -159,7 +155,7 @@ function KitchenPage() {
     if (orders) initialized.current = true;
   }, [orders, soundOn]);
 
-  if (trial && !canContinueService(trial, "kitchen")) {
+  if (!canContinueService(trial, "kitchen")) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <FeatureLocked feature="kitchen" />
@@ -169,7 +165,7 @@ function KitchenPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-6">
-      {isTrialExpired(trial) && <ServiceWindDownNotice />}
+      {trial?.service_wind_down && <ServiceWindDownNotice />}
       <SyncStatus
         connection={realtime}
         updatedAt={dataUpdatedAt}

@@ -1,3 +1,4 @@
+import { FeatureLocked } from "@/features/billing/trial-guard";
 import { TableAccessCode } from "@/features/tables/table-access-code";
 import { contrastRatio } from "@/features/menu/appearance/appearance";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import {
   useCreateManyTables,
   useCreateTable,
   useDeleteTable,
+  useSelectOperationalTables,
   useTables,
   type VenueTable,
 } from "@/features/tables/table-queries";
@@ -40,11 +42,17 @@ const publicUrl = publicMenuUrl;
 
 function QRCodesPage() {
   const { data: restaurant, isLoading: rLoading } = useRestaurant();
-  const { data: tables = [], isLoading: tLoading } = useTables(restaurant?.id);
+  const { data: allTables = [], isLoading: tLoading, isError: tError } = useTables(restaurant?.id);
   const { data: orders = [] } = useOrders(restaurant?.id);
   const { data: trial } = useTrialStatus();
-  const tableLimit = getTableLimit(trial?.plan_type);
-  const reachedLimit = tables.length >= tableLimit;
+  const tableLimit = getTableLimit(trial);
+  const activeTables = allTables.filter((table) => table.operational);
+  const mustSelect = tableLimit !== null && activeTables.length > tableLimit;
+  const [selection, setSelection] = useState<string[] | null>(null);
+  const selected = selection ?? (mustSelect ? [] : activeTables.map((table) => table.id));
+  const tables = mustSelect || tableLimit === null ? [] : activeTables;
+  const reachedLimit = tableLimit === null || activeTables.length >= tableLimit;
+  const select = useSelectOperationalTables(restaurant?.id);
   const createOne = useCreateTable(restaurant?.id);
   const createMany = useCreateManyTables(restaurant?.id);
   const del = useDeleteTable(restaurant?.id);
@@ -77,7 +85,7 @@ function QRCodesPage() {
     );
   }
 
-  const downloadPng = async (t: VenueTable) => {
+  const downloadPng = async (t?: VenueTable) => {
     if (!qrValid) {
       toast.error("Escolha uma cor mais escura para garantir a leitura do QR");
       return;
@@ -89,7 +97,7 @@ function QRCodesPage() {
       return;
     }
     try {
-      const url = publicUrl(restaurant.slug, t.label);
+      const url = publicUrl(restaurant.slug, t?.label);
       const dataUrl = await QRCode.toDataURL(url, {
         width: 1024,
         margin: 4,
@@ -112,11 +120,11 @@ function QRCodesPage() {
       await image.decode();
       ctx.drawImage(image, 100, 180, 1000, 1000);
       ctx.font = "bold 52px sans-serif";
-      ctx.fillText(t.label, 600, 1280, 1050);
+      ctx.fillText(t?.label ?? "Cardápio digital", 600, 1280, 1050);
       ctx.font = "26px sans-serif";
-      ctx.fillText(qrCaption, 600, 1370, 1050);
+      ctx.fillText(t ? qrCaption : "Escaneie para ver o cardápio", 600, 1370, 1050);
       a.href = canvas.toDataURL("image/png");
-      a.download = `flux-${restaurant.slug}-${t.label.replace(/\s+/g, "-").toLowerCase()}.png`;
+      a.download = `flux-${restaurant.slug}-${(t?.label ?? "cardapio").replace(/\s+/g, "-").toLowerCase()}.png`;
       a.click();
     } catch (error) {
       toast.error(getErrorDetails(error).message ?? "Não foi possível gerar o cartão PNG");
@@ -204,10 +212,10 @@ function QRCodesPage() {
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-primary">QR Codes</p>
           <h1 className="mt-2 font-display text-4xl tracking-tight">
-            Mesas & <span className="text-gradient-gold italic">QR</span>
+            Cardápio & <span className="text-gradient-gold italic">QR</span>
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Gere QR codes por mesa apontando para o seu cardápio público em{" "}
+            Seu cardápio público está em{" "}
             <span className="text-foreground">/m/{restaurant.slug}</span>.
           </p>
           {tables.length > 0 && (
@@ -227,9 +235,14 @@ function QRCodesPage() {
             <Lock className="h-3 w-3 text-primary" />
             Plano{" "}
             <strong className="mx-1 font-semibold text-foreground">
-              {(trial?.plan_type ?? "trial").toString().toUpperCase()}
+              {(trial?.plan_type ?? "indisponível").toUpperCase()}
             </strong>
-            · {tables.length}/{Number.isFinite(tableLimit) ? tableLimit : "∞"} QR Codes
+            {tableLimit !== null &&
+              " · " +
+                activeTables.length +
+                "/" +
+                (Number.isFinite(tableLimit) ? tableLimit : "∞") +
+                " QR Codes operacionais"}
           </div>
         </div>
         <Button
@@ -308,151 +321,230 @@ function QRCodesPage() {
           </p>
         )}
       </section>
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        {tLoading ? (
-          <div className="flex h-40 items-center justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : tables.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/40 py-16 text-center animate-fade-up">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-              <QrIcon className="h-5 w-5 text-primary" />
-            </div>
-            <p className="mt-4 text-sm font-medium">Nenhuma mesa cadastrada</p>
-            <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-              Adicione mesas no painel ao lado para gerar QR codes.
-            </p>
-          </div>
-        ) : (
-          <ul className="grid gap-3 stagger sm:grid-cols-2 xl:grid-cols-3">
-            {tables.map((t) => (
-              <TableCard
-                key={t.id}
-                table={t}
-                slug={restaurant.slug}
-                ink={qrColor}
-                title={qrTitle || restaurant.name}
-                caption={qrCaption}
-                occupied={occupiedLabels.has(normalizeTableLabel(t.label))}
-                onDelete={async () => {
-                  try {
-                    await del.mutateAsync(t.id);
-                    toast.success("Mesa removida");
-                  } catch (caught: unknown) {
-                    const e = getErrorDetails(caught);
-                    toast.error(e.message);
-                  }
-                }}
-                onDownload={() => downloadPng(t)}
-              />
-            ))}
-          </ul>
-        )}
-
-        <aside className="space-y-4">
-          <div className="rounded-2xl border border-border bg-surface p-5">
-            <h3 className="font-display text-lg tracking-tight">Nova mesa</h3>
-            <p className="mt-1 text-xs text-muted-foreground">Adicione uma mesa avulsa.</p>
-            <div className="mt-4 space-y-2">
-              <input
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                placeholder="ex.: Mesa 14"
-                className="input-field"
-                disabled={reachedLimit}
-                onKeyDown={async (e) => {
-                  if (e.key === "Enter" && label.trim()) {
-                    if (reachedLimit)
-                      return toast.error(`Limite de ${tableLimit} QR Codes atingido`);
-                    try {
-                      await createOne.mutateAsync({ label: label.trim() });
-                      setLabel("");
-                      toast.success("Mesa criada");
-                    } catch (caught: unknown) {
-                      const err = getErrorDetails(caught);
-                      toast.error(err.message);
-                    }
-                  }
-                }}
-              />
-              <Button
-                onClick={async () => {
-                  if (!label.trim()) return;
-                  if (reachedLimit) return toast.error(`Limite de ${tableLimit} QR Codes atingido`);
-                  try {
-                    await createOne.mutateAsync({ label: label.trim() });
-                    setLabel("");
-                    toast.success("Mesa criada");
-                  } catch (caught: unknown) {
-                    const err = getErrorDetails(caught);
-                    toast.error(err.message);
-                  }
-                }}
-                disabled={createOne.isPending || reachedLimit}
-                className="w-full gap-2"
-              >
-                <Plus className="h-4 w-4" /> Adicionar mesa
-              </Button>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border bg-surface p-5">
-            <h3 className="font-display text-lg tracking-tight">Em lote</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Crie um intervalo de mesas de uma vez.
-            </p>
-            <div className="mt-4 space-y-3">
-              <input
-                value={bulk.prefix}
-                onChange={(e) => setBulk((b) => ({ ...b, prefix: e.target.value }))}
-                placeholder="Prefixo (Mesa)"
-                className="input-field"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="number"
-                  min={1}
-                  value={bulk.from}
-                  onChange={(e) => setBulk((b) => ({ ...b, from: Number(e.target.value) }))}
-                  className="input-field"
-                />
-                <input
-                  type="number"
-                  min={1}
-                  value={bulk.to}
-                  onChange={(e) => setBulk((b) => ({ ...b, to: Number(e.target.value) }))}
-                  className="input-field"
-                />
+      <section className="space-y-3 rounded-2xl border border-border bg-surface p-5">
+        <h2 className="font-display text-xl">QR geral do restaurante</h2>
+        <p className="text-sm text-muted-foreground">Abre o cardápio de visualização.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => void downloadPng()} variant="secondary" className="gap-2">
+            <Download className="h-4 w-4" /> Baixar QR geral
+          </Button>
+          <a
+            className="text-sm underline"
+            href={publicUrl(restaurant.slug)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Abrir cardápio
+          </a>
+        </div>
+      </section>
+      {tableLimit === null ? (
+        <FeatureLocked feature="tables" />
+      ) : (
+        <>
+          {tError && <p role="alert">Não foi possível carregar as mesas.</p>}
+          {!!allTables.length && !tError && (
+            <details
+              className="rounded-2xl border border-border bg-surface p-5"
+              open={mustSelect || undefined}
+            >
+              <summary className="cursor-pointer font-medium">
+                Selecionar mesas operacionais
+              </summary>
+              <p className="my-3 text-sm text-muted-foreground">
+                {mustSelect
+                  ? "Escolha as mesas para voltar a receber novos pedidos. Os atendimentos em andamento podem ser encerrados."
+                  : "Escolha quais QR Codes podem receber pedidos. As mesas pausadas continuam no histórico."}
+              </p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {allTables.map((table) => (
+                  <label key={table.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selected.includes(table.id)}
+                      disabled={
+                        select.isPending ||
+                        (!selected.includes(table.id) && selected.length >= tableLimit)
+                      }
+                      onChange={(event) =>
+                        setSelection(
+                          event.target.checked
+                            ? [...selected, table.id]
+                            : selected.filter((id) => id !== table.id),
+                        )
+                      }
+                    />
+                    {table.label}
+                  </label>
+                ))}
               </div>
               <Button
+                className="mt-4"
+                disabled={!selection || select.isPending}
                 onClick={async () => {
-                  if (bulk.to < bulk.from) return toast.error("Intervalo inválido");
-                  if (bulk.to - bulk.from > 99) return toast.error("Máximo de 100 por vez");
-                  const count = bulk.to - bulk.from + 1;
-                  if (tables.length + count > tableLimit) {
-                    return toast.error(
-                      `Limite do plano: ${tableLimit} QR Codes. Restam ${Math.max(0, tableLimit - tables.length)}.`,
-                    );
-                  }
                   try {
-                    await createMany.mutateAsync(bulk);
-                    toast.success(`${count} mesas criadas`);
-                  } catch (caught: unknown) {
-                    const e = getErrorDetails(caught);
-                    toast.error(e.message);
+                    await select.mutateAsync(selected);
+                    setSelection(null);
+                    toast.success("Mesas operacionais atualizadas");
+                  } catch (error) {
+                    toast.error(getErrorDetails(error).message);
                   }
                 }}
-                disabled={createMany.isPending || reachedLimit}
-                variant="secondary"
-                className="w-full gap-2"
               >
-                {createMany.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                Gerar intervalo
+                Salvar seleção
               </Button>
+            </details>
+          )}
+          {!mustSelect && !tError && (
+            <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+              {tLoading ? (
+                <div className="flex h-40 items-center justify-center">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : tables.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface/40 py-16 text-center animate-fade-up">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
+                    <QrIcon className="h-5 w-5 text-primary" />
+                  </div>
+                  <p className="mt-4 text-sm font-medium">Nenhuma mesa cadastrada</p>
+                  <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                    Adicione mesas no painel ao lado para gerar QR codes.
+                  </p>
+                </div>
+              ) : (
+                <ul className="grid gap-3 stagger sm:grid-cols-2 xl:grid-cols-3">
+                  {tables.map((t) => (
+                    <TableCard
+                      key={t.id}
+                      table={t}
+                      slug={restaurant.slug}
+                      ink={qrColor}
+                      title={qrTitle || restaurant.name}
+                      caption={qrCaption}
+                      occupied={occupiedLabels.has(normalizeTableLabel(t.label))}
+                      onDelete={async () => {
+                        try {
+                          await del.mutateAsync(t.id);
+                          toast.success("Mesa removida");
+                        } catch (caught: unknown) {
+                          const e = getErrorDetails(caught);
+                          toast.error(e.message);
+                        }
+                      }}
+                      onDownload={() => downloadPng(t)}
+                    />
+                  ))}
+                </ul>
+              )}
+
+              <aside className="space-y-4">
+                <div className="rounded-2xl border border-border bg-surface p-5">
+                  <h3 className="font-display text-lg tracking-tight">Nova mesa</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">Adicione uma mesa avulsa.</p>
+                  <div className="mt-4 space-y-2">
+                    <input
+                      value={label}
+                      onChange={(e) => setLabel(e.target.value)}
+                      placeholder="ex.: Mesa 14"
+                      className="input-field"
+                      disabled={reachedLimit}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter" && label.trim()) {
+                          if (reachedLimit)
+                            return toast.error(`Limite de ${tableLimit} QR Codes atingido`);
+                          try {
+                            await createOne.mutateAsync({ label: label.trim() });
+                            setLabel("");
+                            toast.success("Mesa criada");
+                          } catch (caught: unknown) {
+                            const err = getErrorDetails(caught);
+                            toast.error(err.message);
+                          }
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={async () => {
+                        if (!label.trim()) return;
+                        if (reachedLimit)
+                          return toast.error(`Limite de ${tableLimit} QR Codes atingido`);
+                        try {
+                          await createOne.mutateAsync({ label: label.trim() });
+                          setLabel("");
+                          toast.success("Mesa criada");
+                        } catch (caught: unknown) {
+                          const err = getErrorDetails(caught);
+                          toast.error(err.message);
+                        }
+                      }}
+                      disabled={createOne.isPending || reachedLimit}
+                      className="w-full gap-2"
+                    >
+                      <Plus className="h-4 w-4" /> Adicionar mesa
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-surface p-5">
+                  <h3 className="font-display text-lg tracking-tight">Em lote</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Crie um intervalo de mesas de uma vez.
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    <input
+                      value={bulk.prefix}
+                      onChange={(e) => setBulk((b) => ({ ...b, prefix: e.target.value }))}
+                      placeholder="Prefixo (Mesa)"
+                      className="input-field"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        value={bulk.from}
+                        onChange={(e) => setBulk((b) => ({ ...b, from: Number(e.target.value) }))}
+                        className="input-field"
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        value={bulk.to}
+                        onChange={(e) => setBulk((b) => ({ ...b, to: Number(e.target.value) }))}
+                        className="input-field"
+                      />
+                    </div>
+                    <Button
+                      onClick={async () => {
+                        if (bulk.to < bulk.from) return toast.error("Intervalo inválido");
+                        if (bulk.to - bulk.from > 99) return toast.error("Máximo de 100 por vez");
+                        const count = bulk.to - bulk.from + 1;
+                        if (tables.length + count > tableLimit) {
+                          return toast.error(
+                            `Limite do plano: ${tableLimit} QR Codes. Restam ${Math.max(0, tableLimit - tables.length)}.`,
+                          );
+                        }
+                        try {
+                          await createMany.mutateAsync(bulk);
+                          toast.success(`${count} mesas criadas`);
+                        } catch (caught: unknown) {
+                          const e = getErrorDetails(caught);
+                          toast.error(e.message);
+                        }
+                      }}
+                      disabled={createMany.isPending || reachedLimit}
+                      variant="secondary"
+                      className="w-full gap-2"
+                    >
+                      {createMany.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Gerar intervalo
+                    </Button>
+                  </div>
+                </div>
+              </aside>
             </div>
-          </div>
-        </aside>
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

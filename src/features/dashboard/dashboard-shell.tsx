@@ -15,7 +15,7 @@ import { NAV } from "./navigation";
 
 import { FluxLogo } from "@/components/brand/logo";
 import { useAuth } from "@/features/auth/use-auth";
-import { canContinueService, useTrialStatus } from "@/features/billing/trial-status";
+import { canContinueService, minimumPlan, useTrialStatus } from "@/features/billing/trial-status";
 import { UpgradeProModal } from "@/features/billing/upgrade-modal";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -65,7 +65,7 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
             onClick={(e) => {
               if (locked) {
                 e.preventDefault();
-                setLockedLabel(label);
+                setLockedLabel(label + " · " + minimumPlan(feature));
               }
             }}
             className={cn(
@@ -235,7 +235,7 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
               onClick={(e) => {
                 if (feature && trial && !canContinueService(trial, feature)) {
                   e.preventDefault();
-                  setLockedLabel(label);
+                  setLockedLabel(label + " · " + minimumPlan(feature));
                 }
               }}
               className={cn(

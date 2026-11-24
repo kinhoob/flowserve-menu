@@ -1,3 +1,5 @@
+import { TableAccessCode } from "@/features/tables/table-access-code";
+import { releaseTable } from "@/features/tables/release-table";
 import { DashboardSkeleton, QueryError } from "@/features/dashboard/query-feedback";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { getTableLimit } from "@/features/billing/plan-limits";
-import { FeatureLocked } from "@/features/billing/trial-guard";
+import { FeatureLocked, ServiceWindDownNotice } from "@/features/billing/trial-guard";
 import { canContinueService, useTrialStatus } from "@/features/billing/trial-status";
 import { useOrders } from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
@@ -24,7 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { fetchAllPages, isOpenOrder, normalizeTableLabel } from "@/lib/operations";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   Armchair,
@@ -91,12 +93,28 @@ function TablesPage() {
   const historyQuery = useTableHistory(restaurant?.id);
   const { data: history = [] } = historyQuery;
   const { data: trial } = useTrialStatus();
-  const tableLimit = getTableLimit(trial?.plan_type);
-  const reachedLimit = tables.length >= tableLimit;
+  const tableLimit = getTableLimit(trial);
+  const activeCount = tables.filter((table) => table.operational).length;
+  const mustSelect = tableLimit !== null && activeCount > tableLimit;
+  const reachedLimit = tableLimit === null || activeCount >= tableLimit;
+  const canStart = tableLimit !== null && !mustSelect;
 
   const createOne = useCreateTable(restaurant?.id);
   const createMany = useCreateManyTables(restaurant?.id);
   const del = useDeleteTable(restaurant?.id);
+  const qc = useQueryClient();
+  const closeService = useMutation({
+    mutationFn: (table: VenueTable) => releaseTable(restaurant?.id ?? null, table.label),
+    onSuccess: async () => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["orders", restaurant?.id] }),
+        qc.invalidateQueries({ queryKey: ["venue_tables", restaurant?.id] }),
+        qc.invalidateQueries({ queryKey: ["trial-status"] }),
+      ]);
+      toast.success("Atendimento encerrado");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
 
   const [label, setLabel] = useState("");
   const [bulk, setBulk] = useState({ from: 1, to: 10, prefix: "Mesa" });
@@ -166,7 +184,7 @@ function TablesPage() {
     return (
       <QueryError message="Não foi possível carregar as mesas." retry={() => void tRefetch()} />
     );
-  if (trial && !canContinueService(trial, "tables")) {
+  if (!canContinueService(trial, "tables")) {
     return (
       <div className="mx-auto max-w-6xl space-y-6">
         <FeatureLocked feature="tables" />
@@ -190,6 +208,7 @@ function TablesPage() {
 
   const filtered = tables.filter((t) => {
     const busy = occupancy.has(normalizeLabel(t.label));
+    if (trial?.service_wind_down && !busy) return false;
     if (filter === "busy") return busy;
     if (filter === "free") return !busy;
     return true;
@@ -215,12 +234,12 @@ function TablesPage() {
   };
 
   const handleBulk = async () => {
-    if (bulk.from > bulk.to) {
+    if (bulk.from > bulk.to || bulk.to - bulk.from >= 100) {
       toast.error("Intervalo inválido");
       return;
     }
     const willCreate = bulk.to - bulk.from + 1;
-    if (tables.length + willCreate > tableLimit) {
+    if (tableLimit === null || activeCount + willCreate > tableLimit) {
       toast.error(`Plano atual permite até ${tableLimit} mesas`);
       return;
     }
@@ -248,6 +267,16 @@ function TablesPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
+      {trial?.service_wind_down && <ServiceWindDownNotice />}
+      {mustSelect && (
+        <p className="rounded-xl border border-primary/30 p-4 text-sm">
+          As mesas e o histórico foram preservados.{" "}
+          <Link to="/qrcodes" className="underline">
+            Selecione os QR Codes operacionais
+          </Link>{" "}
+          para voltar a receber pedidos.
+        </p>
+      )}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Mesas</h1>
@@ -396,7 +425,7 @@ function TablesPage() {
                         busy ? "bg-gold-soft text-foreground" : "bg-muted text-muted-foreground",
                       )}
                     >
-                      {busy ? "Ocupada" : "Livre"}
+                      {busy ? "Ocupada" : t.operational && canStart ? "Livre" : "Pausada"}
                     </span>
                   </div>
 
@@ -423,6 +452,30 @@ function TablesPage() {
                     </span>
                   </div>
 
+                  {canStart && t.operational && restaurant.require_table_code && (
+                    <div className="mt-3">
+                      <TableAccessCode tableId={t.id} autoLoad />
+                    </div>
+                  )}
+                  {busy && (
+                    <Button
+                      className="mt-3 w-full"
+                      variant="secondary"
+                      size="sm"
+                      disabled={closeService.isPending}
+                      onClick={() => {
+                        if (
+                          confirm(
+                            "Encerrar o atendimento desta mesa? Entregue ou cancele os pedidos pendentes na tela Pedidos.",
+                          )
+                        ) {
+                          closeService.mutate(t);
+                        }
+                      }}
+                    >
+                      Encerrar atendimento
+                    </Button>
+                  )}
                   <div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2">
                     <button
                       onClick={() => setHistoryTable(t)}
@@ -441,7 +494,7 @@ function TablesPage() {
                     </a>
                     <button
                       onClick={() => handleDelete(t)}
-                      disabled={busy}
+                      disabled={busy || !canStart || !t.operational}
                       title={busy ? "Mesa ocupada" : "Remover"}
                       className="inline-flex items-center justify-center rounded-lg border border-border bg-background p-2 text-muted-foreground transition hover:text-destructive disabled:opacity-40"
                     >

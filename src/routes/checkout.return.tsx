@@ -1,12 +1,13 @@
+import { useEffect, useState } from "react";
 import { useAuth } from "@/features/auth/use-auth";
-import { supabase } from "@/integrations/supabase/client";
+import { verifyCheckoutSubscription } from "@/lib/payments.functions";
 import { getStripeEnvironment, isPaymentsConfigured } from "@/lib/stripe";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/checkout/return")({
-  head: () => ({ meta: [{ title: "Pagamento confirmado — Flux Menu" }] }),
+  head: () => ({ meta: [{ title: "Status do pagamento — Flux Menu" }] }),
   validateSearch: (search: Record<string, unknown>): { session_id?: string } => ({
     session_id: typeof search.session_id === "string" ? search.session_id : undefined,
   }),
@@ -17,33 +18,28 @@ function CheckoutReturn() {
   const { session_id } = Route.useSearch();
   const { user } = useAuth();
   const paymentsReady = isPaymentsConfigured();
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    if (!session_id) return;
+    const timer = setTimeout(() => setTimedOut(true), 30000);
+    return () => clearTimeout(timer);
+  }, [session_id]);
 
-  // Poll the subscription row every 1.5s until status is active/trialing.
-  // The webhook usually arrives within a few seconds; cap at ~30s.
-  const { data: sub } = useQuery({
-    queryKey: ["checkout-return-sub", user?.id],
+  const status = useQuery({
+    queryKey: ["checkout-return-sub", user?.id, session_id],
     enabled: !!user?.id && !!session_id && paymentsReady,
-    refetchInterval: (q) => {
-      const data = q.state.data;
-      if (data?.status === "active" || data?.status === "trialing") return false;
-      return 1500;
-    },
-    queryFn: async () => {
-      const env = getStripeEnvironment();
-      const { data } = await supabase
-        .from("subscriptions")
-        .select("status, price_id, current_period_end")
-        .eq("user_id", user!.id)
-        .eq("environment", env)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      return data;
-    },
+    retry: false,
+    refetchOnWindowFocus: false,
+    refetchInterval: (query) => (query.state.data || timedOut ? false : 3000),
+    queryFn: () =>
+      verifyCheckoutSubscription({
+        data: { sessionId: session_id!, environment: getStripeEnvironment() },
+      }),
   });
 
-  const isActive = sub?.status === "active" || sub?.status === "trialing";
-  const waiting = !!session_id && !isActive;
+  const isActive = status.data === true;
+  const waiting =
+    !!session_id && !!user?.id && paymentsReady && !isActive && !status.isError && !timedOut;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
@@ -60,14 +56,18 @@ function CheckoutReturn() {
             ? "Tudo certo"
             : waiting
               ? "Confirmando seu pagamento…"
-              : "Pagamento confirmado!"}
+              : isActive
+                ? "Pagamento confirmado!"
+                : "Assinatura pendente"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {!session_id
             ? "Você pode retornar ao painel."
             : waiting
               ? "Aguardando confirmação do Stripe. Isso normalmente leva poucos segundos."
-              : "Sua assinatura está ativa. Todos os recursos do plano foram liberados."}
+              : isActive
+                ? "A confirmação da sua assinatura foi recebida."
+                : "Confira o estado da sua assinatura nas configurações."}
         </p>
         <Link
           to="/dashboard"

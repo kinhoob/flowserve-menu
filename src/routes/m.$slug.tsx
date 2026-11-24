@@ -1,3 +1,4 @@
+import { planHasFeature } from "@/features/billing/plan-matrix";
 import { readDraft, writeDraft, clearDraft } from "@/features/orders/draft-storage";
 import { getServiceStatus } from "@/features/restaurant/service-hours";
 import { resolveRestaurantSlug } from "@/features/restaurant/resolve-restaurant-slug";
@@ -137,7 +138,7 @@ function PublicMenuPage() {
       const { data: r, error: rErr } = result;
       if (rErr) throw rErr;
       if (!r) throw notFound();
-      const [cats, items, modifiersMap, planRes, appearanceRes] = await Promise.all([
+      const [cats, items, modifiersMap, planRes, appearanceRes, tableRes] = await Promise.all([
         supabase
           .from("categories")
           .select("*")
@@ -153,21 +154,27 @@ function PublicMenuPage() {
         fetchModifiersForRestaurant(r.id),
         supabase.rpc("get_restaurant_plan", { p_slug: r.slug }),
         supabase.from("restaurants").select("menu_appearance").eq("id", r.id).maybeSingle(),
+        table
+          ? supabase.rpc("restaurant_table_is_operational", {
+              p_restaurant_id: r.id,
+              p_table_label: table,
+            })
+          : null,
       ]);
       if (cats.error) throw cats.error;
       if (items.error) throw items.error;
-      if (planRes.error) throw planRes.error;
       const service = await getServiceStatus(r.id);
       const kitchenOpen = service.kitchen_open;
       const barOpen = service.bar_open;
+      const plan = planRes.error ? null : planRes.data;
+      const orderingPlan = planHasFeature(plan, "kitchen") && tableRes?.data === true;
       const filteredItems =
-        !kitchenOpen && !barOpen
+        !orderingPlan || (!kitchenOpen && !barOpen)
           ? (items.data ?? [])
           : (items.data ?? []).filter((i) =>
               i.categories?.kind === "drink" ? barOpen : kitchenOpen,
             );
-      const plan = ((planRes.data as unknown as string) ?? "basic").toLowerCase();
-      const viewOnly = plan === "basic" || !table || (!kitchenOpen && !barOpen);
+      const viewOnly = !orderingPlan || (!kitchenOpen && !barOpen);
       return {
         restaurant: r,
         appearance: readAppearance(appearanceRes.data?.menu_appearance),
@@ -178,7 +185,8 @@ function PublicMenuPage() {
         barOpen,
         requireCode: service.require_table_code,
         serviceSetupPending: service.setupPending,
-        orderingPlan: plan !== "basic",
+        orderingPlan,
+        waiterCalls: orderingPlan && planHasFeature(plan, "waiter"),
         viewOnly,
       };
     },
@@ -674,7 +682,7 @@ function PublicMenuPage() {
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Mesa {table}
               </div>
             )}
-            {table && data.orderingPlan && !data.serviceSetupPending && (
+            {table && data.waiterCalls && !data.serviceSetupPending && (
               <button
                 onClick={handleCallWaiter}
                 disabled={callingWaiter}

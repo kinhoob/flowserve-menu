@@ -1,8 +1,15 @@
+import { paidPlanByLookupKey } from "@/features/billing/plan-matrix";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import { verifyWebhook, type StripeEnv } from "./stripe.server";
+import { createStripeClient, verifyWebhook, type StripeEnv } from "./stripe.server";
 
 const referenceSchema = z.union([z.string(), z.object({ id: z.string() })]);
+const invoiceSchema = z.object({
+  parent: z
+    .object({ subscription_details: z.object({ subscription: referenceSchema }).nullable() })
+    .nullish(),
+  subscription: referenceSchema.nullish(),
+});
 const subscriptionSchema = z.object({
   id: z.string(),
   metadata: z.object({ userId: z.string().optional() }),
@@ -34,24 +41,41 @@ export async function processBillingWebhook(
   environment: StripeEnv,
 ): Promise<void> {
   const event = await verifyWebhook(request, environment);
-  if (
-    ![
-      "customer.subscription.created",
-      "customer.subscription.updated",
-      "customer.subscription.deleted",
-    ].includes(event.type)
-  )
-    return;
-  const subscription = subscriptionSchema.parse(event.data.object);
+  const isInvoice = ["invoice.paid", "invoice.payment_failed"].includes(event.type);
+  const isSubscription = [
+    "customer.subscription.created",
+    "customer.subscription.updated",
+    "customer.subscription.deleted",
+    "customer.subscription.paused",
+    "customer.subscription.resumed",
+    "customer.subscription.pending_update_applied",
+    "customer.subscription.pending_update_expired",
+  ].includes(event.type);
+  if (!isSubscription && !isInvoice) return;
+
+  const getId = (ref: z.infer<typeof referenceSchema>) => (typeof ref === "string" ? ref : ref.id);
+  const snapshotRequestedAt = environment === "live" || isInvoice ? Date.now() : null;
+  let snapshot = event.data.object;
+  if (snapshotRequestedAt !== null) {
+    let id: string;
+    if (isInvoice) {
+      const invoice = invoiceSchema.parse(snapshot);
+      const ref = invoice.parent?.subscription_details?.subscription ?? invoice.subscription;
+      if (!ref) return;
+      id = getId(ref);
+    } else {
+      id = z.object({ id: z.string() }).parse(snapshot).id;
+    }
+    const current = await createStripeClient(environment).subscriptions.retrieve(id);
+    if (current.livemode !== (environment === "live"))
+      throw new Error("Ambiente Stripe divergente");
+    snapshot = current;
+  }
+  const subscription = subscriptionSchema.parse(snapshot);
   if (!subscription.metadata?.userId) throw new Error("Assinatura sem usuário vinculado");
   const item = subscription.items?.data?.[0];
   const price = item?.price?.lookup_key;
-  const plans: Record<string, string> = {
-    basic_monthly: "basic",
-    essential_monthly: "essential",
-    pro_monthly: "pro",
-  };
-  const plan = price ? plans[price] : undefined;
+  const plan = paidPlanByLookupKey(price);
   if (!plan && ["active", "trialing"].includes(subscription.status))
     throw new Error("Preço sem plano cadastrado");
   const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
@@ -72,7 +96,8 @@ export async function processBillingWebhook(
       price_id: price ?? item?.price?.id,
       product_id:
         typeof item?.price?.product === "string" ? item.price.product : item?.price?.product?.id,
-      status: event.type === "customer.subscription.deleted" ? "canceled" : subscription.status,
+      status: subscription.status,
+      snapshot_requested_at: snapshotRequestedAt,
       current_period_start: iso(item?.current_period_start ?? subscription.current_period_start),
       current_period_end: iso(item?.current_period_end ?? subscription.current_period_end),
       cancel_at_period_end: subscription.cancel_at_period_end ?? false,

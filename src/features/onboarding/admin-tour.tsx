@@ -70,14 +70,14 @@ const STEPS = [
   {
     to: "/qrcodes",
     title: "Prepare mesas e QR Codes",
-    body: "Cada mesa tem seu próprio link. Confira o endereço público antes de imprimir.",
+    body: "Basic tem um QR geral. Essential inclui até 10 QR Codes operacionais e Pro permite mesas ilimitadas.",
     actions: [
-      "Cadastre as mesas e confira seus nomes.",
+      "Baixe o QR geral para exibir o cardápio. Em planos com pedidos, cadastre e selecione as mesas operacionais.",
       "Baixe os cartões em PNG ou PDF e coloque-os nas mesas.",
-      "Consulte Mostrar código e entregue o código temporário ao cliente no salão. Não o imprima junto ao QR.",
+      "Quando exigido, gere o código temporário em Mesas e entregue-o ao cliente no salão.",
     ],
     result:
-      "O código expira em 2 horas e pode ser trocado. Uma foto antiga do QR, sozinha, não autoriza pedidos.",
+      "O código vale por até 24 horas ou até o encerramento do atendimento. Depois de um downgrade, escolha quais mesas continuam operacionais.",
   },
   {
     to: "/kitchen",
@@ -93,7 +93,7 @@ const STEPS = [
   {
     to: "/waiter",
     title: "Atenda o salão e encerre a conta",
-    body: "Acompanhe mesas ocupadas, chamados e solicitações de conta.",
+    body: "O painel Pro reúne mesas ocupadas, chamados e solicitações de conta. Use Mesas para concluir atendimentos quando o painel estiver bloqueado.",
     actions: [
       "Abra a mesa para registrar pedidos ou consultar a conta.",
       "Atenda os chamados e marque os pedidos como entregues.",

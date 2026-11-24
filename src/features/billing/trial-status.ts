@@ -2,32 +2,19 @@ import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { entitlementSchema } from "./entitlement";
+import { planHasFeature, type FeatureKey } from "./plan-matrix";
 
-export type PlanType = "trial" | "essential" | "pro" | "enterprise" | string;
+export { minimumPlan, type FeatureKey } from "./plan-matrix";
 
 export type TrialInfo = {
-  plan_type: PlanType;
+  plan_type: string;
   trial_ends_at: string;
   plan_source?: "manual" | "billing";
-};
-
-export type FeatureKey = "analytics" | "waiter" | "menu" | "kitchen" | "dashboard" | "tables";
-
-// Trial behaves like Pro so users experience the full potential of Flux Menu.
-const PLAN_FEATURES: Record<string, FeatureKey[]> = {
-  trial: ["analytics", "waiter", "menu", "kitchen", "dashboard", "tables"],
-  pro: ["analytics", "waiter", "menu", "kitchen", "dashboard", "tables"],
-  enterprise: ["analytics", "waiter", "menu", "kitchen", "dashboard", "tables"],
-  essential: ["menu", "kitchen", "dashboard", "tables"],
-  basic: ["menu", "dashboard"],
+  service_wind_down?: boolean;
 };
 
 export function canAccess(info: TrialInfo | null | undefined, feature: FeatureKey): boolean {
-  if (!info) return false;
-  if (isTrialExpired(info)) return false;
-  const plan = (info.plan_type ?? "trial").toLowerCase();
-  const features = PLAN_FEATURES[plan] ?? [];
-  return features.includes(feature);
+  return !!info && !isTrialExpired(info) && planHasFeature(info.plan_type, feature);
 }
 
 export function canContinueService(
@@ -36,19 +23,8 @@ export function canContinueService(
 ): boolean {
   return (
     canAccess(info, feature) ||
-    !!(
-      info &&
-      isTrialExpired(info) &&
-      ["dashboard", "kitchen", "waiter", "tables", "analytics"].includes(feature)
-    )
+    (!!info?.service_wind_down && (feature === "tables" || feature === "kitchen"))
   );
-}
-export function minimumPlan(feature: FeatureKey): string {
-  return ["menu", "dashboard"].includes(feature)
-    ? "Basic"
-    : ["kitchen", "tables"].includes(feature)
-      ? "Essential"
-      : "Pro";
 }
 
 export function useTrialStatus() {
@@ -60,36 +36,20 @@ export function useTrialStatus() {
     refetchInterval: 30000,
     refetchOnWindowFocus: true,
     queryFn: async (): Promise<TrialInfo | null> => {
-      try {
-        const entitlement = await supabase.rpc("get_my_entitlement");
-        if (!entitlement.error) return entitlementSchema.nullable().parse(entitlement.data);
-        if (!["PGRST202", "42883"].includes(entitlement.error.code)) throw entitlement.error;
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("plan_type, trial_ends_at")
-          .eq("id", user!.id)
-          .maybeSingle();
-        if (error) {
-          console.error("[trial-status] fetch error", error);
-          return null;
-        }
-        return data ?? null;
-      } catch (e) {
-        console.error("[trial-status] unexpected error", e);
-        return null;
-      }
+      const { data, error } = await supabase.rpc("get_my_entitlement");
+      if (error) throw error;
+      return entitlementSchema.nullable().parse(data);
     },
   });
 }
 
 export function isTrialExpired(info: TrialInfo | null | undefined): boolean {
-  if (!info) return false;
-  if (info.plan_type && info.plan_type !== "trial") return false;
-  return new Date(info.trial_ends_at).getTime() < Date.now();
+  if (info?.plan_type !== "trial") return false;
+  const end = Date.parse(info.trial_ends_at);
+  return !Number.isFinite(end) || end <= Date.now();
 }
 
 export function daysLeft(info: TrialInfo | null | undefined): number {
-  if (!info) return 0;
-  const ms = new Date(info.trial_ends_at).getTime() - Date.now();
-  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+  const end = Date.parse(info?.trial_ends_at ?? "");
+  return Number.isFinite(end) ? Math.max(0, Math.ceil((end - Date.now()) / 86400000)) : 0;
 }

@@ -1,11 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { processBillingWebhook } from "./billing-webhook";
-const { rpc, verify } = vi.hoisted(() => ({ rpc: vi.fn(), verify: vi.fn() }));
+const { rpc, verify, retrieve } = vi.hoisted(() => ({
+  rpc: vi.fn(),
+  verify: vi.fn(),
+  retrieve: vi.fn(),
+}));
 vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({ rpc }) }));
-vi.mock("./stripe.server", () => ({ verifyWebhook: verify }));
+vi.mock("./stripe.server", () => ({
+  verifyWebhook: verify,
+  createStripeClient: () => ({ subscriptions: { retrieve } }),
+}));
 beforeEach(() => {
   vi.clearAllMocks();
   rpc.mockResolvedValue({ error: null });
+  retrieve.mockResolvedValue({ ...event.data.object, livemode: true });
 });
 const event = {
   id: "evt_1",
@@ -39,12 +47,31 @@ describe("billing webhook", () => {
     );
     expect(rpc).toHaveBeenCalledTimes(1);
   });
-  it("rejects an active subscription without an allowlisted plan", async () => {
+  it("reconciles an invoice with the latest subscription instead of the event payload", async () => {
     verify.mockResolvedValue({
       ...event,
-      data: {
-        object: { ...event.data.object, items: { data: [{ price: { lookup_key: "unrelated" } }] } },
-      },
+      type: "invoice.payment_failed",
+      data: { object: { parent: { subscription_details: { subscription: "sub_1" } } } },
+    });
+    retrieve.mockResolvedValue({ ...event.data.object, livemode: true, status: "past_due" });
+    await processBillingWebhook(new Request("https://flux.example"), "live");
+    expect(retrieve).toHaveBeenCalledWith("sub_1");
+    expect(rpc).toHaveBeenCalledWith(
+      "apply_billing_event",
+      expect.objectContaining({
+        p_subscription: expect.objectContaining({
+          status: "past_due",
+          snapshot_requested_at: expect.any(Number),
+        }),
+      }),
+    );
+  });
+  it("rejects an active subscription without an allowlisted plan", async () => {
+    verify.mockResolvedValue(event);
+    retrieve.mockResolvedValue({
+      ...event.data.object,
+      livemode: true,
+      items: { data: [{ price: { lookup_key: "unrelated" } }] },
     });
     await expect(
       processBillingWebhook(new Request("https://flux.example"), "live"),
