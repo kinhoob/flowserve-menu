@@ -4,7 +4,12 @@ import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { useTables } from "@/features/tables/table-queries";
 import { publicMenuUrl } from "@/lib/public-menu-url";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { canContinueService, minimumPlan, type TrialInfo } from "@/features/billing/trial-status";
+import {
+  canOpenFeature,
+  canContinueService,
+  minimumPlan,
+  type TrialInfo,
+} from "@/features/billing/trial-status";
 import { normalizeSearch } from "@/features/menu/discovery";
 import { useNavigate } from "@tanstack/react-router";
 import { Command } from "cmdk";
@@ -124,7 +129,7 @@ export function CommandPalette({
                 className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-widest [&_[cmdk-group-heading]]:text-muted-foreground"
               >
                 {NAV.map(({ to, label, icon: Icon, feature }) => {
-                  const locked = !!feature && !!trial && !canContinueService(trial, feature);
+                  const locked = !!feature && !!trial && !canOpenFeature(trial, feature);
                   return (
                     <Command.Item
                       key={to}

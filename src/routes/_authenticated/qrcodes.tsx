@@ -45,7 +45,7 @@ function QRCodesPage() {
   const { data: allTables = [], isLoading: tLoading, isError: tError } = useTables(restaurant?.id);
   const { data: orders = [] } = useOrders(restaurant?.id);
   const { data: trial } = useTrialStatus();
-  const tableLimit = getTableLimit(trial);
+  const tableLimit = getTableLimit(trial) || null;
   const activeTables = allTables.filter((table) => table.operational);
   const mustSelect = tableLimit !== null && activeTables.length > tableLimit;
   const [selection, setSelection] = useState<string[] | null>(null);

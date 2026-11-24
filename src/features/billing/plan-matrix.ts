@@ -14,7 +14,18 @@ const FEATURE_MINIMUM = {
   kitchen: "essential",
   waiter: "pro",
   analytics: "pro",
+  kitchenSound: "pro",
 } as const;
+
+export function isKnownPlan(plan: unknown): plan is PaidPlan | "trial" | "enterprise" {
+  return (
+    plan === "basic" ||
+    plan === "essential" ||
+    plan === "pro" ||
+    plan === "trial" ||
+    plan === "enterprise"
+  );
+}
 
 export type FeatureKey = keyof typeof FEATURE_MINIMUM;
 

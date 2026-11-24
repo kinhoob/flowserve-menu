@@ -84,7 +84,7 @@ const STEPS = [
     title: "Da fila ao preparo",
     body: "Pedidos enviados pelo cliente chegam aqui para a equipe.",
     actions: [
-      "Filtre Cozinha ou Bar e ative o som no aparelho de atendimento.",
+      "Filtre Cozinha ou Bar. No Pro, você também pode ativar o alerta sonoro.",
       "Avance para Em preparo e depois Pronto conforme o pedido andar.",
       "Confira observações e adicionais. Ao cancelar, informe o motivo.",
     ],

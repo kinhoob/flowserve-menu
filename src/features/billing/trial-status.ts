@@ -2,7 +2,7 @@ import { useAuth } from "@/features/auth/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { entitlementSchema } from "./entitlement";
-import { planHasFeature, type FeatureKey } from "./plan-matrix";
+import { isKnownPlan, planHasFeature, type FeatureKey } from "./plan-matrix";
 
 export { minimumPlan, type FeatureKey } from "./plan-matrix";
 
@@ -23,13 +23,36 @@ export function canContinueService(
 ): boolean {
   return (
     canAccess(info, feature) ||
-    (!!info?.service_wind_down && (feature === "tables" || feature === "kitchen"))
+    (feature === "tables" &&
+      info?.plan_type === "trial" &&
+      Number.isFinite(Date.parse(info.trial_ends_at))) ||
+    (!!info &&
+      isKnownPlan(info.plan_type) &&
+      !!info.service_wind_down &&
+      (feature === "tables" || feature === "kitchen"))
   );
+}
+
+export function canReadAnalytics(info: TrialInfo | null | undefined): boolean {
+  return (
+    canAccess(info, "analytics") ||
+    (info?.plan_type === "trial" && Number.isFinite(Date.parse(info.trial_ends_at)))
+  );
+}
+
+export function canOpenFeature(info: TrialInfo | null | undefined, feature: FeatureKey): boolean {
+  if (feature === "analytics") return canReadAnalytics(info);
+  if (feature === "menu")
+    return (
+      canAccess(info, feature) ||
+      (info?.plan_type === "trial" && Number.isFinite(Date.parse(info.trial_ends_at)))
+    );
+  return canContinueService(info, feature);
 }
 
 export function useTrialStatus() {
   const { user } = useAuth();
-  return useQuery({
+  const query = useQuery({
     queryKey: ["trial-status", user?.id],
     enabled: !!user?.id,
     retry: false,
@@ -38,9 +61,16 @@ export function useTrialStatus() {
     queryFn: async (): Promise<TrialInfo | null> => {
       const { data, error } = await supabase.rpc("get_my_entitlement");
       if (error) throw error;
-      return entitlementSchema.nullable().parse(data);
+      const entitlement = entitlementSchema.parse(data);
+      if (
+        !isKnownPlan(entitlement.plan_type) ||
+        !Number.isFinite(Date.parse(entitlement.trial_ends_at))
+      )
+        throw new Error("Plano indisponível");
+      return entitlement;
     },
   });
+  return { ...query, data: query.isError ? undefined : query.data };
 }
 
 export function isTrialExpired(info: TrialInfo | null | undefined): boolean {

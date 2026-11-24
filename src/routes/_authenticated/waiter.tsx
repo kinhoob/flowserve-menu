@@ -5,7 +5,7 @@ import { QueryError, DashboardSkeleton } from "@/features/dashboard/query-feedba
 import { releaseTable } from "@/features/tables/release-table";
 import { TableServicePanel } from "@/features/tables/table-service-panel";
 import { FeatureLocked } from "@/features/billing/trial-guard";
-import { canContinueService, useTrialStatus } from "@/features/billing/trial-status";
+import { canAccess, canContinueService, useTrialStatus } from "@/features/billing/trial-status";
 import { SplitBillDialog } from "@/features/experience/split-bill-dialog";
 import { useOrders, type Order } from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
@@ -90,7 +90,7 @@ function WaiterPage() {
   // Detect newly-ready orders
   useEffect(() => {
     const readyOrders = (orders ?? []).filter((o) => o.status === "ready");
-    if (initialized.current) {
+    if (initialized.current && canAccess(trial, "kitchenSound")) {
       for (const o of readyOrders) {
         if (!seenReady.current.has(o.id)) {
           seenReady.current.add(o.id);
@@ -110,7 +110,7 @@ function WaiterPage() {
       readyOrders.forEach((o) => seenReady.current.add(o.id));
       if (orders) initialized.current = true;
     }
-  }, [orders]);
+  }, [orders, trial]);
 
   useEffect(() => {
     if (!ready) return;

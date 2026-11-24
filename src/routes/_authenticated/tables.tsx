@@ -91,7 +91,7 @@ function TablesPage() {
   const historyQuery = useTableHistory(restaurant?.id);
   const { data: history = [] } = historyQuery;
   const { data: trial } = useTrialStatus();
-  const tableLimit = getTableLimit(trial);
+  const tableLimit = getTableLimit(trial) || null;
   const activeCount = tables.filter((table) => table.operational).length;
   const mustSelect = tableLimit !== null && activeCount > tableLimit;
   const reachedLimit = tableLimit === null || activeCount >= tableLimit;
@@ -207,7 +207,6 @@ function TablesPage() {
 
   const filtered = tables.filter((t) => {
     const busy = occupancy.has(t.id);
-    if (trial?.service_wind_down && !busy) return false;
     if (filter === "busy") return busy;
     if (filter === "free") return !busy;
     return true;

@@ -1,3 +1,5 @@
+import { canAccess, useTrialStatus } from "@/features/billing/trial-status";
+import { downloadCsv } from "@/features/menu/catalog-csv";
 import { DashboardSkeleton, QueryError } from "@/features/dashboard/query-feedback";
 import { CatalogTools } from "@/features/menu/catalog-tools";
 import {
@@ -58,6 +60,7 @@ export const Route = createFileRoute("/_authenticated/menu")({
 });
 
 function MenuPage() {
+  const plan = useTrialStatus();
   const {
     data: restaurant,
     isLoading: rLoading,
@@ -119,6 +122,59 @@ function MenuPage() {
       />
     );
   const currency = restaurant.currency;
+  if (plan.isPending) return <DashboardSkeleton />;
+  if (!plan.data)
+    return (
+      <QueryError
+        message="Não foi possível verificar seu plano."
+        retry={() => void plan.refetch()}
+      />
+    );
+  if (!canAccess(plan.data, "menu"))
+    return (
+      <div className="mx-auto max-w-4xl space-y-5">
+        <h1 className="font-display text-3xl">Cardápio em consulta</h1>
+        <p className="text-sm text-muted-foreground">
+          O teste terminou. Você ainda pode consultar e exportar os itens por categoria.
+        </p>
+        {iError && (
+          <QueryError message="Não foi possível carregar os itens." retry={() => void iRefetch()} />
+        )}
+        <label className="block text-sm">
+          Categoria
+          <select
+            value={activeCatId ?? ""}
+            onChange={(event) => setActiveCatId(event.target.value)}
+            className="input-field mt-2"
+          >
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button
+          disabled={iError || !items.length}
+          onClick={() =>
+            downloadCsv("flux-cardapio.csv", [
+              ["Item", "Preço"],
+              ...items.map((item) => [item.name, item.price]),
+            ])
+          }
+        >
+          Exportar categoria
+        </Button>
+        <ul className="divide-y divide-border rounded-xl border border-border px-4">
+          {items.map((item) => (
+            <li className="flex justify-between gap-4 py-3" key={item.id}>
+              <span>{item.name}</span>
+              <span>{formatPrice(item.price, currency)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
 
   return (
     <div className="mx-auto w-full max-w-7xl">

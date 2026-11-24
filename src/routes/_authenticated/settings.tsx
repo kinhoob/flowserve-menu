@@ -1,3 +1,5 @@
+import { FeatureLocked } from "@/features/billing/trial-guard";
+import { QueryError, DashboardSkeleton } from "@/features/dashboard/query-feedback";
 import { PAID_PLANS } from "@/features/billing/plan-matrix";
 import { plans } from "@/features/experience/plan-catalog";
 import { MascotPreference } from "@/features/assistant/mascot-preference";
@@ -8,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/features/auth/use-auth";
-import { daysLeft, useTrialStatus } from "@/features/billing/trial-status";
+import { canAccess, daysLeft, useTrialStatus } from "@/features/billing/trial-status";
 import { EstablishmentSection } from "@/features/restaurant/establishment-section";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { TeamSection } from "@/features/staff/team-section";
@@ -53,7 +55,8 @@ const PLANS = plans.map((plan) => ({
 function SettingsPage() {
   const { tab, plan: planParam } = Route.useSearch();
   const { data: restaurant, isLoading, isError, error } = useRestaurant();
-  const { data: trialInfo } = useTrialStatus();
+  const planQuery = useTrialStatus();
+  const { data: trialInfo } = planQuery;
   const { user } = useAuth();
   const qc = useQueryClient();
   const [kitchenOpen, setKitchenOpen] = useState(true);
@@ -272,42 +275,55 @@ function SettingsPage() {
 
         <TabsContent value="operation" className="mt-6 space-y-6">
           <MascotPreference />
-          <ServiceHoursEditor key={restaurant.id} restaurant={restaurant} />
-          <section className="rounded-2xl border border-border bg-surface p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-                  <ChefHat className="h-5 w-5 text-primary" />
+          {planQuery.isPending ? (
+            <DashboardSkeleton />
+          ) : !trialInfo ? (
+            <QueryError
+              message="Não foi possível verificar seu plano."
+              retry={() => void planQuery.refetch()}
+            />
+          ) : canAccess(trialInfo, "kitchen") ? (
+            <>
+              {" "}
+              <ServiceHoursEditor key={restaurant.id} restaurant={restaurant} />
+              <section className="rounded-2xl border border-border bg-surface p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
+                      <ChefHat className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="font-display text-xl tracking-tight">Cozinha</h2>
+                      <p className="mt-1 max-w-md text-xs text-muted-foreground">
+                        Quando fechada, itens de comida são automaticamente desabilitados no
+                        cardápio público. As bebidas seguem a agenda e a pausa manual do bar.
+                      </p>
+                      <p className="mt-3 text-sm">
+                        Pausa manual:{" "}
+                        <span
+                          className={
+                            kitchenOpen
+                              ? "font-medium text-emerald-400"
+                              : "font-medium text-[oklch(0.78_0.18_25)]"
+                          }
+                        >
+                          {kitchenOpen ? "Habilitada (respeita a agenda)" : "Pausada"}
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    aria-label="Habilitar cozinha"
+                    checked={kitchenOpen}
+                    onCheckedChange={toggleKitchen}
+                    disabled={update.isPending}
+                  />
                 </div>
-                <div>
-                  <h2 className="font-display text-xl tracking-tight">Cozinha</h2>
-                  <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                    Quando fechada, itens de comida são automaticamente desabilitados no cardápio
-                    público. As bebidas seguem a agenda e a pausa manual do bar.
-                  </p>
-                  <p className="mt-3 text-sm">
-                    Pausa manual:{" "}
-                    <span
-                      className={
-                        kitchenOpen
-                          ? "font-medium text-emerald-400"
-                          : "font-medium text-[oklch(0.78_0.18_25)]"
-                      }
-                    >
-                      {kitchenOpen ? "Habilitada (respeita a agenda)" : "Pausada"}
-                    </span>
-                  </p>
-                </div>
-              </div>
-              <Switch
-                aria-label="Habilitar cozinha"
-                checked={kitchenOpen}
-                onCheckedChange={toggleKitchen}
-                disabled={update.isPending}
-              />
-            </div>
-          </section>
-
+              </section>
+            </>
+          ) : (
+            <FeatureLocked feature="kitchen" />
+          )}
           <section className="rounded-2xl border border-border bg-surface p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-4">
@@ -355,7 +371,18 @@ function SettingsPage() {
           <AppearanceEditor key={restaurant.id} restaurant={restaurant} />
         </TabsContent>
         <TabsContent value="team" className="mt-6">
-          <TeamSection restaurantId={restaurant.id} slug={restaurant.slug} />
+          {planQuery.isPending ? (
+            <DashboardSkeleton />
+          ) : !trialInfo ? (
+            <QueryError
+              message="Não foi possível verificar seu plano."
+              retry={() => void planQuery.refetch()}
+            />
+          ) : canAccess(trialInfo, "kitchen") ? (
+            <TeamSection restaurantId={restaurant.id} slug={restaurant.slug} />
+          ) : (
+            <FeatureLocked feature="kitchen" />
+          )}
         </TabsContent>
 
         <TabsContent value="billing" className="mt-6 space-y-6">

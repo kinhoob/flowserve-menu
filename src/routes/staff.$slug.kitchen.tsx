@@ -1,3 +1,6 @@
+import { planHasFeature } from "@/features/billing/plan-matrix";
+import { useStaffEntitlement } from "@/features/staff/use-staff-entitlement";
+import { DashboardSkeleton, QueryError } from "@/features/dashboard/query-feedback";
 import { toast } from "sonner";
 import { NewOrderAlarm } from "@/features/orders/new-order-alarm";
 import { ConnectionNotice } from "@/features/orders/connection-notice";
@@ -28,6 +31,11 @@ function StaffKitchen() {
   const session = useStaffSession(slug);
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const plan = useStaffEntitlement(session?.token);
+  const role = plan.data?.role;
+  const allowKitchen =
+    (role === "kitchen" || role === "both") &&
+    (planHasFeature(plan.data?.plan, "kitchen") || plan.data?.service_wind_down);
 
   useEffect(() => {
     if (!session) navigate({ to: "/staff/$slug", params: { slug } });
@@ -35,13 +43,13 @@ function StaffKitchen() {
 
   const ordersQ = useQuery({
     queryKey: ["staff-orders", session?.token],
-    enabled: !!session?.token,
+    enabled: !!allowKitchen,
     refetchInterval: 5000,
     queryFn: () => staffListOrders(session!.token),
   });
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !allowKitchen) return;
     const ch = supabase
       .channel(`staff-kds-${session.token}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
@@ -56,7 +64,7 @@ function StaffKitchen() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [session, qc]);
+  }, [session, qc, allowKitchen]);
 
   const updateStatus = useMutation({
     networkMode: "always",
@@ -87,6 +95,20 @@ function StaffKitchen() {
   }, [ordersQ.data]);
 
   if (!session) return null;
+  if (plan.isPending) return <DashboardSkeleton />;
+  if (plan.isError)
+    return (
+      <QueryError
+        message="Não foi possível verificar o acesso da cozinha."
+        retry={() => void plan.refetch()}
+      />
+    );
+  if (!allowKitchen)
+    return (
+      <p className="p-6 text-sm">
+        A cozinha exige uma sessão de equipe autorizada e o plano Essential ou superior.
+      </p>
+    );
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
@@ -102,7 +124,10 @@ function StaffKitchen() {
       </h1>
 
       <ConnectionNotice />
-      <NewOrderAlarm orders={ordersQ.data ?? []} />
+      <NewOrderAlarm
+        orders={ordersQ.data ?? []}
+        allowed={planHasFeature(plan.data?.plan, "kitchenSound")}
+      />
       {ordersQ.isError && (
         <p role="alert" className="rounded-xl border border-destructive p-3 text-sm">
           Não foi possível atualizar os pedidos.{" "}

@@ -1,3 +1,4 @@
+import { verifyLegacyPlanUpgrade, verifyPlanEnforcement } from "./verify-plan-enforcement.mjs";
 import { verifyCommercialReview } from "./verify-commercial-review.mjs";
 import { verifyCommercialBeta } from "./verify-commercial-beta.mjs";
 import EmbeddedPostgres from "embedded-postgres";
@@ -580,8 +581,10 @@ try {
   await verifyPlatformGrowth(client);
   await verifyBetaHardening(client, { rid, other, product, option });
   await verifyServiceRecovery(client, { rid, other, product, option });
+  await verifyLegacyPlanUpgrade(client);
   await verifyCommercialBeta(pg, client);
   await verifyCommercialReview(pg, client);
+  await verifyPlanEnforcement(client);
 } finally {
   if (client) await client.end();
   await pg.stop();

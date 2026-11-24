@@ -102,38 +102,57 @@ export async function verifyBetaHardening(client, { rid, other, product, option 
   await client.query("UPDATE restaurants SET require_table_code=true WHERE id=$1", [rid]);
   await client.query("SELECT set_config('request.jwt.claim.sub','',false)");
   await client.query("SET ROLE anon");
-  for (let i = 0; i < 5; i++) assert.equal((await submit(crypto.randomUUID(), "9999")).ok, false);
-  const denied = await submit();
-  assert.equal(denied.code, "RATE_LIMIT");
+  // Pin the budget clock inside this local transaction so wall-clock minute changes cannot reset the counters mid-fixture.
   await client.query("RESET ROLE");
-  assert.equal(
-    (
-      await client.query(
-        "SELECT failures FROM public_action_budgets WHERE restaurant_id=$1 AND table_id=$2 AND action='order'",
-        [rid, tid],
-      )
-    ).rows[0].failures,
-    5,
+  const {
+    rows: [{ definition }],
+  } = await client.query(
+    "SELECT pg_get_functiondef('public.public_request_budget(uuid,uuid,text)'::regprocedure) AS definition",
   );
-  await client.query("UPDATE restaurants SET require_table_code=false WHERE id=$1", [rid]);
-  await client.query("DELETE FROM public_action_budgets WHERE restaurant_id=$1", [rid]);
-  await client.query("SET ROLE anon");
-  for (let i = 0; i < 6; i++) {
-    const result = (
+  assert.ok(definition.includes("clock_timestamp()"));
+  await client.query("BEGIN");
+  try {
+    await client.query(definition.replace("clock_timestamp()", "transaction_timestamp()"));
+    await client.query("SET ROLE anon");
+    for (let i = 0; i < 5; i++) assert.equal((await submit(crypto.randomUUID(), "9999")).ok, false);
+    const denied = await submit();
+    assert.equal(denied.code, "RATE_LIMIT");
+    await client.query("RESET ROLE");
+    assert.equal(
+      (
+        await client.query(
+          "SELECT failures FROM public_action_budgets WHERE restaurant_id=$1 AND table_id=$2 AND action='order'",
+          [rid, tid],
+        )
+      ).rows[0].failures,
+      5,
+    );
+    await client.query("UPDATE restaurants SET require_table_code=false WHERE id=$1", [rid]);
+    await client.query("DELETE FROM public_action_budgets WHERE restaurant_id=$1", [rid]);
+    await client.query("SET ROLE anon");
+    for (let i = 0; i < 6; i++) {
+      const result = (
+        await client.query(
+          "SELECT submit_public_call($1,'Mesa Beta','Teste',NULL,'call',NULL) AS r",
+          [rid],
+        )
+      ).rows[0].r;
+      assert.equal(result.ok, i === 0);
+    }
+    const call = (
       await client.query(
         "SELECT submit_public_call($1,'Mesa Beta','Teste',NULL,'call',NULL) AS r",
         [rid],
       )
     ).rows[0].r;
-    assert.equal(result.ok, i === 0);
+    assert.equal(call.code, "RATE_LIMIT");
+    await client.query("RESET ROLE");
+  } finally {
+    await client.query("ROLLBACK");
   }
-  const call = (
-    await client.query("SELECT submit_public_call($1,'Mesa Beta','Teste',NULL,'call',NULL) AS r", [
-      rid,
-    ])
-  ).rows[0].r;
-  assert.equal(call.code, "RATE_LIMIT");
   await client.query("RESET ROLE");
+  await client.query("UPDATE restaurants SET require_table_code=false WHERE id=$1", [rid]);
+  await client.query("DELETE FROM public_action_budgets WHERE restaurant_id=$1", [rid]);
   await client.query("SELECT set_config('request.jwt.claim.sub',$1,false)", [owner]);
   await client.query("SET ROLE authenticated");
   const internalToken = crypto.randomUUID();

@@ -1,3 +1,4 @@
+import { useStaffEntitlement } from "@/features/staff/use-staff-entitlement";
 import { findTableForRecord } from "@/features/tables/table-identity";
 import { planHasFeature } from "@/features/billing/plan-matrix";
 import { getServiceStatus } from "@/features/restaurant/service-hours";
@@ -46,36 +47,28 @@ function StaffWaiter() {
     if (!session) navigate({ to: "/staff/$slug", params: { slug } });
   }, [session, navigate, slug]);
 
-  const plan = useQuery({
-    queryKey: ["staff-plan", session?.restaurant_slug],
-    enabled: !!session,
-    refetchInterval: 15000,
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_restaurant_plan", {
-        p_slug: session!.restaurant_slug,
-      });
-      if (error) throw error;
-      return data;
-    },
-  });
-  const canOperate = planHasFeature(plan.data, "waiter");
+  const plan = useStaffEntitlement(session?.token);
+  const role = plan.data?.role;
+  const isWaiter = role === "waiter" || role === "both";
+  const canOperate = isWaiter && planHasFeature(plan.data?.plan, "waiter");
+  const canAccessOrders = canOperate || (isWaiter && plan.data?.service_wind_down);
   const tablesQ = useQuery({
     queryKey: ["staff-tables", session?.token],
-    enabled: !!session?.token,
+    enabled: !!canAccessOrders,
     refetchInterval: 15000,
     queryFn: () => staffListTables(session!.token),
   });
 
   const ordersQ = useQuery({
     queryKey: ["staff-orders", session?.token],
-    enabled: !!session?.token,
+    enabled: !!canAccessOrders,
     refetchInterval: 5000,
     queryFn: () => staffListOrders(session!.token),
   });
 
   const callsQ = useQuery({
     queryKey: ["staff-calls", session?.token],
-    enabled: !!session?.token,
+    enabled: !!canAccessOrders,
     refetchInterval: 5000,
     queryFn: () => staffListCalls(session!.token),
   });
@@ -107,7 +100,7 @@ function StaffWaiter() {
   const restId = restaurantId ?? restaurantQ.data?.id;
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || !canAccessOrders) return;
     const ch = supabase
       .channel(`staff-live-${session.token}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, (payload) => {
@@ -130,7 +123,7 @@ function StaffWaiter() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [session, qc]);
+  }, [session, qc, canAccessOrders]);
 
   const archive = useMutation({
     networkMode: "always",
@@ -208,6 +201,12 @@ function StaffWaiter() {
   if (plan.isError)
     return (
       <QueryError message="Não foi possível verificar o plano." retry={() => void plan.refetch()} />
+    );
+  if (!canAccessOrders)
+    return (
+      <p className="p-6 text-sm">
+        O painel do garçom exige uma sessão de equipe autorizada e o plano Pro.
+      </p>
     );
   if (ordersQ.isError || tablesQ.isError)
     return (

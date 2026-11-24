@@ -5,6 +5,7 @@ import { minimumPlan, daysLeft, type FeatureKey, type TrialInfo } from "./trial-
 export function FeatureLocked({ feature }: { feature: FeatureKey }) {
   const labels: Record<FeatureKey, string> = {
     analytics: "Análises avançadas",
+    kitchenSound: "Alertas sonoros",
     waiter: "Rota do Garçom",
     menu: "Cardápio",
     kitchen: "Pedidos",

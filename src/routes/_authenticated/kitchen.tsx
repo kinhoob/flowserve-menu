@@ -1,8 +1,9 @@
+import { NewOrderAlarm } from "@/features/orders/new-order-alarm";
 import { SyncStatus } from "@/features/orders/sync-status";
 import { DashboardSkeleton } from "@/features/dashboard/query-feedback";
 import { CancelOrderDialog } from "@/features/orders/cancel-order-dialog";
 import { FeatureLocked, ServiceWindDownNotice } from "@/features/billing/trial-guard";
-import { canContinueService, useTrialStatus } from "@/features/billing/trial-status";
+import { canAccess, canContinueService, useTrialStatus } from "@/features/billing/trial-status";
 import {
   STATUS_FLOW,
   STATUS_LABELS,
@@ -17,22 +18,12 @@ import { StaffPicker } from "@/features/staff/staff-picker";
 import { supabase } from "@/integrations/supabase/client";
 import { getErrorDetails } from "@/lib/errors";
 import { formatPrice } from "@/lib/format";
-import { playChime } from "@/lib/sound";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  Archive,
-  ArrowRight,
-  CheckCircle2,
-  ChefHat,
-  Clock,
-  Volume2,
-  VolumeX,
-  XCircle,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Archive, ArrowRight, CheckCircle2, ChefHat, Clock, XCircle } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/kitchen")({
@@ -109,11 +100,8 @@ function KitchenPage() {
   }
 
   const [showServed, setShowServed] = useState(false);
-  const [soundOn, setSoundOn] = useState(true);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [scope, setScope] = useState<"all" | "food" | "drink">("all");
-  const prevPending = useRef<Set<string>>(new Set());
-  const initialized = useRef(false);
 
   const scopedOrders = useMemo(() => {
     const visible = (orders ?? []).filter((o) => !o.kitchen_hidden);
@@ -140,20 +128,6 @@ function KitchenPage() {
   const totalActive = scopedOrders.filter(
     (o) => o.status !== "served" && o.status !== "cancelled",
   ).length;
-
-  useEffect(() => {
-    const pending = new Set((orders ?? []).filter((o) => o.status === "pending").map((o) => o.id));
-    if (initialized.current && soundOn) {
-      for (const id of pending) {
-        if (!prevPending.current.has(id)) {
-          playChime();
-          break;
-        }
-      }
-    }
-    prevPending.current = pending;
-    if (orders) initialized.current = true;
-  }, [orders, soundOn]);
 
   if (!canContinueService(trial, "kitchen")) {
     return (
@@ -222,25 +196,11 @@ function KitchenPage() {
               </button>
             ))}
           </div>
-          <button
-            onClick={() => {
-              setSoundOn(true);
-              playChime();
-            }}
-            className="rounded-xl border border-border px-3 py-2 text-xs"
-          >
-            Ativar/testar som
-          </button>
-          <button
-            onClick={() => {
-              setSoundOn((v) => !v);
-              if (!soundOn) playChime();
-            }}
-            title={soundOn ? "Som ativo" : "Som mudo"}
-            className="rounded-xl border border-border bg-surface p-2.5 text-sm text-muted-foreground transition hover:text-foreground"
-          >
-            {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-          </button>
+          <NewOrderAlarm
+            orders={orders ?? []}
+            allowed={canAccess(trial, "kitchenSound")}
+            initiallyArmed
+          />
           <button
             onClick={() => setShowServed((v) => !v)}
             className="rounded-xl border border-border bg-surface px-4 py-2 text-sm text-muted-foreground transition hover:text-foreground"

@@ -50,3 +50,11 @@ Verifique: ocultar entregues sem liberar mesa; dois funcionários atualizando a 
 - Termos exibem `contato@flux.example` e Privacidade exibe `privacidade@flux.example`, ambos fictícios. O link de vendas provisório foi retirado. Antes de abertura comercial, confirme o responsável legal pelo serviço e os contatos reais de suporte, privacidade e vendas.
 - Verifique backup e restauração em ambiente descartável, histórico de migrações, alertas de erros do app e do webhook, métricas de disponibilidade e saúde do banco. Registre quem recebe alertas e quem pode restaurar o serviço.
 - A validação local usa dados fictícios e Postgres isolado. O piloto externo depende de domínio, hospedagem, configuração Auth/SMTP, migração conferida e ensaio com equipamentos reais. A cobrança depende também das configurações Stripe live e dos contatos comerciais verificados.
+
+### Upgrade manual de planos em base instalada
+
+Use [fluxqr-planos-beta.sql](../supabase/fluxqr-planos-beta.sql) para atualizar uma base Flux existente sem histórico de migrations. O script engloba as três migrações comerciais do beta, em ordem, numa transação. A pré-verificação lista relações, funções e colunas indispensáveis, além de conferir RLS nas tabelas de base. Uma etapa com apenas alguns marcadores presentes interrompe o upgrade. Uma etapa completa é preservada.
+
+Antes de aplicar, confira os objetos listados em `commercial_preflight`, confirme que as funções existentes são as versões Flux esperadas e faça backup. Ensaie a aplicação em uma cópia descartável. Publique a aplicação compatível logo após a migração, pois o relatório protegido, a autorização da equipe e o bloqueio de APIs antigas exigem a versão atual. Se a base já usa histórico de migrações, siga o caminho versionado e evite executar também o arquivo manual. Registre separadamente a aplicação manual em bases legadas.
+
+Se for preciso regenerar o arquivo, execute `node scripts/build-commercial-plan-upgrade.mjs`. O teste de banco confere o conteúdo gerado e ensaia aplicação e reaplicação.

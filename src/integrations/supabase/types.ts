@@ -753,6 +753,11 @@ export type Database = {
         Args: { p_restaurant_id: string; p_table_label: string };
         Returns: boolean;
       };
+      get_staff_entitlement: { Args: { p_token: string }; Returns: Json };
+      get_restaurant_analytics: {
+        Args: { p_restaurant_id: string; p_from: string; p_until: string; p_offset: number };
+        Returns: Json[];
+      };
       get_my_entitlement: { Args: Record<string, never>; Returns: Json };
       platform_list_restaurants: {
         Args: { p_search?: string; p_status?: string; p_page?: number };

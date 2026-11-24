@@ -41,17 +41,15 @@ export function useReportOrders(
       // Conservative UTC bounds cover local civil days, overnight service and all IANA offsets.
       const from = new Date((start - 1) * 86400000).toISOString(),
         until = new Date((end + 3) * 86400000).toISOString();
-      return fetchAllPages<ReportOrder>((a, b) =>
-        supabase
-          .from("orders")
-          .select("*, order_items(*, menu_items(category_id, categories(id, name, kind)))")
-          .eq("restaurant_id", restaurantId!)
-          .gte("created_at", from)
-          .lt("created_at", until)
-          .order("created_at", { ascending: false })
-          .order("id")
-          .range(a, b),
-      );
+      return fetchAllPages<ReportOrder>(async (offset) => {
+        const { data, error } = await supabase.rpc("get_restaurant_analytics", {
+          p_restaurant_id: restaurantId!,
+          p_from: from,
+          p_until: until,
+          p_offset: offset,
+        });
+        return { data: data as ReportOrder[] | null, error };
+      });
     },
   });
 }
