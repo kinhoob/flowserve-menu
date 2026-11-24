@@ -25,6 +25,29 @@ export async function verifyPlanEnforcement(client) {
   const consolidated = fs.readFileSync(file, "utf8");
   await client.query(consolidated);
   await client.query(consolidated);
+
+  const migrationsInTransaction = consolidated
+    .replace(/^BEGIN;\n/m, "")
+    .replace(/\nCOMMIT;\n$/, "\n");
+  for (const [change, error] of [
+    ["GRANT EXECUTE ON FUNCTION public.require_waiter_plan(uuid) TO anon", /grants divergentes/],
+    [
+      "CREATE OR REPLACE FUNCTION public.require_waiter_plan(p_restaurant_id uuid) RETURNS void LANGUAGE plpgsql AS $$ BEGIN RETURN; END $$",
+      /Corpo ou grants divergentes/,
+    ],
+    [
+      "ALTER TABLE public.waiter_calls DISABLE TRIGGER commercial_guard_call",
+      /Gatilhos comerciais/,
+    ],
+  ]) {
+    await client.query("BEGIN");
+    try {
+      await client.query(change);
+      await assert.rejects(client.query(migrationsInTransaction), error);
+    } finally {
+      await client.query("ROLLBACK");
+    }
+  }
   const owner = crypto.randomUUID(),
     outsider = crypto.randomUUID();
   await client.query(
@@ -92,6 +115,87 @@ export async function verifyPlanEnforcement(client) {
   await client.query("SET ROLE anon");
   await assert.rejects(analytics(), { code: "42501" });
   await client.query("RESET ROLE");
+
+  await client.query("RESET ROLE");
+  const {
+    rows: [waiter],
+  } = await client.query(
+    "INSERT INTO staff_members(restaurant_id,name,pin,role) VALUES($1,'Garçom de teste','1653','waiter') RETURNING id",
+    [venue.id],
+  );
+  const staffToken = (await client.query("SELECT token FROM staff_login($1,'1653')", [venue.slug]))
+    .rows[0].token;
+  await plan("essential");
+  await asOwner();
+  const addTable = (suffix) =>
+    client.query(
+      "INSERT INTO venue_tables(restaurant_id,label,short_code) VALUES($1,$2,$3) RETURNING id",
+      [venue.id, "Mesa " + suffix, "SHORT" + suffix],
+    );
+  const {
+    rows: [table],
+  } = await addTable("Essential");
+  const {
+    rows: [free],
+  } = await addTable("Livre");
+  const start = (token = null) =>
+    client.query("SELECT start_table_service($1,$2) AS id", [table.id, token]);
+  const code = (token = null, rotate = true) =>
+    client.query("SELECT table_order_code($1,$2,$3) AS data", [table.id, token, rotate]);
+  await assert.rejects(start(staffToken), { code: "42501" });
+  await assert.rejects(code(staffToken), { code: "42501" });
+  const initial = (await start()).rows[0].id;
+  assert.match((await code()).rows[0].data.code, /^\d{4}$/);
+  await assert.rejects(code(staffToken, false), { code: "42501" });
+  const close = (id, token = null) =>
+    client.query("SELECT release_table_service($1,$2,$3,$4)", [venue.id, table.id, id, token]);
+  await close(initial, staffToken);
+  const ensureNoStaffWrites = async () => {
+    await assert.rejects(
+      client.query(
+        "INSERT INTO staff_members(restaurant_id,name,pin,role) VALUES($1,'Sem acesso','7283','waiter')",
+        [venue.id],
+      ),
+      { code: "42501" },
+    );
+    assert.equal(
+      (await client.query("UPDATE staff_members SET name='Sem acesso' WHERE id=$1", [waiter.id]))
+        .rowCount,
+      0,
+    );
+    assert.equal(
+      (await client.query("DELETE FROM staff_members WHERE id=$1", [waiter.id])).rowCount,
+      0,
+    );
+  };
+  assert.equal(
+    (await client.query("UPDATE staff_members SET name='Permitido' WHERE id=$1", [waiter.id]))
+      .rowCount,
+    1,
+  );
+  await plan("pro");
+  await asOwner();
+  const active = (await start(staffToken)).rows[0].id;
+  assert.match((await code(staffToken)).rows[0].data.code, /^\d{4}$/);
+  await plan("trial", -1);
+  await asOwner();
+  await ensureNoStaffWrites();
+  assert.equal((await client.query("DELETE FROM venue_tables WHERE id=$1", [free.id])).rowCount, 0);
+  await assert.rejects(start(staffToken), { code: "42501" });
+  await close(active, staffToken);
+  await plan("basic");
+  await asOwner();
+  await ensureNoStaffWrites();
+  await plan("unrecognized");
+  await asOwner();
+  await ensureNoStaffWrites();
+  await plan("essential");
+  await asOwner(outsider);
+  await ensureNoStaffWrites();
+  await client.query("RESET ROLE");
+  console.log(
+    "PASS: Pro waiter RPCs, Essential owner access, expired safe closure, staff and table writes gated by RLS, upgrade contract rejects partial repairs",
+  );
   console.log(
     "PASS: legacy staged upgrade, staff role and effective plan, RLS catalog operations, authorized historical reports and export access",
   );

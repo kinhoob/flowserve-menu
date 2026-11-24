@@ -28,7 +28,101 @@ const stages = [
       "(SELECT count(*) FROM pg_policies WHERE schemaname='public' AND tablename IN ('categories','menu_items','modifier_groups','modifier_options') AND policyname IN ('active_plan_catalog_insert','active_plan_catalog_update','active_plan_catalog_delete') AND permissive='RESTRICTIVE') = 12",
     ],
   },
+  {
+    file: "20261124152106_guard_staff_operations.sql",
+    markers: [
+      "to_regprocedure('public.can_manage_restaurant_operation(uuid)') IS NOT NULL",
+      "to_regprocedure('public.require_waiter_plan(uuid)') IS NOT NULL",
+      "EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND policyname IN ('operation_plan_staff_insert','operation_plan_staff_update','operation_plan_staff_delete','operation_plan_table_delete'))",
+    ],
+  },
 ];
+
+function installedContract() {
+  const functions = [
+    [0, "guard_operational_qr", "", []],
+    [0, "ensure_table_service", "uuid,boolean", []],
+    [0, "select_operational_tables", "uuid,uuid[]", ["authenticated"]],
+    [0, "platform_change_entitlement", "uuid,text,text,integer,text,bigint", ["authenticated"]],
+    [1, "apply_billing_event", "text,bigint,text,jsonb", ["service_role"]],
+    [1, "begin_billing_reconciliation", "text,text", ["service_role"]],
+    [1, "reserve_billing_checkout", "uuid,text,text,text,text", ["service_role"]],
+    [1, "release_table_service", "uuid,uuid,uuid,text,numeric,numeric", ["anon", "authenticated"]],
+    [1, "release_table", "uuid,text,text,numeric,numeric", ["anon", "authenticated"]],
+    [2, "get_staff_entitlement", "text", ["anon", "authenticated"]],
+    [2, "get_restaurant_analytics", "uuid,timestamptz,timestamptz,integer", ["authenticated"]],
+    [3, "start_table_service", "uuid,text", ["anon", "authenticated"]],
+    [3, "table_order_code", "uuid,text,boolean", ["anon", "authenticated"]],
+    [3, "can_manage_restaurant_operation", "uuid", ["authenticated"]],
+    [3, "require_waiter_plan", "uuid", []],
+  ];
+  const checks = functions.map(([stage, name, args, roles], index) => {
+    const sql = fs.readFileSync(
+      new URL("../supabase/migrations/" + stages[stage].file, import.meta.url),
+      "utf8",
+    );
+    const body = sql.match(
+      new RegExp(
+        "CREATE (?:OR REPLACE )?FUNCTION public\\." +
+          name +
+          "\\([\\s\\S]*?\\bAS \\$\\$([\\s\\S]*?)\\$\\$;",
+      ),
+    )?.[1];
+    if (!body) throw new Error("Missing SQL body: " + name);
+    const tag = "$commercial_body_" + index + "$";
+    const signature = "public." + name + "(" + args + ")";
+    const target = "to_regprocedure('" + signature + "')";
+    const grants = [
+      "anon",
+      "authenticated",
+      ...roles.filter((role) => role === "service_role"),
+    ].map(
+      (role) =>
+        "has_function_privilege('" +
+        role +
+        "'," +
+        target +
+        ",'EXECUTE') IS " +
+        (roles.includes(role) ? "TRUE" : "FALSE"),
+    );
+    return [
+      "  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=" +
+        target +
+        " AND btrim(replace(prosrc,chr(13),''))=btrim(",
+      tag + body.replaceAll("\r", "") + tag + ")) OR NOT (" + grants.join(" AND ") + ") THEN",
+      "    RAISE EXCEPTION 'Corpo ou grants divergentes em " + signature + "';",
+      "  END IF;",
+    ].join("\n");
+  });
+  return [
+    "DO $commercial_contract$ BEGIN",
+    ...checks,
+    "  IF EXISTS (SELECT 1 FROM unnest(ARRAY['anon','authenticated']) AS role_name WHERE",
+    "    has_function_privilege(role_name,'public.staff_place_order(text,uuid,jsonb)','EXECUTE')",
+    "    OR has_function_privilege(role_name,'public.owner_place_order(uuid,uuid,jsonb,text)','EXECUTE')) THEN",
+    "    RAISE EXCEPTION 'RPC legada de pedido manual ainda exposta.'; END IF;",
+    "  IF EXISTS (SELECT 1 FROM (VALUES",
+    "    ('venue_tables','guard_operational_qr','guard_operational_qr',23),",
+    "    ('venue_tables','guard_active_table_delete','guard_active_table_delete',11),",
+    "    ('orders','commercial_guard_order','guard_new_order_plan',7),",
+    "    ('orders','attach_table_service','attach_table_service',7),",
+    "    ('waiter_calls','commercial_guard_call','guard_new_call_plan',7),",
+    "    ('waiter_calls','mark_service_bill','mark_service_bill',5)",
+    "  ) expected(relation,trigger_name,function_name,kind) WHERE NOT EXISTS (",
+    "    SELECT 1 FROM pg_trigger t WHERE t.tgrelid=to_regclass('public.' || relation)",
+    "      AND t.tgname=trigger_name AND t.tgfoid=to_regprocedure('public.' || function_name || '()')",
+    "      AND t.tgtype=kind AND t.tgenabled IN ('O','A') AND NOT t.tgisinternal",
+    "  )) THEN RAISE EXCEPTION 'Gatilhos comerciais ausentes, desabilitados ou divergentes.'; END IF;",
+    "  IF (SELECT count(*) FROM pg_policies WHERE schemaname='public' AND permissive='RESTRICTIVE'",
+    "    AND roles=ARRAY['authenticated']::name[] AND (",
+    "      (tablename='staff_members' AND policyname='operation_plan_staff_insert' AND cmd='INSERT' AND with_check='can_manage_restaurant_operation(restaurant_id)')",
+    "      OR (tablename='staff_members' AND policyname='operation_plan_staff_update' AND cmd='UPDATE' AND qual='can_manage_restaurant_operation(restaurant_id)' AND with_check=qual)",
+    "      OR (tablename='staff_members' AND policyname='operation_plan_staff_delete' AND cmd='DELETE' AND qual='can_manage_restaurant_operation(restaurant_id)')",
+    "      OR (tablename='venue_tables' AND policyname='operation_plan_table_delete' AND cmd='DELETE' AND qual='can_manage_restaurant_operation(restaurant_id)')",
+    "    )) <> 4 THEN RAISE EXCEPTION 'Políticas operacionais divergentes.'; END IF;",
+    "END $commercial_contract$;",
+  ].join("\n");
+}
 
 export function commercialPlanUpgradeSQL() {
   const statements = stages.map(({ file, markers }, index) => {
@@ -54,6 +148,7 @@ export function commercialPlanUpgradeSQL() {
     "-- Apenas para uma base Flux existente. Use os passos em docs/DEPLOYMENT.md.",
     "BEGIN;",
     "SET LOCAL statement_timeout = '120s';",
+    "SET LOCAL search_path = public, pg_catalog;",
     "DO $commercial_preflight$",
     "DECLARE missing text;",
     "BEGIN",
@@ -62,7 +157,7 @@ export function commercialPlanUpgradeSQL() {
     "    'public.categories','public.menu_items','public.modifier_groups','public.modifier_options',",
     "    'public.platform_admins','public.platform_entitlements','public.platform_audit_log',",
     "    'public.subscriptions','public.billing_events','public.table_services','public.operation_events',",
-    "    'public.waiter_calls','public.table_order_codes','public.internal_order_requests'",
+    "    'public.waiter_calls','public.table_order_codes','public.internal_order_requests','public.staff_members'",
     "  ]) AS expected(name) WHERE to_regclass(name) IS NULL;",
     "  IF missing IS NOT NULL THEN RAISE EXCEPTION 'Objetos de base ausentes: %', missing; END IF;",
     "  SELECT string_agg(signature, ', ') INTO missing FROM unnest(ARRAY[",
@@ -93,10 +188,11 @@ export function commercialPlanUpgradeSQL() {
     "  IF EXISTS (SELECT 1 FROM pg_class c WHERE c.oid IN (",
     "    'public.venue_tables'::regclass,'public.orders'::regclass,'public.order_items'::regclass,",
     "    'public.profiles'::regclass,'public.categories'::regclass,'public.menu_items'::regclass,",
-    "    'public.modifier_groups'::regclass,'public.modifier_options'::regclass",
+    "    'public.modifier_groups'::regclass,'public.modifier_options'::regclass,'public.staff_members'::regclass",
     "  ) AND NOT c.relrowsecurity) THEN RAISE EXCEPTION 'RLS desabilitado em tabela de base.'; END IF;",
     "END $commercial_preflight$;",
     ...statements,
+    installedContract(),
     "NOTIFY pgrst, 'reload schema';",
     "COMMIT;",
     "",

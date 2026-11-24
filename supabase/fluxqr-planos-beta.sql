@@ -2,6 +2,7 @@
 -- Apenas para uma base Flux existente. Use os passos em docs/DEPLOYMENT.md.
 BEGIN;
 SET LOCAL statement_timeout = '120s';
+SET LOCAL search_path = public, pg_catalog;
 DO $commercial_preflight$
 DECLARE missing text;
 BEGIN
@@ -10,7 +11,7 @@ BEGIN
     'public.categories','public.menu_items','public.modifier_groups','public.modifier_options',
     'public.platform_admins','public.platform_entitlements','public.platform_audit_log',
     'public.subscriptions','public.billing_events','public.table_services','public.operation_events',
-    'public.waiter_calls','public.table_order_codes','public.internal_order_requests'
+    'public.waiter_calls','public.table_order_codes','public.internal_order_requests','public.staff_members'
   ]) AS expected(name) WHERE to_regclass(name) IS NULL;
   IF missing IS NOT NULL THEN RAISE EXCEPTION 'Objetos de base ausentes: %', missing; END IF;
   SELECT string_agg(signature, ', ') INTO missing FROM unnest(ARRAY[
@@ -41,7 +42,7 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_class c WHERE c.oid IN (
     'public.venue_tables'::regclass,'public.orders'::regclass,'public.order_items'::regclass,
     'public.profiles'::regclass,'public.categories'::regclass,'public.menu_items'::regclass,
-    'public.modifier_groups'::regclass,'public.modifier_options'::regclass
+    'public.modifier_groups'::regclass,'public.modifier_options'::regclass,'public.staff_members'::regclass
   ) AND NOT c.relrowsecurity) THEN RAISE EXCEPTION 'RLS desabilitado em tabela de base.'; END IF;
 END $commercial_preflight$;
 DO $commercial_stage_0$ BEGIN
@@ -851,5 +852,525 @@ NOTIFY pgrst, 'reload schema';
 $commercial_sql_2$;
   END IF;
 END $commercial_stage_2$;
+DO $commercial_stage_3$ BEGIN
+  IF (to_regprocedure('public.can_manage_restaurant_operation(uuid)') IS NOT NULL) AND
+     (to_regprocedure('public.require_waiter_plan(uuid)') IS NOT NULL) AND
+     (EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND policyname IN ('operation_plan_staff_insert','operation_plan_staff_update','operation_plan_staff_delete','operation_plan_table_delete'))) THEN
+    RAISE NOTICE 'Etapa já instalada: 20261124152106_guard_staff_operations.sql';
+  ELSIF (to_regprocedure('public.can_manage_restaurant_operation(uuid)') IS NOT NULL) OR
+        (to_regprocedure('public.require_waiter_plan(uuid)') IS NOT NULL) OR
+        (EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND policyname IN ('operation_plan_staff_insert','operation_plan_staff_update','operation_plan_staff_delete','operation_plan_table_delete'))) THEN
+    RAISE EXCEPTION 'Etapa parcial: 20261124152106_guard_staff_operations.sql. Confira o schema antes de repetir.';
+  ELSE
+    EXECUTE $commercial_sql_3$
+-- Owner management uses the current entitlement, including audited manual grants.
+CREATE FUNCTION public.can_manage_restaurant_operation(p_restaurant_id uuid) RETURNS boolean
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public, pg_temp AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.restaurants r WHERE r.id = p_restaurant_id AND r.owner_id = auth.uid()
+      AND public.restaurant_has_operations(public.get_restaurant_plan(r.slug))
+  );
+$$;
+REVOKE ALL ON FUNCTION public.can_manage_restaurant_operation(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.can_manage_restaurant_operation(uuid) TO authenticated;
+
+CREATE POLICY operation_plan_staff_insert ON public.staff_members AS RESTRICTIVE
+  FOR INSERT TO authenticated WITH CHECK (public.can_manage_restaurant_operation(restaurant_id));
+CREATE POLICY operation_plan_staff_update ON public.staff_members AS RESTRICTIVE
+  FOR UPDATE TO authenticated USING (public.can_manage_restaurant_operation(restaurant_id))
+  WITH CHECK (public.can_manage_restaurant_operation(restaurant_id));
+CREATE POLICY operation_plan_staff_delete ON public.staff_members AS RESTRICTIVE
+  FOR DELETE TO authenticated USING (public.can_manage_restaurant_operation(restaurant_id));
+CREATE POLICY operation_plan_table_delete ON public.venue_tables AS RESTRICTIVE
+  FOR DELETE TO authenticated USING (public.can_manage_restaurant_operation(restaurant_id));
+
+-- Keep token-scoped waiter actions separate from the authenticated owner path.
+CREATE FUNCTION public.require_waiter_plan(p_restaurant_id uuid) RETURNS void
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM restaurants r WHERE r.id = p_restaurant_id
+      AND public.restaurant_has_waiter(public.get_restaurant_plan(r.slug))
+  ) THEN
+    RAISE EXCEPTION 'A operação do garçom está disponível a partir do plano Pro.' USING ERRCODE = '42501';
+  END IF;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.require_waiter_plan(uuid) FROM PUBLIC, anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.start_table_service(p_table_id uuid,p_staff_token text DEFAULT NULL) RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
+DECLARE rid uuid;s record;
+BEGIN
+ SELECT restaurant_id INTO rid FROM venue_tables WHERE id=p_table_id;
+ IF p_staff_token IS NOT NULL THEN
+ SELECT * INTO s FROM staff_session_info(p_staff_token);
+ IF s.restaurant_id IS DISTINCT FROM rid OR coalesce(s.role,'') NOT IN ('waiter','both') THEN RAISE EXCEPTION 'Acesso negado'; END IF;
+ ELSIF NOT EXISTS(SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN
+   RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+ END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(rid::text,0));
+ IF p_staff_token IS NOT NULL THEN PERFORM public.require_waiter_plan(rid); END IF;
+ PERFORM set_config('flux.actor_staff',coalesce((SELECT staff_id::text FROM staff_session_info(p_staff_token)),''),true);
+ RETURN ensure_table_service(p_table_id);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.table_order_code(p_table_id uuid,p_staff_token text DEFAULT NULL,p_rotate boolean DEFAULT false)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,extensions,pg_temp AS $$
+DECLARE rid uuid; s record; c record; next_code text;
+BEGIN
+ SELECT restaurant_id INTO rid FROM venue_tables WHERE id=p_table_id;
+ IF rid IS NULL THEN RAISE EXCEPTION 'Mesa inválida'; END IF;
+ IF p_staff_token IS NOT NULL THEN
+   SELECT * INTO s FROM public.staff_session_info(p_staff_token);
+   IF s.restaurant_id IS DISTINCT FROM rid OR coalesce(s.role,'') NOT IN ('waiter','both') THEN RAISE EXCEPTION 'Acesso negado'; END IF;
+ ELSIF NOT EXISTS(SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN
+   RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+ END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(rid::text,0));
+ PERFORM pg_advisory_xact_lock(hashtextextended(p_table_id::text,4));
+ IF p_staff_token IS NOT NULL THEN PERFORM public.require_waiter_plan(rid); END IF;
+ SELECT * INTO c FROM table_order_codes WHERE table_id=p_table_id;
+ IF p_rotate THEN
+   PERFORM set_config('flux.actor_staff',coalesce((SELECT staff_id::text FROM staff_session_info(p_staff_token)),''),true);
+   PERFORM ensure_table_service(p_table_id);
+   LOOP
+     -- 16 random bits, rejection sampling avoids modulo bias.
+     next_code:=encode(extensions.gen_random_bytes(2),'hex');
+     EXIT WHEN ('x'||next_code)::bit(16)::integer < 60000
+       AND lpad((('x'||next_code)::bit(16)::integer % 10000)::text,4,'0') IS DISTINCT FROM c.code;
+   END LOOP;
+   next_code:=lpad((('x'||next_code)::bit(16)::integer % 10000)::text,4,'0');
+   INSERT INTO table_order_codes(table_id,restaurant_id,code,expires_at)
+   VALUES(p_table_id,rid,next_code,now()+interval '24 hours')
+   ON CONFLICT(table_id) DO UPDATE SET code=EXCLUDED.code,expires_at=EXCLUDED.expires_at RETURNING * INTO c;
+ END IF;
+ IF c.table_id IS NULL OR c.expires_at<=now() OR c.code !~ '^[0-9]{4}$' THEN RETURN NULL; END IF;
+ IF p_rotate THEN
+ INSERT INTO operation_events(restaurant_id,table_id,service_id,event,actor_user_id,actor_staff_id,actor_name,details)
+ VALUES(rid,p_table_id,(SELECT active_service_id FROM venue_tables WHERE id=p_table_id),'code_issued',auth.uid(),(SELECT staff_id FROM staff_session_info(p_staff_token)),coalesce((SELECT name FROM staff_session_info(p_staff_token)),'Responsável'),jsonb_build_object('expires_at',c.expires_at));
+ END IF;
+ RETURN jsonb_build_object('code',c.code,'expires_at',c.expires_at);
+END $$;
+
+NOTIFY pgrst, 'reload schema';
+$commercial_sql_3$;
+  END IF;
+END $commercial_stage_3$;
+DO $commercial_contract$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.guard_operational_qr()') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_0$
+DECLARE plan text;
+BEGIN
+  IF NOT NEW.operational THEN RETURN NEW; END IF;
+  IF TG_OP = 'UPDATE' AND OLD.operational AND OLD.label = NEW.label
+      AND OLD.restaurant_id = NEW.restaurant_id THEN RETURN NEW; END IF;
+  PERFORM public.lock_restaurant_qrs(NEW.restaurant_id);
+  SELECT public.get_restaurant_plan(r.slug) INTO plan FROM restaurants r WHERE r.id = NEW.restaurant_id;
+  IF NOT public.restaurant_has_operations(plan) THEN
+    RAISE EXCEPTION 'QR Codes operacionais estão disponíveis a partir do plano Essential.' USING ERRCODE = '22023';
+  END IF;
+  IF public.operational_table_label(NEW.label) = '' OR EXISTS (
+    SELECT 1 FROM venue_tables t WHERE t.restaurant_id = NEW.restaurant_id
+    AND t.id <> NEW.id AND t.operational
+    AND public.operational_table_label(t.label) = public.operational_table_label(NEW.label)
+  ) THEN
+    RAISE EXCEPTION 'Já existe um QR operacional com esse nome, ou o nome é inválido.' USING ERRCODE = '22023';
+  END IF;
+  IF plan = 'essential' AND (
+    SELECT count(*) FROM venue_tables t WHERE t.restaurant_id = NEW.restaurant_id
+    AND t.id <> NEW.id AND t.operational
+  ) >= public.essential_qr_limit() THEN
+    RAISE EXCEPTION 'O plano Essential permite até 10 QR Codes operacionais.' USING ERRCODE = '22023';
+  END IF;
+  RETURN NEW;
+END;
+$commercial_body_0$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.guard_operational_qr()'),'EXECUTE') IS FALSE AND has_function_privilege('authenticated',to_regprocedure('public.guard_operational_qr()'),'EXECUTE') IS FALSE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.guard_operational_qr()';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.ensure_table_service(uuid,boolean)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_1$
+DECLARE t record; sid uuid;
+BEGIN
+ SELECT restaurant_id INTO t FROM venue_tables WHERE id=p_table_id;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Mesa inválida'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(t.restaurant_id::text,0));
+ IF NOT p_backfill THEN PERFORM public.require_operational_table(t.restaurant_id, p_table_id); END IF;
+ SELECT * INTO t FROM venue_tables WHERE id=p_table_id FOR UPDATE;
+ IF t.active_service_id IS NOT NULL AND EXISTS(SELECT 1 FROM table_services WHERE id=t.active_service_id AND ended_at IS NULL) THEN RETURN t.active_service_id; END IF;
+ INSERT INTO table_services(restaurant_id,table_id) VALUES(t.restaurant_id,t.id) RETURNING id INTO sid;
+ UPDATE venue_tables SET active_service_id=sid,service_started_at=now(),service_state='active' WHERE id=t.id;
+ RETURN sid;
+END $commercial_body_1$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.ensure_table_service(uuid,boolean)'),'EXECUTE') IS FALSE AND has_function_privilege('authenticated',to_regprocedure('public.ensure_table_service(uuid,boolean)'),'EXECUTE') IS FALSE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.ensure_table_service(uuid,boolean)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.select_operational_tables(uuid,uuid[])') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_2$
+DECLARE plan text; selected integer; distinct_labels integer;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM restaurants WHERE id = p_restaurant_id AND owner_id = auth.uid()) THEN
+    RAISE EXCEPTION 'Acesso negado' USING ERRCODE = '42501';
+  END IF;
+  PERFORM public.lock_restaurant_qrs(p_restaurant_id);
+  SELECT public.get_restaurant_plan(r.slug) INTO plan FROM restaurants r WHERE r.id = p_restaurant_id;
+  IF NOT public.restaurant_has_operations(plan) THEN
+    RAISE EXCEPTION 'Gestão de QR Codes operacionais está disponível a partir do Essential.' USING ERRCODE = '22023';
+  END IF;
+  IF p_table_ids IS NULL OR (plan = 'essential' AND cardinality(p_table_ids) > public.essential_qr_limit()) THEN
+    RAISE EXCEPTION 'Seleção de mesas acima do limite do plano ou inválida.' USING ERRCODE = '22023';
+  END IF;
+  SELECT count(*), count(DISTINCT public.operational_table_label(t.label))
+    INTO selected, distinct_labels FROM venue_tables t
+    WHERE t.restaurant_id = p_restaurant_id AND t.id = ANY(p_table_ids);
+  IF selected <> cardinality(p_table_ids) OR selected <> distinct_labels THEN
+    RAISE EXCEPTION 'Selecione mesas deste restaurante com nomes distintos.' USING ERRCODE = '22023';
+  END IF;
+  UPDATE venue_tables SET operational = false
+    WHERE restaurant_id = p_restaurant_id AND operational AND NOT (id = ANY(p_table_ids));
+  UPDATE venue_tables SET operational = true
+    WHERE restaurant_id = p_restaurant_id AND NOT operational AND id = ANY(p_table_ids);
+END;
+$commercial_body_2$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.select_operational_tables(uuid,uuid[])'),'EXECUTE') IS FALSE AND has_function_privilege('authenticated',to_regprocedure('public.select_operational_tables(uuid,uuid[])'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.select_operational_tables(uuid,uuid[])';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.platform_change_entitlement(uuid,text,text,integer,text,bigint)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_3$
+DECLARE r record; before_value jsonb; after_value jsonb; next_plan text; next_trial timestamptz; v bigint; actor text;
+BEGIN
+ IF NOT public.is_platform_owner() THEN
+   RAISE EXCEPTION 'Acesso exclusivo do proprietário do Flux.' USING ERRCODE='42501';
+ END IF;
+ IF p_action IS NULL OR p_action NOT IN ('set_plan','extend_trial','restore_billing') OR char_length(btrim(coalesce(p_reason,''))) NOT BETWEEN 5 AND 500 THEN RAISE EXCEPTION 'Informe uma ação e um motivo de 5 a 500 caracteres'; END IF;
+ SELECT * INTO r FROM restaurants WHERE id=p_restaurant_id;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Restaurante não encontrado'; END IF;
+ -- Account-level lock also protects the first override from concurrent administrators.
+ PERFORM 1 FROM profiles WHERE id=r.owner_id FOR UPDATE;
+ before_value:=public.effective_entitlement(r.owner_id);
+ v:=(before_value->>'version')::bigint;
+ IF p_expected_version IS DISTINCT FROM v THEN RAISE EXCEPTION 'Este cliente foi atualizado por outra ação. Recarregue os dados antes de confirmar.' USING ERRCODE='40001'; END IF;
+ next_plan:=before_value->>'plan_type';next_trial:=(before_value->>'trial_ends_at')::timestamptz;
+ IF p_action='set_plan' THEN
+ IF p_plan IS NULL OR p_plan NOT IN ('trial','basic','essential','pro','enterprise') THEN RAISE EXCEPTION 'Plano inválido'; END IF;
+ next_plan:=p_plan;
+ IF p_plan='trial' THEN
+ IF p_days IS NULL OR p_days NOT BETWEEN 1 AND 365 THEN RAISE EXCEPTION 'Informe de 1 a 365 dias de teste'; END IF;
+ next_trial:=now()+make_interval(days=>p_days);
+ ELSIF p_days IS NOT NULL THEN RAISE EXCEPTION 'Dias extras só se aplicam ao trial'; END IF;
+ ELSIF p_action='extend_trial' THEN
+ IF next_plan<>'trial' OR p_days IS NULL OR p_days NOT BETWEEN 1 AND 365 THEN RAISE EXCEPTION 'A extensão exige um cliente em trial e de 1 a 365 dias'; END IF;
+ next_trial:=greatest(next_trial,now())+make_interval(days=>p_days);
+ END IF;
+ INSERT INTO platform_entitlements(user_id,enabled,plan_type,trial_ends_at,version,updated_by)
+ VALUES(r.owner_id,p_action<>'restore_billing',next_plan,next_trial,v+1,auth.uid())
+ ON CONFLICT(user_id) DO UPDATE SET enabled=EXCLUDED.enabled,plan_type=EXCLUDED.plan_type,trial_ends_at=EXCLUDED.trial_ends_at,version=EXCLUDED.version,updated_by=EXCLUDED.updated_by,updated_at=now();
+ after_value:=public.effective_entitlement(r.owner_id);
+ SELECT email INTO actor FROM auth.users WHERE id=auth.uid();
+ INSERT INTO platform_audit_log(actor_id,actor_email,target_user_id,restaurant_id,action,reason,before_state,after_state)
+ VALUES(auth.uid(),coalesce(actor,'Conta removida'),r.owner_id,r.id,p_action,btrim(p_reason),before_value,after_value);
+ RETURN after_value;
+END $commercial_body_3$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.platform_change_entitlement(uuid,text,text,integer,text,bigint)'),'EXECUTE') IS FALSE AND has_function_privilege('authenticated',to_regprocedure('public.platform_change_entitlement(uuid,text,text,integer,text,bigint)'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.platform_change_entitlement(uuid,text,text,integer,text,bigint)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.apply_billing_event(text,bigint,text,jsonb)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_4$
+DECLARE uid uuid; active_plan text; plan text; generation bigint; current_generation bigint;
+BEGIN
+  IF p_environment NOT IN ('live','sandbox') OR p_created IS NULL OR p_event_id IS NULL THEN RAISE EXCEPTION 'Invalid event'; END IF;
+  uid := (p_subscription->>'user_id')::uuid;
+  plan := p_subscription->>'plan_type';
+  generation := (p_subscription->>'reconciliation_generation')::bigint;
+  SELECT r.generation INTO current_generation FROM billing_reconciliation r
+    WHERE r.environment=p_environment AND r.subscription_id=p_subscription->>'stripe_subscription_id' FOR UPDATE;
+  IF generation IS NULL OR current_generation IS NULL THEN RAISE EXCEPTION 'Missing billing reconciliation'; END IF;
+  IF generation <> current_generation THEN RETURN; END IF;
+  IF plan IS NOT NULL AND plan NOT IN ('basic','essential','pro') THEN RAISE EXCEPTION 'Invalid plan'; END IF;
+  PERFORM pg_advisory_xact_lock(hashtextextended(uid::text,3));
+  INSERT INTO billing_events(event_id,environment,created) VALUES(p_event_id,p_environment,p_created) ON CONFLICT DO NOTHING;
+  -- A signed retry still reconciles the current Stripe state.
+  INSERT INTO subscriptions(user_id,stripe_subscription_id,stripe_customer_id,price_id,product_id,status,
+    current_period_start,current_period_end,cancel_at_period_end,environment,last_event_created,plan_type)
+  VALUES(uid,p_subscription->>'stripe_subscription_id',p_subscription->>'stripe_customer_id',p_subscription->>'price_id',
+    p_subscription->>'product_id',p_subscription->>'status',(p_subscription->>'current_period_start')::timestamptz,
+    (p_subscription->>'current_period_end')::timestamptz,(p_subscription->>'cancel_at_period_end')::boolean,p_environment,p_created,plan)
+  ON CONFLICT(stripe_subscription_id) DO UPDATE SET status=EXCLUDED.status,price_id=EXCLUDED.price_id,
+    product_id=EXCLUDED.product_id,current_period_start=EXCLUDED.current_period_start,current_period_end=EXCLUDED.current_period_end,
+    cancel_at_period_end=EXCLUDED.cancel_at_period_end,last_event_created=greatest(subscriptions.last_event_created, EXCLUDED.last_event_created),
+    plan_type=coalesce(EXCLUDED.plan_type,subscriptions.plan_type),updated_at=now()
+  WHERE subscriptions.user_id=EXCLUDED.user_id AND subscriptions.environment=EXCLUDED.environment
+    AND (subscriptions.status <> 'canceled' OR EXCLUDED.status = 'canceled');
+  IF NOT FOUND THEN RETURN; END IF;
+  IF p_environment <> 'live' THEN RETURN; END IF;
+  SELECT s.plan_type INTO active_plan FROM subscriptions s WHERE s.user_id=uid AND s.environment='live'
+    AND s.status IN ('active','trialing') AND s.plan_type IS NOT NULL ORDER BY s.updated_at DESC, s.last_event_created DESC, s.stripe_subscription_id LIMIT 1;
+  IF active_plan IS NOT NULL THEN
+    UPDATE profiles SET plan_type=active_plan WHERE id=uid;
+  ELSIF (p_subscription->>'status') IN ('past_due','unpaid','incomplete_expired','paused','canceled') THEN
+    UPDATE profiles SET plan_type='trial',trial_ends_at=to_timestamp(0) WHERE id=uid;
+  END IF;
+END $commercial_body_4$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.apply_billing_event(text,bigint,text,jsonb)'),'EXECUTE') IS FALSE AND has_function_privilege('authenticated',to_regprocedure('public.apply_billing_event(text,bigint,text,jsonb)'),'EXECUTE') IS FALSE AND has_function_privilege('service_role',to_regprocedure('public.apply_billing_event(text,bigint,text,jsonb)'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.apply_billing_event(text,bigint,text,jsonb)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.begin_billing_reconciliation(text,text)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_5$
+  INSERT INTO billing_reconciliation AS r(environment,subscription_id)
+  VALUES (p_environment,p_subscription_id)
+  ON CONFLICT (environment,subscription_id) DO UPDATE SET generation = r.generation + 1
+  RETURNING generation::text;
+$commercial_body_5$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.begin_billing_reconciliation(text,text)'),'EXECUTE') IS FALSE AND has_function_privilege('authenticated',to_regprocedure('public.begin_billing_reconciliation(text,text)'),'EXECUTE') IS FALSE AND has_function_privilege('service_role',to_regprocedure('public.begin_billing_reconciliation(text,text)'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.begin_billing_reconciliation(text,text)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.reserve_billing_checkout(uuid,text,text,text,text)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_6$
+DECLARE slot billing_checkout_attempts; now_epoch bigint;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended(p_user_id::text || ':' || p_environment, 11));
+  now_epoch := floor(extract(epoch FROM clock_timestamp()));
+  SELECT * INTO slot FROM billing_checkout_attempts WHERE user_id = p_user_id AND environment = p_environment;
+  IF NOT FOUND OR slot.expires_at <= now_epoch THEN
+    INSERT INTO billing_checkout_attempts(user_id,environment,stripe_price_id,stripe_customer_id,return_url,expires_at)
+    VALUES (p_user_id,p_environment,p_price_id,p_customer_id,p_return_url,now_epoch + 7200)
+    ON CONFLICT (user_id,environment) DO UPDATE SET
+      attempt_id = EXCLUDED.attempt_id, stripe_price_id = EXCLUDED.stripe_price_id,
+      stripe_customer_id = EXCLUDED.stripe_customer_id, return_url = EXCLUDED.return_url, expires_at = EXCLUDED.expires_at
+    RETURNING * INTO slot;
+  END IF;
+  RETURN jsonb_build_object('attempt_id',slot.attempt_id,'price_id',slot.stripe_price_id,
+    'customer_id',slot.stripe_customer_id,'return_url',slot.return_url,'expires_at',slot.expires_at);
+END;
+$commercial_body_6$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.reserve_billing_checkout(uuid,text,text,text,text)'),'EXECUTE') IS FALSE AND has_function_privilege('authenticated',to_regprocedure('public.reserve_billing_checkout(uuid,text,text,text,text)'),'EXECUTE') IS FALSE AND has_function_privilege('service_role',to_regprocedure('public.reserve_billing_checkout(uuid,text,text,text,text)'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.reserve_billing_checkout(uuid,text,text,text,text)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.release_table_service(uuid,uuid,uuid,text,numeric,numeric)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_7$
+DECLARE rid uuid:=p_restaurant_id; s record; tid uuid:=p_table_id; canonical text; current_service uuid; unambiguous boolean; ids uuid[]; primary_id uuid;
+BEGIN
+ IF p_staff_token IS NOT NULL THEN
+   SELECT * INTO s FROM public.staff_session_info(p_staff_token);
+   IF s.restaurant_id IS NULL OR coalesce(s.role,'') NOT IN ('waiter','both') OR (rid IS NOT NULL AND rid<>s.restaurant_id) THEN RAISE EXCEPTION 'Acesso negado'; END IF;
+   rid:=s.restaurant_id;
+ ELSIF NOT EXISTS(SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN
+   RAISE EXCEPTION 'Acesso negado';
+ END IF;
+ IF p_service_fee IS NULL OR p_cover_charge IS NULL OR p_service_fee<0 OR p_cover_charge<0 OR p_service_fee>1000000 OR p_cover_charge>1000000 THEN RAISE EXCEPTION 'Taxas inválidas'; END IF;
+ IF tid IS NULL THEN RAISE EXCEPTION 'Mesa inválida'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(rid::text,0));
+ PERFORM pg_advisory_xact_lock(hashtextextended(tid::text,4));
+ SELECT label, active_service_id INTO canonical, current_service FROM venue_tables
+ WHERE id=tid AND restaurant_id=rid FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Mesa inválida'; END IF;
+ IF current_service IS DISTINCT FROM p_service_id OR (current_service IS NOT NULL AND NOT EXISTS (
+   SELECT 1 FROM table_services WHERE id=current_service AND table_id=tid AND restaurant_id=rid AND ended_at IS NULL
+ )) THEN RAISE EXCEPTION 'O atendimento mudou. Atualize a mesa antes de encerrar.' USING ERRCODE='40001'; END IF;
+ SELECT count(*)=1 INTO unambiguous FROM venue_tables WHERE restaurant_id=rid
+   AND public.operational_table_label(label)=public.operational_table_label(canonical);
+ PERFORM set_config('flux.actor_staff',coalesce((SELECT staff_id::text FROM staff_session_info(p_staff_token)),''),true);
+ SELECT coalesce(array_agg(id ORDER BY created_at,id),'{}'::uuid[]) INTO ids FROM orders
+ WHERE restaurant_id=rid AND NOT coalesce(archived,false) AND status::text<>'cancelled'
+ AND ((service_id=current_service AND table_id=tid) OR (service_id IS NULL AND
+   (table_id=tid OR (table_id IS NULL AND unambiguous
+     AND public.operational_table_label(table_label)=public.operational_table_label(canonical)))));
+
+ IF EXISTS(SELECT 1 FROM orders WHERE id=ANY(ids) AND status<>'served') THEN RAISE EXCEPTION 'Há pedidos ainda não entregues. Entregue ou cancele antes de encerrar a mesa.'; END IF;
+ primary_id:=ids[1];
+ IF primary_id IS NOT NULL AND (p_service_fee>0 OR p_cover_charge>0) THEN
+ UPDATE orders SET service_fee=p_service_fee,cover_charge=p_cover_charge WHERE id=primary_id;
+ END IF;
+ UPDATE orders SET archived=true,status='served',updated_at=now() WHERE id=ANY(ids);
+ UPDATE waiter_calls SET resolved=true,resolved_at=now() WHERE restaurant_id=rid AND NOT resolved
+ AND (table_id=tid OR (table_id IS NULL AND unambiguous
+   AND public.operational_table_label(table_label)=public.operational_table_label(canonical)));
+ UPDATE orders SET archived=true WHERE restaurant_id=rid AND table_id=tid AND status='cancelled'
+   AND (service_id=current_service OR service_id IS NULL) AND NOT archived;
+ UPDATE table_services SET ended_at=now(),state='closed' WHERE id=(SELECT active_service_id FROM venue_tables WHERE id=tid) AND ended_at IS NULL;
+ UPDATE venue_tables SET active_service_id=NULL,service_started_at=NULL,service_state='free' WHERE id=tid;
+ DELETE FROM table_order_codes WHERE table_id=tid;
+ RETURN ids;
+END $commercial_body_7$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.release_table_service(uuid,uuid,uuid,text,numeric,numeric)'),'EXECUTE') IS TRUE AND has_function_privilege('authenticated',to_regprocedure('public.release_table_service(uuid,uuid,uuid,text,numeric,numeric)'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.release_table_service(uuid,uuid,uuid,text,numeric,numeric)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.release_table(uuid,text,text,numeric,numeric)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_8$
+DECLARE rid uuid := p_restaurant_id; staff record; target record;
+BEGIN
+ IF p_staff_token IS NOT NULL THEN
+   SELECT * INTO staff FROM public.staff_session_info(p_staff_token);
+   IF staff.restaurant_id IS NULL OR coalesce(staff.role,'') NOT IN ('waiter','both')
+     OR (rid IS NOT NULL AND rid<>staff.restaurant_id) THEN RAISE EXCEPTION 'Acesso negado'; END IF;
+   rid := staff.restaurant_id;
+ ELSIF NOT EXISTS (SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN
+   RAISE EXCEPTION 'Acesso negado';
+ END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(rid::text,0));
+ SELECT id, active_service_id INTO STRICT target FROM venue_tables
+ WHERE restaurant_id=rid AND public.operational_table_label(label)=public.operational_table_label(p_table_label);
+ RETURN public.release_table_service(rid,target.id,target.active_service_id,p_staff_token,p_service_fee,p_cover_charge);
+EXCEPTION WHEN no_data_found OR too_many_rows THEN
+ RAISE EXCEPTION 'Mesa inválida ou ambígua. Atualize a aplicação e selecione a mesa.';
+END $commercial_body_8$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.release_table(uuid,text,text,numeric,numeric)'),'EXECUTE') IS TRUE AND has_function_privilege('authenticated',to_regprocedure('public.release_table(uuid,text,text,numeric,numeric)'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.release_table(uuid,text,text,numeric,numeric)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.get_staff_entitlement(text)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_9$
+DECLARE staff record; venue record; entitlement jsonb; plan text;
+BEGIN
+  SELECT * INTO staff FROM public.staff_session_info(p_token);
+  IF staff.restaurant_id IS NULL THEN RAISE EXCEPTION 'Sessão inválida' USING ERRCODE = '42501'; END IF;
+  SELECT id, slug, owner_id INTO STRICT venue FROM restaurants WHERE id = staff.restaurant_id;
+  entitlement := public.effective_entitlement(venue.owner_id);
+  IF entitlement->>'plan_type' NOT IN ('basic','essential','pro','trial','enterprise')
+    OR entitlement->>'plan_type' IS NULL THEN
+    RAISE EXCEPTION 'Plano indisponível' USING ERRCODE = '42501';
+  END IF;
+  plan := public.get_restaurant_plan(venue.slug);
+  RETURN jsonb_build_object(
+    'plan', plan,
+    'role', staff.role,
+    'service_wind_down', NOT public.restaurant_has_operations(plan) AND (
+      EXISTS (SELECT 1 FROM table_services s WHERE s.restaurant_id = venue.id AND s.ended_at IS NULL)
+      OR EXISTS (SELECT 1 FROM orders o WHERE o.restaurant_id = venue.id AND NOT o.archived AND o.status <> 'cancelled')
+    )
+  );
+END;
+$commercial_body_9$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.get_staff_entitlement(text)'),'EXECUTE') IS TRUE AND has_function_privilege('authenticated',to_regprocedure('public.get_staff_entitlement(text)'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.get_staff_entitlement(text)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.get_restaurant_analytics(uuid,timestamptz,timestamptz,integer)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_10$
+DECLARE entitlement jsonb;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM restaurants WHERE id = p_restaurant_id AND owner_id = auth.uid()) THEN
+    RAISE EXCEPTION 'Acesso negado' USING ERRCODE = '42501';
+  END IF;
+  entitlement := public.get_my_entitlement();
+  IF coalesce(entitlement->>'plan_type', '') NOT IN ('trial','pro','enterprise') THEN
+    RAISE EXCEPTION 'Análises avançadas estão disponíveis a partir do plano Pro.' USING ERRCODE = '42501';
+  END IF;
+  IF p_from IS NULL OR p_until IS NULL OR p_until <= p_from
+    OR p_until - p_from > interval '200 days' OR p_offset IS NULL OR p_offset < 0 THEN
+    RAISE EXCEPTION 'Período inválido' USING ERRCODE = '22023';
+  END IF;
+  RETURN QUERY
+    SELECT to_jsonb(o) || jsonb_build_object('order_items', coalesce((
+      SELECT jsonb_agg(to_jsonb(i) || jsonb_build_object(
+        'menu_items', CASE WHEN m.id IS NOT NULL THEN jsonb_build_object(
+          'category_id', m.category_id, 'categories', CASE WHEN c.id IS NOT NULL THEN
+            jsonb_build_object('id', c.id, 'name', c.name, 'kind', c.kind) END
+        ) END
+      ) ORDER BY i.id)
+      FROM order_items i
+      LEFT JOIN menu_items m ON m.id = i.menu_item_id AND m.restaurant_id = p_restaurant_id
+      LEFT JOIN categories c ON c.id = m.category_id AND c.restaurant_id = p_restaurant_id
+      WHERE i.order_id = o.id
+    ), '[]'::jsonb))
+    FROM orders o
+    WHERE o.restaurant_id = p_restaurant_id AND o.created_at >= p_from AND o.created_at < p_until
+    ORDER BY o.created_at DESC, o.id LIMIT 500 OFFSET p_offset;
+END;
+$commercial_body_10$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.get_restaurant_analytics(uuid,timestamptz,timestamptz,integer)'),'EXECUTE') IS FALSE AND has_function_privilege('authenticated',to_regprocedure('public.get_restaurant_analytics(uuid,timestamptz,timestamptz,integer)'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.get_restaurant_analytics(uuid,timestamptz,timestamptz,integer)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.start_table_service(uuid,text)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_11$
+DECLARE rid uuid;s record;
+BEGIN
+ SELECT restaurant_id INTO rid FROM venue_tables WHERE id=p_table_id;
+ IF p_staff_token IS NOT NULL THEN
+ SELECT * INTO s FROM staff_session_info(p_staff_token);
+ IF s.restaurant_id IS DISTINCT FROM rid OR coalesce(s.role,'') NOT IN ('waiter','both') THEN RAISE EXCEPTION 'Acesso negado'; END IF;
+ ELSIF NOT EXISTS(SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN
+   RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+ END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(rid::text,0));
+ IF p_staff_token IS NOT NULL THEN PERFORM public.require_waiter_plan(rid); END IF;
+ PERFORM set_config('flux.actor_staff',coalesce((SELECT staff_id::text FROM staff_session_info(p_staff_token)),''),true);
+ RETURN ensure_table_service(p_table_id);
+END $commercial_body_11$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.start_table_service(uuid,text)'),'EXECUTE') IS TRUE AND has_function_privilege('authenticated',to_regprocedure('public.start_table_service(uuid,text)'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.start_table_service(uuid,text)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.table_order_code(uuid,text,boolean)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_12$
+DECLARE rid uuid; s record; c record; next_code text;
+BEGIN
+ SELECT restaurant_id INTO rid FROM venue_tables WHERE id=p_table_id;
+ IF rid IS NULL THEN RAISE EXCEPTION 'Mesa inválida'; END IF;
+ IF p_staff_token IS NOT NULL THEN
+   SELECT * INTO s FROM public.staff_session_info(p_staff_token);
+   IF s.restaurant_id IS DISTINCT FROM rid OR coalesce(s.role,'') NOT IN ('waiter','both') THEN RAISE EXCEPTION 'Acesso negado'; END IF;
+ ELSIF NOT EXISTS(SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN
+   RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+ END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended(rid::text,0));
+ PERFORM pg_advisory_xact_lock(hashtextextended(p_table_id::text,4));
+ IF p_staff_token IS NOT NULL THEN PERFORM public.require_waiter_plan(rid); END IF;
+ SELECT * INTO c FROM table_order_codes WHERE table_id=p_table_id;
+ IF p_rotate THEN
+   PERFORM set_config('flux.actor_staff',coalesce((SELECT staff_id::text FROM staff_session_info(p_staff_token)),''),true);
+   PERFORM ensure_table_service(p_table_id);
+   LOOP
+     -- 16 random bits, rejection sampling avoids modulo bias.
+     next_code:=encode(extensions.gen_random_bytes(2),'hex');
+     EXIT WHEN ('x'||next_code)::bit(16)::integer < 60000
+       AND lpad((('x'||next_code)::bit(16)::integer % 10000)::text,4,'0') IS DISTINCT FROM c.code;
+   END LOOP;
+   next_code:=lpad((('x'||next_code)::bit(16)::integer % 10000)::text,4,'0');
+   INSERT INTO table_order_codes(table_id,restaurant_id,code,expires_at)
+   VALUES(p_table_id,rid,next_code,now()+interval '24 hours')
+   ON CONFLICT(table_id) DO UPDATE SET code=EXCLUDED.code,expires_at=EXCLUDED.expires_at RETURNING * INTO c;
+ END IF;
+ IF c.table_id IS NULL OR c.expires_at<=now() OR c.code !~ '^[0-9]{4}$' THEN RETURN NULL; END IF;
+ IF p_rotate THEN
+ INSERT INTO operation_events(restaurant_id,table_id,service_id,event,actor_user_id,actor_staff_id,actor_name,details)
+ VALUES(rid,p_table_id,(SELECT active_service_id FROM venue_tables WHERE id=p_table_id),'code_issued',auth.uid(),(SELECT staff_id FROM staff_session_info(p_staff_token)),coalesce((SELECT name FROM staff_session_info(p_staff_token)),'Responsável'),jsonb_build_object('expires_at',c.expires_at));
+ END IF;
+ RETURN jsonb_build_object('code',c.code,'expires_at',c.expires_at);
+END $commercial_body_12$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.table_order_code(uuid,text,boolean)'),'EXECUTE') IS TRUE AND has_function_privilege('authenticated',to_regprocedure('public.table_order_code(uuid,text,boolean)'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.table_order_code(uuid,text,boolean)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.can_manage_restaurant_operation(uuid)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_13$
+  SELECT EXISTS (
+    SELECT 1 FROM public.restaurants r WHERE r.id = p_restaurant_id AND r.owner_id = auth.uid()
+      AND public.restaurant_has_operations(public.get_restaurant_plan(r.slug))
+  );
+$commercial_body_13$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.can_manage_restaurant_operation(uuid)'),'EXECUTE') IS FALSE AND has_function_privilege('authenticated',to_regprocedure('public.can_manage_restaurant_operation(uuid)'),'EXECUTE') IS TRUE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.can_manage_restaurant_operation(uuid)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('public.require_waiter_plan(uuid)') AND btrim(replace(prosrc,chr(13),''))=btrim(
+$commercial_body_14$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM restaurants r WHERE r.id = p_restaurant_id
+      AND public.restaurant_has_waiter(public.get_restaurant_plan(r.slug))
+  ) THEN
+    RAISE EXCEPTION 'A operação do garçom está disponível a partir do plano Pro.' USING ERRCODE = '42501';
+  END IF;
+END;
+$commercial_body_14$)) OR NOT (has_function_privilege('anon',to_regprocedure('public.require_waiter_plan(uuid)'),'EXECUTE') IS FALSE AND has_function_privilege('authenticated',to_regprocedure('public.require_waiter_plan(uuid)'),'EXECUTE') IS FALSE) THEN
+    RAISE EXCEPTION 'Corpo ou grants divergentes em public.require_waiter_plan(uuid)';
+  END IF;
+  IF EXISTS (SELECT 1 FROM unnest(ARRAY['anon','authenticated']) AS role_name WHERE
+    has_function_privilege(role_name,'public.staff_place_order(text,uuid,jsonb)','EXECUTE')
+    OR has_function_privilege(role_name,'public.owner_place_order(uuid,uuid,jsonb,text)','EXECUTE')) THEN
+    RAISE EXCEPTION 'RPC legada de pedido manual ainda exposta.'; END IF;
+  IF EXISTS (SELECT 1 FROM (VALUES
+    ('venue_tables','guard_operational_qr','guard_operational_qr',23),
+    ('venue_tables','guard_active_table_delete','guard_active_table_delete',11),
+    ('orders','commercial_guard_order','guard_new_order_plan',7),
+    ('orders','attach_table_service','attach_table_service',7),
+    ('waiter_calls','commercial_guard_call','guard_new_call_plan',7),
+    ('waiter_calls','mark_service_bill','mark_service_bill',5)
+  ) expected(relation,trigger_name,function_name,kind) WHERE NOT EXISTS (
+    SELECT 1 FROM pg_trigger t WHERE t.tgrelid=to_regclass('public.' || relation)
+      AND t.tgname=trigger_name AND t.tgfoid=to_regprocedure('public.' || function_name || '()')
+      AND t.tgtype=kind AND t.tgenabled IN ('O','A') AND NOT t.tgisinternal
+  )) THEN RAISE EXCEPTION 'Gatilhos comerciais ausentes, desabilitados ou divergentes.'; END IF;
+  IF (SELECT count(*) FROM pg_policies WHERE schemaname='public' AND permissive='RESTRICTIVE'
+    AND roles=ARRAY['authenticated']::name[] AND (
+      (tablename='staff_members' AND policyname='operation_plan_staff_insert' AND cmd='INSERT' AND with_check='can_manage_restaurant_operation(restaurant_id)')
+      OR (tablename='staff_members' AND policyname='operation_plan_staff_update' AND cmd='UPDATE' AND qual='can_manage_restaurant_operation(restaurant_id)' AND with_check=qual)
+      OR (tablename='staff_members' AND policyname='operation_plan_staff_delete' AND cmd='DELETE' AND qual='can_manage_restaurant_operation(restaurant_id)')
+      OR (tablename='venue_tables' AND policyname='operation_plan_table_delete' AND cmd='DELETE' AND qual='can_manage_restaurant_operation(restaurant_id)')
+    )) <> 4 THEN RAISE EXCEPTION 'Políticas operacionais divergentes.'; END IF;
+END $commercial_contract$;
 NOTIFY pgrst, 'reload schema';
 COMMIT;
