@@ -1,3 +1,4 @@
+import { verifyLegacyPlanBridge } from "./verify-legacy-plan-bridge.mjs";
 import { verifyLegacyPlanUpgrade, verifyPlanEnforcement } from "./verify-plan-enforcement.mjs";
 import { verifyCommercialReview } from "./verify-commercial-review.mjs";
 import { verifyCommercialBeta } from "./verify-commercial-beta.mjs";
@@ -581,6 +582,7 @@ try {
   await verifyPlatformGrowth(client);
   await verifyBetaHardening(client, { rid, other, product, option });
   await verifyServiceRecovery(client, { rid, other, product, option });
+  await verifyLegacyPlanBridge(client);
   await verifyLegacyPlanUpgrade(client);
   await verifyCommercialBeta(pg, client);
   await verifyCommercialReview(pg, client);

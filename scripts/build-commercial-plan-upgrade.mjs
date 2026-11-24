@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { LEGACY_PLAN_MARKER, legacyPlanSlices } from "./legacy-plan-slices.mjs";
 
 const stages = [
   {
@@ -41,6 +42,7 @@ const stages = [
 function installedContract() {
   const functions = [
     [0, "guard_operational_qr", "", []],
+    [0, "restaurant_table_is_operational", "uuid,text", ["anon", "authenticated"]],
     [0, "ensure_table_service", "uuid,boolean", []],
     [0, "select_operational_tables", "uuid,uuid[]", ["authenticated"]],
     [0, "platform_change_entitlement", "uuid,text,text,integer,text,bigint", ["authenticated"]],
@@ -125,16 +127,30 @@ function installedContract() {
 }
 
 export function commercialPlanUpgradeSQL() {
+  const { billingAndPlatform, newStaffAndReports, operationalLookup } = legacyPlanSlices();
   const statements = stages.map(({ file, markers }, index) => {
     const migration = fs
       .readFileSync(new URL("../supabase/migrations/" + file, import.meta.url), "utf8")
       .trim();
     const tag = "$commercial_stage_" + index + "$";
     const body = "$commercial_sql_" + index + "$";
+    const legacyCompletion =
+      index === 0
+        ? billingAndPlatform + "\n" + operationalLookup
+        : index === 2
+          ? newStaffAndReports
+          : null;
+    const fromBridge = legacyCompletion
+      ? [
+          "  ELSIF to_regprocedure('" + LEGACY_PLAN_MARKER + "') IS NOT NULL THEN",
+          "    EXECUTE " + body + "\n" + legacyCompletion + "\n" + body + ";",
+        ]
+      : [];
     return [
       "DO " + tag + " BEGIN",
       "  IF " + markers.map((m) => "(" + m + ")").join(" AND\n     ") + " THEN",
       "    RAISE NOTICE 'Etapa já instalada: " + file + "';",
+      ...fromBridge,
       "  ELSIF " + markers.map((m) => "(" + m + ")").join(" OR\n        ") + " THEN",
       "    RAISE EXCEPTION 'Etapa parcial: " + file + ". Confira o schema antes de repetir.';",
       "  ELSE",
@@ -149,6 +165,20 @@ export function commercialPlanUpgradeSQL() {
     "BEGIN;",
     "SET LOCAL statement_timeout = '120s';",
     "SET LOCAL search_path = public, pg_catalog;",
+    commercialPreflightSQL(),
+    ...statements,
+    installedContract(),
+    "DROP TRIGGER IF EXISTS flux_legacy_guard_table_label ON public.venue_tables;",
+    "DROP FUNCTION IF EXISTS public.flux_legacy_guard_table_label();",
+    "DROP FUNCTION IF EXISTS " + LEGACY_PLAN_MARKER + ";",
+    "NOTIFY pgrst, 'reload schema';",
+    "COMMIT;",
+    "",
+  ].join("\n");
+}
+
+export function commercialPreflightSQL({ includeReports = true } = {}) {
+  return [
     "DO $commercial_preflight$",
     "DECLARE missing text;",
     "BEGIN",
@@ -177,9 +207,13 @@ export function commercialPlanUpgradeSQL() {
     "  IF missing IS NOT NULL THEN RAISE EXCEPTION 'Funções de base ausentes: %', missing; END IF;",
     "  SELECT string_agg(relation || '.' || column_name, ', ') INTO missing FROM (VALUES",
     "    ('venue_tables','active_service_id'),('orders','service_id'),('orders','tracking_token_hash'),",
-    "    ('subscriptions','last_event_created'),('subscriptions','plan_type'),('waiter_calls','is_test'),",
-    "    ('order_items','product_id_snapshot'),('order_items','category_id_snapshot'),",
-    "    ('order_items','category_name_snapshot'),('order_items','department_snapshot')",
+    "    ('subscriptions','last_event_created'),('subscriptions','plan_type'),('waiter_calls','is_test')",
+    ...(includeReports
+      ? [
+          "    , ('order_items','product_id_snapshot'),('order_items','category_id_snapshot'),",
+          "    ('order_items','category_name_snapshot'),('order_items','department_snapshot')",
+        ]
+      : []),
     "  ) AS required(relation,column_name) WHERE NOT EXISTS (",
     "    SELECT 1 FROM pg_attribute a WHERE a.attrelid=to_regclass('public.' || relation)",
     "      AND a.attname=required.column_name AND a.attnum>0 AND NOT a.attisdropped",
@@ -191,11 +225,6 @@ export function commercialPlanUpgradeSQL() {
     "    'public.modifier_groups'::regclass,'public.modifier_options'::regclass,'public.staff_members'::regclass",
     "  ) AND NOT c.relrowsecurity) THEN RAISE EXCEPTION 'RLS desabilitado em tabela de base.'; END IF;",
     "END $commercial_preflight$;",
-    ...statements,
-    installedContract(),
-    "NOTIFY pgrst, 'reload schema';",
-    "COMMIT;",
-    "",
   ].join("\n");
 }
 
