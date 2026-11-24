@@ -40,3 +40,6 @@ supabase/bootstrap.sql
 
 # Supabase CLI local cache
 supabase/.temp/
+
+# Local provider CLIs (never publish binaries)
+.tools/

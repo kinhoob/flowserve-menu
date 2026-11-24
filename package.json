@@ -4,7 +4,7 @@
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "node --env-file-if-exists=.env.local node_modules/vite/bin/vite.js dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
@@ -15,7 +15,9 @@
     "test:db": "node scripts/verify-database.mjs",
     "format:check": "prettier --check .",
     "db:bootstrap": "node scripts/build-bootstrap.mjs",
-    "db:upgrade": "node scripts/build-beta-upgrade.mjs"
+    "db:upgrade": "node scripts/build-beta-upgrade.mjs",
+    "stripe:setup": "node scripts/setup-stripe-sandbox.mjs",
+    "stripe:listen": "node scripts/stripe-listen.mjs"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",
