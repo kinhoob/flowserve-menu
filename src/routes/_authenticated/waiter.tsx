@@ -1,3 +1,5 @@
+import { findTableForRecord } from "@/features/tables/table-identity";
+import type { VenueTable } from "@/features/tables/table-queries";
 import { SyncStatus } from "@/features/orders/sync-status";
 import { QueryError, DashboardSkeleton } from "@/features/dashboard/query-feedback";
 import { releaseTable } from "@/features/tables/release-table";
@@ -41,7 +43,7 @@ function WaiterPage() {
   const resolveCall = useResolveWaiterCall(restaurant?.id);
   const [openTable, setOpenTable] = useState<string | null>(null);
   const [serviceTable, setServiceTable] = useState<{ id: string; label: string } | null>(null);
-  const [billTable, setBillTable] = useState<string | null>(null);
+  const [billTable, setBillTable] = useState<VenueTable | null>(null);
   const [ready, setReady] = useState<{ label: string; id: string } | null>(null);
   const seenReady = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
@@ -54,14 +56,14 @@ function WaiterPage() {
     for (const c of waiterCalls) {
       if (c.resolved) continue;
       const kind = (c.kind === "bill" ? "bill" : "call") as "bill" | "call";
-      const lbl = normalizeTableLabel(c.table_label);
+      const lbl = findTableForRecord(tables ?? [], c)?.id;
       if (!lbl) continue;
       const arr = m.get(lbl) ?? [];
       arr.push({ id: c.id, created_at: c.created_at, kind });
       m.set(lbl, arr);
     }
     return m;
-  }, [waiterCalls]);
+  }, [waiterCalls, tables]);
 
   const billCallsByLabel = useMemo(() => {
     const m = new Map<string, { id: string; created_at: string }>();
@@ -77,13 +79,13 @@ function WaiterPage() {
     const s = new Set<string>();
     for (const o of orders ?? []) {
       if (ACTIVE.includes(o.status) && o.table_label) {
-        const key = normalizeTableLabel(o.table_label);
+        const key = findTableForRecord(tables ?? [], o)?.id;
         if (!key) continue;
         s.add(key);
       }
     }
     return s;
-  }, [orders]);
+  }, [orders, tables]);
 
   // Detect newly-ready orders
   useEffect(() => {
@@ -127,7 +129,7 @@ function WaiterPage() {
       !o.archived &&
       o.status !== "cancelled" &&
       serviceTable &&
-      normalizeTableLabel(o.table_label) === normalizeTableLabel(serviceTable.label),
+      findTableForRecord(tables ?? [], o)?.id === serviceTable.id,
   );
   if (!canContinueService(trial, "waiter")) {
     return (
@@ -181,7 +183,7 @@ function WaiterPage() {
             setServiceTable(null);
           }}
           onBill={() => {
-            setBillTable(serviceTable.label);
+            setBillTable(tables?.find((t) => t.id === serviceTable.id) ?? null);
             setServiceTable(null);
           }}
         />
@@ -199,9 +201,9 @@ function WaiterPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {sorted.map((t) => {
           const stripped = normalizeTableLabel(t.label);
-          const isBusy = !!t.active_service_id || occupied.has(stripped);
-          const callList = callsByLabel.get(stripped) ?? [];
-          const billCall = billCallsByLabel.get(stripped);
+          const isBusy = !!t.active_service_id || occupied.has(t.id);
+          const callList = callsByLabel.get(t.id) ?? [];
+          const billCall = billCallsByLabel.get(t.id);
           const waiterCall = callList.find((c) => c.kind === "call");
           const hasAnyCall = callList.length > 0;
 
@@ -288,10 +290,10 @@ function WaiterPage() {
                 key={c.id}
                 className="flex items-center justify-between gap-3 rounded-lg bg-background/60 px-3 py-2 text-sm"
               >
-                <span className="font-medium">Mesa {label}</span>
+                <span className="font-medium">{tables?.find((t) => t.id === label)?.label}</span>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setBillTable(`Mesa ${label}`)}
+                    onClick={() => setBillTable(tables?.find((t) => t.id === label) ?? null)}
                     className="rounded-lg border border-border bg-background px-3 min-h-11 py-2 text-sm transition hover:border-primary/40"
                   >
                     Abrir conta
@@ -322,24 +324,21 @@ function WaiterPage() {
         {billTable &&
           restaurant &&
           (() => {
-            const targetKey = billTable.replace(/^(?:Mesa\s*)+/i, "").trim();
-            // Inclui TODOS os pedidos ativos da mesa (pending → served / entregue),
-            // independente de duplicações de prefixo "Mesa " no label salvo.
-            const tableOrders = (orders ?? []).filter((o) => {
-              if (!ACTIVE.includes(o.status)) return false;
-              if (!o.table_label) return false;
-              const key = o.table_label.replace(/^(?:Mesa\s*)+/i, "").trim();
-              return key === targetKey;
-            });
+            const tableOrders = (orders ?? []).filter(
+              (order) =>
+                ACTIVE.includes(order.status) &&
+                findTableForRecord(tables ?? [], order)?.id === billTable.id &&
+                (!order.service_id || order.service_id === billTable.active_service_id),
+            );
             return (
               <BillModal
-                tableLabel={billTable}
+                table={billTable}
                 restaurantId={restaurant.id}
                 orders={tableOrders}
                 currency={restaurant.currency}
                 onClose={() => setBillTable(null)}
                 onAddItems={() => {
-                  const t = sorted.find((x) => x.label === billTable);
+                  const t = sorted.find((x) => x.id === billTable.id && x.operational);
                   if (t) {
                     setBillTable(null);
                     setOpenTable(t.id);
@@ -382,14 +381,14 @@ function WaiterPage() {
 }
 
 function BillModal({
-  tableLabel,
+  table,
   restaurantId,
   orders,
   currency,
   onClose,
   onAddItems,
 }: {
-  tableLabel: string;
+  table: VenueTable;
   restaurantId: string;
   orders: Order[];
   currency: string;
@@ -397,6 +396,7 @@ function BillModal({
   onAddItems: () => void;
 }) {
   const qc = useQueryClient();
+  const tableLabel = table.label;
   const allItems = orders.flatMap((o) => o.order_items);
   const subtotal = allItems.reduce((s, it) => s + Number(it.price_snapshot) * it.quantity, 0);
   const [serviceFeeOn, setServiceFeeOn] = useState(false);
@@ -418,7 +418,7 @@ function BillModal({
 
   const close = useMutation({
     networkMode: "always",
-    mutationFn: () => releaseTable(restaurantId, tableLabel, { serviceFee, coverCharge: cover }),
+    mutationFn: () => releaseTable(restaurantId, table, { serviceFee, coverCharge: cover }),
     onSuccess: (ids) => {
       optimisticallyArchive(ids);
       qc.invalidateQueries({ queryKey: ["orders"] });
@@ -438,7 +438,7 @@ function BillModal({
   // e resolve chamados. Usado quando a mesa aparece "ocupada" mas não há itens visíveis.
   const forceFree = useMutation({
     networkMode: "always",
-    mutationFn: () => releaseTable(restaurantId, tableLabel),
+    mutationFn: () => releaseTable(restaurantId, table),
     onSuccess: (ids) => {
       optimisticallyArchive(ids);
       qc.invalidateQueries({ queryKey: ["orders"] });

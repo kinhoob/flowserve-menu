@@ -1,3 +1,4 @@
+import { getPendingCheckout } from "./checkout-session.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
 import { createServerFn } from "@tanstack/react-start";
@@ -81,19 +82,15 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         email: typeof claims.email === "string" ? claims.email : undefined,
       });
 
-      const session = await stripe.checkout.sessions.create({
-        line_items: [{ price: stripePrice.id, quantity: 1 }],
-        mode: "subscription",
-        ui_mode: "embedded_page",
-        return_url: validateReturnUrl(data.returnUrl, getRequest().url),
-        ...(customerId && { customer: customerId }),
-        ...(userId && {
-          metadata: { userId },
-          subscription_data: { metadata: { userId } },
-        }),
-      });
-
-      return { clientSecret: session.client_secret ?? "" };
+      const clientSecret = await getPendingCheckout(
+        stripe,
+        userId,
+        data.environment,
+        stripePrice.id,
+        customerId,
+        validateReturnUrl(data.returnUrl, getRequest().url),
+      );
+      return { clientSecret };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
     }
@@ -124,7 +121,7 @@ export const createPortalSession = createServerFn({ method: "POST" })
       const stripe = createStripeClient(data.environment);
       const portal = await stripe.billingPortal.sessions.create({
         customer: sub.stripe_customer_id as string,
-        ...(data.returnUrl && { return_url: validateReturnUrl(data.returnUrl, getRequest().url) }),
+        return_url: validateReturnUrl(data.returnUrl, getRequest().url),
       });
       return { url: portal.url };
     } catch (error) {

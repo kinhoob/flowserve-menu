@@ -35,15 +35,37 @@ describe("payment trust boundaries", () => {
   });
   it("rejects client-selected sandbox on a live server", () => {
     vi.stubEnv("PAYMENTS_ENVIRONMENT", "live");
+    vi.stubEnv("APP_URL", "https://flux.example");
     expect(() => validateEnvironment("sandbox")).toThrow();
     expect(validateEnvironment("live")).toBe("live");
     expect(() => validateEnvironment("unknown")).toThrow();
+  });
+  it("requires an explicit payment environment and a configured HTTPS live origin", () => {
+    vi.stubEnv("PAYMENTS_ENVIRONMENT", undefined);
+    expect(() => validateEnvironment("live")).toThrow("PAYMENTS_ENVIRONMENT");
+    expect(() => validateReturnUrl(undefined, "https://flux.example")).toThrow(
+      "PAYMENTS_ENVIRONMENT",
+    );
+    vi.stubEnv("PAYMENTS_ENVIRONMENT", "live");
+    for (const url of [
+      undefined,
+      "http://flux.example",
+      "https://user@flux.example",
+      "https://flux.example/admin",
+    ]) {
+      vi.stubEnv("APP_URL", url);
+      expect(() => validateEnvironment("live")).toThrow("APP_URL");
+      expect(() => validateReturnUrl(undefined, "https://flux.example")).toThrow("APP_URL");
+    }
+    vi.stubEnv("APP_URL", "https://flux.example");
+    expect(validateEnvironment("live")).toBe("live");
   });
   it("allows sandbox only when explicitly configured", () => {
     vi.stubEnv("PAYMENTS_ENVIRONMENT", "sandbox");
     expect(validateEnvironment("sandbox")).toBe("sandbox");
   });
   it("prevents return URL redirection to another host", () => {
+    vi.stubEnv("PAYMENTS_ENVIRONMENT", "sandbox");
     vi.stubEnv("APP_URL", "https://flux.example");
     expect(() => validateReturnUrl("https://evil.example", "https://flux.example")).toThrow();
     expect(() =>

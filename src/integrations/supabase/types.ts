@@ -310,6 +310,7 @@ export type Database = {
           service_fee: number;
           status: Database["public"]["Enums"]["order_status"];
           subtotal: number;
+          service_id?: string | null;
           table_id: string | null;
           table_label: string | null;
           updated_at: string;
@@ -705,6 +706,7 @@ export type Database = {
           resolved: boolean;
           resolved_at: string | null;
           restaurant_id: string;
+          table_id: string | null;
           table_label: string | null;
         };
         Insert: {
@@ -717,6 +719,7 @@ export type Database = {
           resolved?: boolean;
           resolved_at?: string | null;
           restaurant_id: string;
+          table_id?: string | null;
           table_label?: string | null;
         };
         Update: {
@@ -729,6 +732,7 @@ export type Database = {
           resolved?: boolean;
           resolved_at?: string | null;
           restaurant_id?: string;
+          table_id?: string | null;
           table_label?: string | null;
         };
         Relationships: [];
@@ -828,6 +832,31 @@ export type Database = {
           p_table_code: string | null;
         };
         Returns: Json;
+      };
+      begin_billing_reconciliation: {
+        Args: { p_environment: string; p_subscription_id: string };
+        Returns: string;
+      };
+      reserve_billing_checkout: {
+        Args: {
+          p_user_id: string;
+          p_environment: string;
+          p_price_id: string;
+          p_customer_id: string;
+          p_return_url: string;
+        };
+        Returns: Json;
+      };
+      release_table_service: {
+        Args: {
+          p_restaurant_id: string | null;
+          p_table_id: string;
+          p_service_id: string | null;
+          p_staff_token?: string | null;
+          p_service_fee?: number;
+          p_cover_charge?: number;
+        };
+        Returns: string[];
       };
       release_table: {
         Args: {

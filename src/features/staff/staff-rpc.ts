@@ -4,7 +4,9 @@ import type { StaffSession } from "./staff-session";
 
 const staffOrderSchema = z.object({
   id: z.string(),
+  service_id: z.string().nullable().optional(),
   restaurant_id: z.string(),
+  table_id: z.string().nullable().optional(),
   table_label: z.string().nullable(),
   customer_name: z.string().nullable(),
   status: z.enum(["pending", "accepted", "preparing", "ready", "served", "cancelled"]),
@@ -44,6 +46,7 @@ const staffCallSchema = z.object({
   customer_name: z.string().nullable(),
   id: z.string(),
   restaurant_id: z.string(),
+  table_id: z.string().nullable().optional(),
   table_label: z.string().nullable(),
   kind: z.string(),
 });

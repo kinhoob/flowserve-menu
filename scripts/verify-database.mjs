@@ -1,3 +1,4 @@
+import { verifyCommercialReview } from "./verify-commercial-review.mjs";
 import { verifyCommercialBeta } from "./verify-commercial-beta.mjs";
 import EmbeddedPostgres from "embedded-postgres";
 import fs from "node:fs";
@@ -580,6 +581,7 @@ try {
   await verifyBetaHardening(client, { rid, other, product, option });
   await verifyServiceRecovery(client, { rid, other, product, option });
   await verifyCommercialBeta(pg, client);
+  await verifyCommercialReview(pg, client);
 } finally {
   if (client) await client.end();
   await pg.stop();

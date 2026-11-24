@@ -1,5 +1,5 @@
 import { paidPlanByLookupKey } from "@/features/billing/plan-matrix";
-import { createClient } from "@supabase/supabase-js";
+import { createBillingDatabase } from "./billing-database.server";
 import { z } from "zod";
 import { createStripeClient, verifyWebhook, type StripeEnv } from "./stripe.server";
 
@@ -54,23 +54,25 @@ export async function processBillingWebhook(
   if (!isSubscription && !isInvoice) return;
 
   const getId = (ref: z.infer<typeof referenceSchema>) => (typeof ref === "string" ? ref : ref.id);
-  const snapshotRequestedAt = environment === "live" || isInvoice ? Date.now() : null;
-  let snapshot = event.data.object;
-  if (snapshotRequestedAt !== null) {
-    let id: string;
-    if (isInvoice) {
-      const invoice = invoiceSchema.parse(snapshot);
-      const ref = invoice.parent?.subscription_details?.subscription ?? invoice.subscription;
-      if (!ref) return;
-      id = getId(ref);
-    } else {
-      id = z.object({ id: z.string() }).parse(snapshot).id;
-    }
-    const current = await createStripeClient(environment).subscriptions.retrieve(id);
-    if (current.livemode !== (environment === "live"))
-      throw new Error("Ambiente Stripe divergente");
-    snapshot = current;
+  let id: string;
+  if (isInvoice) {
+    const invoice = invoiceSchema.parse(event.data.object);
+    const ref = invoice.parent?.subscription_details?.subscription ?? invoice.subscription;
+    if (!ref) return;
+    id = getId(ref);
+  } else {
+    id = z.object({ id: z.string() }).parse(event.data.object).id;
   }
+  const sb = createBillingDatabase();
+  const { data: generation, error: beginError } = await sb.rpc("begin_billing_reconciliation", {
+    p_environment: environment,
+    p_subscription_id: id,
+  });
+  if (beginError) throw beginError;
+  if (!generation) throw new Error("Reconciliação da assinatura indisponível");
+  const snapshot = await createStripeClient(environment).subscriptions.retrieve(id);
+  if (snapshot.id !== id || snapshot.livemode !== (environment === "live"))
+    throw new Error("Assinatura Stripe divergente");
   const subscription = subscriptionSchema.parse(snapshot);
   if (!subscription.metadata?.userId) throw new Error("Assinatura sem usuário vinculado");
   const item = subscription.items?.data?.[0];
@@ -78,9 +80,6 @@ export async function processBillingWebhook(
   const plan = paidPlanByLookupKey(price);
   if (!plan && ["active", "trialing"].includes(subscription.status))
     throw new Error("Preço sem plano cadastrado");
-  const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
   const iso = (value: number | undefined) => (value ? new Date(value * 1000).toISOString() : null);
   const { error } = await sb.rpc("apply_billing_event", {
     p_event_id: event.id,
@@ -97,7 +96,7 @@ export async function processBillingWebhook(
       product_id:
         typeof item?.price?.product === "string" ? item.price.product : item?.price?.product?.id,
       status: subscription.status,
-      snapshot_requested_at: snapshotRequestedAt,
+      reconciliation_generation: generation,
       current_period_start: iso(item?.current_period_start ?? subscription.current_period_start),
       current_period_end: iso(item?.current_period_end ?? subscription.current_period_end),
       cancel_at_period_end: subscription.cancel_at_period_end ?? false,

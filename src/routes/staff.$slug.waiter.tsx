@@ -1,3 +1,4 @@
+import { findTableForRecord } from "@/features/tables/table-identity";
 import { planHasFeature } from "@/features/billing/plan-matrix";
 import { getServiceStatus } from "@/features/restaurant/service-hours";
 import { SyncStatus } from "@/features/orders/sync-status";
@@ -133,8 +134,8 @@ function StaffWaiter() {
 
   const archive = useMutation({
     networkMode: "always",
-    mutationFn: async (label: string) =>
-      releaseTable(session!.restaurant_id ?? null, label, { staffToken: session!.token }),
+    mutationFn: async (table: NonNullable<typeof tablesQ.data>[number]) =>
+      releaseTable(session!.restaurant_id ?? null, table, { staffToken: session!.token }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["staff-orders", session?.token] });
       qc.invalidateQueries({ queryKey: ["table-access-code"] });
@@ -170,37 +171,37 @@ function StaffWaiter() {
     for (const o of orders) {
       if (!ACTIVE.includes(o.status)) continue;
       if (o.archived) continue;
-      const key = normalizeTableLabel(o.table_label);
+      const key = findTableForRecord(tables, o)?.id;
       if (!key) continue;
       const arr = m.get(key) ?? [];
       arr.push(o);
       m.set(key, arr);
     }
     return m;
-  }, [orders]);
+  }, [orders, tables]);
 
   const callsByLabel = useMemo(() => {
     const m = new Map<string, { id: string; kind: "bill" | "call" }[]>();
     for (const c of calls) {
-      const key = normalizeTableLabel(c.table_label);
+      const key = findTableForRecord(tables, c)?.id;
       if (!key) continue;
       const arr = m.get(key) ?? [];
       arr.push({ id: c.id, kind: c.kind === "bill" ? "bill" : "call" });
       m.set(key, arr);
     }
     return m;
-  }, [calls]);
+  }, [calls, tables]);
 
   const [openTable, setOpenTable] = useState<{ id: string; label: string } | null>(null);
   const [serviceTable, setServiceTable] = useState<{ id: string; label: string } | null>(null);
-  const [billTable, setBillTable] = useState<string | null>(null);
+  const [billTable, setBillTable] = useState<NonNullable<typeof tablesQ.data>[number] | null>(null);
 
   const selectedOrders = (orders ?? []).filter(
     (o) =>
       !o.archived &&
       o.status !== "cancelled" &&
       serviceTable &&
-      normalizeTableLabel(o.table_label) === normalizeTableLabel(serviceTable.label),
+      findTableForRecord(tables, o)?.id === serviceTable.id,
   );
   if (!session) return null;
   if (plan.isPending) return <DashboardSkeleton />;
@@ -224,7 +225,7 @@ function StaffWaiter() {
     (table) =>
       (canOperate && table.operational === true) ||
       table.active_service_id ||
-      activeByLabel.has(normalizeTableLabel(table.label)),
+      activeByLabel.has(table.id),
   );
   if (!canOperate && !visibleTables.length) {
     return (
@@ -262,7 +263,7 @@ function StaffWaiter() {
             setServiceTable(null);
           }}
           onBill={() => {
-            setBillTable(serviceTable.label);
+            setBillTable(tables.find((t) => t.id === serviceTable.id) ?? null);
             setServiceTable(null);
           }}
         />
@@ -326,9 +327,9 @@ function StaffWaiter() {
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {visibleTables.map((t) => {
           const stripped = normalizeTableLabel(t.label);
-          const tableOrders = activeByLabel.get(stripped) ?? [];
+          const tableOrders = activeByLabel.get(t.id) ?? [];
           const isBusy = !!t.active_service_id || tableOrders.length > 0;
-          const callList = callsByLabel.get(stripped) ?? [];
+          const callList = callsByLabel.get(t.id) ?? [];
           const billCall = callList.find((c) => c.kind === "bill");
           const hasAnyCall = callList.length > 0;
           const total = tableOrders.reduce((s, o) => s + Number(o.total ?? o.subtotal ?? 0), 0);
@@ -422,17 +423,18 @@ function StaffWaiter() {
         )}
         {billTable &&
           (() => {
-            const key = normalizeTableLabel(billTable);
-            const tableOrders = activeByLabel.get(key) ?? [];
-            const t = sorted.find((x) => x.label === billTable);
+            const tableOrders = (activeByLabel.get(billTable.id) ?? []).filter(
+              (order) => !order.service_id || order.service_id === billTable.active_service_id,
+            );
+            const t = sorted.find((x) => x.id === billTable.id && x.operational);
             return (
               <BillModal
-                tableLabel={billTable}
+                tableLabel={billTable.label}
                 orders={tableOrders}
                 currency={currency}
                 onClose={() => setBillTable(null)}
                 onFinalize={() => {
-                  if (confirm(`Finalizar e liberar ${billTable}?`)) {
+                  if (confirm(`Finalizar e liberar ${billTable.label}?`)) {
                     archive.mutate(billTable);
                   }
                 }}

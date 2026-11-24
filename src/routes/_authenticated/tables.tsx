@@ -1,3 +1,4 @@
+import { findTableForRecord } from "@/features/tables/table-identity";
 import { TableAccessCode } from "@/features/tables/table-access-code";
 import { releaseTable } from "@/features/tables/release-table";
 import { DashboardSkeleton, QueryError } from "@/features/dashboard/query-feedback";
@@ -24,7 +25,7 @@ import {
 } from "@/features/tables/table-queries";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
-import { fetchAllPages, isOpenOrder, normalizeTableLabel } from "@/lib/operations";
+import { fetchAllPages, isOpenOrder } from "@/lib/operations";
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -49,9 +50,6 @@ export const Route = createFileRoute("/_authenticated/tables")({
   head: () => ({ meta: [{ title: "Mesas — Flux Menu" }] }),
   component: TablesPage,
 });
-
-// Normaliza "Mesa 1", "Mesa Mesa 1", "  Mesa   1  " → "1"
-const normalizeLabel = normalizeTableLabel;
 
 type HistoryOrder = Tables<"orders"> & { order_items: Tables<"order_items">[] };
 
@@ -104,7 +102,7 @@ function TablesPage() {
   const del = useDeleteTable(restaurant?.id);
   const qc = useQueryClient();
   const closeService = useMutation({
-    mutationFn: (table: VenueTable) => releaseTable(restaurant?.id ?? null, table.label),
+    mutationFn: (table: VenueTable) => releaseTable(restaurant?.id ?? null, table),
     onSuccess: async () => {
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["orders", restaurant?.id] }),
@@ -146,15 +144,15 @@ function TablesPage() {
     for (const o of orders) {
       if (!o.table_label) continue;
       if (!isOpenOrder(o)) continue;
-      const key = normalizeLabel(o.table_label);
+      const key = findTableForRecord(tables, o)?.id;
+      if (!key) continue;
       const cur = map.get(key) ?? { count: 0, total: 0 };
       cur.count += 1;
       cur.total += orderTotal(o);
       map.set(key, cur);
     }
     for (const table of tables)
-      if (table.active_service_id && !map.has(normalizeLabel(table.label)))
-        map.set(normalizeLabel(table.label), { count: 0, total: 0 });
+      if (table.active_service_id && !map.has(table.id)) map.set(table.id, { count: 0, total: 0 });
     return map;
   }, [orders, tables]);
 
@@ -163,14 +161,15 @@ function TablesPage() {
     const map = new Map<string, { total: number; orders: number }>();
     for (const o of history) {
       if (!o.table_label) continue;
-      const key = normalizeLabel(o.table_label);
+      const key = findTableForRecord(tables, o)?.id;
+      if (!key) continue;
       const cur = map.get(key) ?? { total: 0, orders: 0 };
       cur.total += orderTotal(o);
       cur.orders += 1;
       map.set(key, cur);
     }
     return map;
-  }, [history]);
+  }, [history, tables]);
 
   if (rLoading || tLoading) return <DashboardSkeleton />;
   if (rError || !restaurant)
@@ -203,11 +202,11 @@ function TablesPage() {
         }}
       />
     );
-  const busyCount = tables.filter((t) => occupancy.has(normalizeLabel(t.label))).length;
+  const busyCount = tables.filter((t) => occupancy.has(t.id)).length;
   const freeCount = tables.length - busyCount;
 
   const filtered = tables.filter((t) => {
-    const busy = occupancy.has(normalizeLabel(t.label));
+    const busy = occupancy.has(t.id);
     if (trial?.service_wind_down && !busy) return false;
     if (filter === "busy") return busy;
     if (filter === "free") return !busy;
@@ -252,7 +251,7 @@ function TablesPage() {
   };
 
   const handleDelete = async (t: VenueTable) => {
-    if (occupancy.has(normalizeLabel(t.label))) {
+    if (occupancy.has(t.id)) {
       toast.error("Mesa ocupada não pode ser removida");
       return;
     }
@@ -398,7 +397,7 @@ function TablesPage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((t) => {
-              const key = normalizeLabel(t.label);
+              const key = t.id;
               const occ = occupancy.get(key);
               const rev = revenueByTable.get(key);
               const busy = !!occ;
@@ -510,6 +509,7 @@ function TablesPage() {
 
       <HistoryModal
         table={historyTable}
+        tables={tables}
         onClose={() => {
           setHistoryTable(null);
           void navigate({ to: "/tables", search: {}, replace: true });
@@ -524,12 +524,14 @@ function TablesPage() {
 
 function HistoryModal({
   table,
+  tables,
   onClose,
   history,
   fmt,
   orderTotal,
 }: {
   table: VenueTable | null;
+  tables: VenueTable[];
   onClose: () => void;
   history: HistoryOrder[];
   fmt: Intl.NumberFormat;
@@ -539,10 +541,9 @@ function HistoryModal({
     cover_charge: number | null;
   }) => number;
 }) {
-  const key = table ? normalizeLabel(table.label) : "";
   const tableOrders = useMemo(
-    () => (table ? history.filter((o) => normalizeLabel(o.table_label) === key) : []),
-    [history, table, key],
+    () => (table ? history.filter((o) => findTableForRecord(tables, o)?.id === table.id) : []),
+    [history, table, tables],
   );
   const total = tableOrders.reduce((s, o) => s + orderTotal(o), 0);
 

@@ -30,9 +30,17 @@ export function matchesPlanPrice(
 
 export function validateEnvironment(value: unknown): "live" | "sandbox" {
   if (value !== "live" && value !== "sandbox") throw new Error("Ambiente de pagamento inválido");
-  const configured = process.env.PAYMENTS_ENVIRONMENT ?? "live";
+  const configured = configuredPaymentEnvironment();
   if (value !== configured) throw new Error("Ambiente de pagamento não habilitado no servidor");
   return value;
+}
+
+function configuredPaymentEnvironment() {
+  const configured = process.env.PAYMENTS_ENVIRONMENT;
+  if (configured !== "live" && configured !== "sandbox")
+    throw new Error("Configure PAYMENTS_ENVIRONMENT como live ou sandbox");
+  if (configured === "live") requireLiveOrigin();
+  return configured;
 }
 
 export function validatePlanPrice(value: string): string {
@@ -40,16 +48,30 @@ export function validatePlanPrice(value: string): string {
   return value;
 }
 
-export function validateReturnUrl(value: string | undefined, requestUrl: string): string {
+function requireLiveOrigin(): URL {
   const configured = process.env.APP_URL;
-  const base = new URL(configured ?? requestUrl);
+  if (!configured) throw new Error("Configure APP_URL com a origem HTTPS publicada");
+  const url = URL.parse(configured);
   if (
-    process.env.PAYMENTS_ENVIRONMENT === "live" &&
-    (!configured || base.protocol !== "https:" || base.username || base.password)
+    !url ||
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
   ) {
     throw new Error("Configure APP_URL com a origem HTTPS publicada");
   }
-  const origin = base.origin;
+  return url;
+}
+
+export function validateReturnUrl(value: string | undefined, requestUrl: string): string {
+  const origin = (
+    configuredPaymentEnvironment() === "live"
+      ? requireLiveOrigin()
+      : new URL(process.env.APP_URL ?? requestUrl)
+  ).origin;
   const url = new URL(value ?? "/settings?tab=billing", origin);
   if (url.origin !== origin || url.username || url.password)
     throw new Error("URL de retorno inválida");
