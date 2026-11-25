@@ -195,17 +195,26 @@ BEGIN
  SELECT restaurant_id INTO rid FROM orders WHERE id=p_order_id;
  IF p_staff_token IS NOT NULL THEN
    SELECT * INTO s FROM staff_session_info(p_staff_token);
-   IF s.restaurant_id IS DISTINCT FROM rid OR coalesce(s.role,'') NOT IN ('waiter','kitchen','both') THEN RAISE EXCEPTION 'Acesso negado'; END IF;
-   IF (p_next_status IN ('accepted','preparing','ready') AND s.role NOT IN ('kitchen','both')) OR (p_next_status IN ('served','cancelled') AND s.role NOT IN ('waiter','both')) THEN RAISE EXCEPTION 'Acesso negado'; END IF;
+   IF s.restaurant_id IS DISTINCT FROM rid OR coalesce(s.role,'') NOT IN ('waiter','kitchen','both') THEN
+     RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+   END IF;
+   IF p_next_status IN ('served','cancelled') THEN
+     IF s.role NOT IN ('waiter','both') THEN
+       RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+     END IF;
+     PERFORM public.require_waiter_plan(rid);
+   ELSIF p_next_status IN ('accepted','preparing','ready') AND s.role NOT IN ('kitchen','both') THEN
+     RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+   END IF;
    staff_name:=s.name;
- ELSIF NOT EXISTS(SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN RAISE EXCEPTION 'Acesso negado';
- ELSE staff_name:=left(nullif(btrim(p_delivered_by),''),80); END IF;
+ ELSIF NOT EXISTS(SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN
+   RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+ ELSE
+   staff_name:=left(nullif(btrim(p_delivered_by),''),80);
+ END IF;
  IF NOT EXISTS (SELECT 1 FROM restaurants r WHERE r.id=rid
    AND public.restaurant_has_operations(public.get_restaurant_plan(r.slug))) THEN
    RAISE EXCEPTION 'A operação está disponível a partir do plano Essential.' USING ERRCODE='42501';
- END IF;
- IF p_staff_token IS NOT NULL AND s.role = 'waiter' THEN
-  PERFORM public.require_waiter_plan(rid);
  END IF;
  IF p_next_status NOT IN ('accepted','preparing','ready','served','cancelled') OR p_next_status IS NULL OR p_expected_status IS NULL THEN RAISE EXCEPTION 'Etapa inválida'; END IF;
  PERFORM set_config('flux.actor_staff',coalesce((SELECT staff_id::text FROM staff_session_info(p_staff_token)),''),true);

@@ -1430,17 +1430,26 @@ BEGIN
  SELECT restaurant_id INTO rid FROM orders WHERE id=p_order_id;
  IF p_staff_token IS NOT NULL THEN
    SELECT * INTO s FROM staff_session_info(p_staff_token);
-   IF s.restaurant_id IS DISTINCT FROM rid OR coalesce(s.role,'') NOT IN ('waiter','kitchen','both') THEN RAISE EXCEPTION 'Acesso negado'; END IF;
-   IF (p_next_status IN ('accepted','preparing','ready') AND s.role NOT IN ('kitchen','both')) OR (p_next_status IN ('served','cancelled') AND s.role NOT IN ('waiter','both')) THEN RAISE EXCEPTION 'Acesso negado'; END IF;
+   IF s.restaurant_id IS DISTINCT FROM rid OR coalesce(s.role,'') NOT IN ('waiter','kitchen','both') THEN
+     RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+   END IF;
+   IF p_next_status IN ('served','cancelled') THEN
+     IF s.role NOT IN ('waiter','both') THEN
+       RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+     END IF;
+     PERFORM public.require_waiter_plan(rid);
+   ELSIF p_next_status IN ('accepted','preparing','ready') AND s.role NOT IN ('kitchen','both') THEN
+     RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+   END IF;
    staff_name:=s.name;
- ELSIF NOT EXISTS(SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN RAISE EXCEPTION 'Acesso negado';
- ELSE staff_name:=left(nullif(btrim(p_delivered_by),''),80); END IF;
+ ELSIF NOT EXISTS(SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN
+   RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+ ELSE
+   staff_name:=left(nullif(btrim(p_delivered_by),''),80);
+ END IF;
  IF NOT EXISTS (SELECT 1 FROM restaurants r WHERE r.id=rid
    AND public.restaurant_has_operations(public.get_restaurant_plan(r.slug))) THEN
    RAISE EXCEPTION 'A operação está disponível a partir do plano Essential.' USING ERRCODE='42501';
- END IF;
- IF p_staff_token IS NOT NULL AND s.role = 'waiter' THEN
-  PERFORM public.require_waiter_plan(rid);
  END IF;
  IF p_next_status NOT IN ('accepted','preparing','ready','served','cancelled') OR p_next_status IS NULL OR p_expected_status IS NULL THEN RAISE EXCEPTION 'Etapa inválida'; END IF;
  PERFORM set_config('flux.actor_staff',coalesce((SELECT staff_id::text FROM staff_session_info(p_staff_token)),''),true);
@@ -2011,17 +2020,26 @@ BEGIN
  SELECT restaurant_id INTO rid FROM orders WHERE id=p_order_id;
  IF p_staff_token IS NOT NULL THEN
    SELECT * INTO s FROM staff_session_info(p_staff_token);
-   IF s.restaurant_id IS DISTINCT FROM rid OR coalesce(s.role,'') NOT IN ('waiter','kitchen','both') THEN RAISE EXCEPTION 'Acesso negado'; END IF;
-   IF (p_next_status IN ('accepted','preparing','ready') AND s.role NOT IN ('kitchen','both')) OR (p_next_status IN ('served','cancelled') AND s.role NOT IN ('waiter','both')) THEN RAISE EXCEPTION 'Acesso negado'; END IF;
+   IF s.restaurant_id IS DISTINCT FROM rid OR coalesce(s.role,'') NOT IN ('waiter','kitchen','both') THEN
+     RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+   END IF;
+   IF p_next_status IN ('served','cancelled') THEN
+     IF s.role NOT IN ('waiter','both') THEN
+       RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+     END IF;
+     PERFORM public.require_waiter_plan(rid);
+   ELSIF p_next_status IN ('accepted','preparing','ready') AND s.role NOT IN ('kitchen','both') THEN
+     RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+   END IF;
    staff_name:=s.name;
- ELSIF NOT EXISTS(SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN RAISE EXCEPTION 'Acesso negado';
- ELSE staff_name:=left(nullif(btrim(p_delivered_by),''),80); END IF;
+ ELSIF NOT EXISTS(SELECT 1 FROM restaurants WHERE id=rid AND owner_id=auth.uid()) THEN
+   RAISE EXCEPTION 'Acesso negado' USING ERRCODE='42501';
+ ELSE
+   staff_name:=left(nullif(btrim(p_delivered_by),''),80);
+ END IF;
  IF NOT EXISTS (SELECT 1 FROM restaurants r WHERE r.id=rid
    AND public.restaurant_has_operations(public.get_restaurant_plan(r.slug))) THEN
    RAISE EXCEPTION 'A operação está disponível a partir do plano Essential.' USING ERRCODE='42501';
- END IF;
- IF p_staff_token IS NOT NULL AND s.role = 'waiter' THEN
-  PERFORM public.require_waiter_plan(rid);
  END IF;
  IF p_next_status NOT IN ('accepted','preparing','ready','served','cancelled') OR p_next_status IS NULL OR p_expected_status IS NULL THEN RAISE EXCEPTION 'Etapa inválida'; END IF;
  PERFORM set_config('flux.actor_staff',coalesce((SELECT staff_id::text FROM staff_session_info(p_staff_token)),''),true);
@@ -2158,11 +2176,28 @@ $commercial_body_23$)) OR NOT (has_function_privilege('anon',to_regprocedure('pu
       OR (tablename='staff_members' AND policyname='operation_plan_staff_delete' AND cmd='DELETE' AND qual='can_manage_restaurant_operation(restaurant_id)')
       OR (tablename='venue_tables' AND policyname='operation_plan_table_delete' AND cmd='DELETE' AND qual='can_manage_restaurant_operation(restaurant_id)')
     )) <> 4 THEN RAISE EXCEPTION 'Políticas operacionais divergentes.'; END IF;
-  IF (SELECT count(*) FROM pg_policies WHERE permissive='RESTRICTIVE' AND roles=ARRAY['authenticated']::name[] AND (
-      (schemaname='public' AND policyname='entitled_operation' AND cmd='ALL' AND tablename IN ('venue_tables','orders','waiter_calls','staff_members','table_services','operation_events','order_items'))
-      OR (schemaname='public' AND tablename='restaurants' AND policyname IN ('active_venue_insert','active_venue_update','active_venue_delete'))
-      OR (schemaname='storage' AND tablename='objects' AND policyname IN ('active_menu_media_insert','active_menu_media_update','active_menu_media_delete'))
-    )) <> 13 THEN RAISE EXCEPTION 'Políticas de acesso ativo divergentes.'; END IF;
+  IF EXISTS (SELECT 1 FROM (VALUES
+    ($predicate$public$predicate$, $predicate$venue_tables$predicate$, $predicate$entitled_operation$predicate$, $predicate$ALL$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$),
+    ($predicate$public$predicate$, $predicate$orders$predicate$, $predicate$entitled_operation$predicate$, $predicate$ALL$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$),
+    ($predicate$public$predicate$, $predicate$waiter_calls$predicate$, $predicate$entitled_operation$predicate$, $predicate$ALL$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$),
+    ($predicate$public$predicate$, $predicate$staff_members$predicate$, $predicate$entitled_operation$predicate$, $predicate$ALL$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$),
+    ($predicate$public$predicate$, $predicate$table_services$predicate$, $predicate$entitled_operation$predicate$, $predicate$ALL$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$),
+    ($predicate$public$predicate$, $predicate$operation_events$predicate$, $predicate$entitled_operation$predicate$, $predicate$ALL$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$, $predicate$can_manage_restaurant_operation(restaurant_id)$predicate$),
+    ($predicate$public$predicate$, $predicate$order_items$predicate$, $predicate$entitled_operation$predicate$, $predicate$ALL$predicate$, $predicate$(EXISTS ( SELECT 1 FROM orders o WHERE (o.id = order_items.order_id)))$predicate$, $predicate$(EXISTS ( SELECT 1 FROM orders o WHERE (o.id = order_items.order_id)))$predicate$),
+    ($predicate$public$predicate$, $predicate$restaurants$predicate$, $predicate$active_venue_insert$predicate$, $predicate$INSERT$predicate$, NULL, $predicate$(EXISTS ( SELECT 1 FROM ( SELECT get_my_entitlement() AS value) e WHERE (((e.value ->> 'plan_type'::text) = ANY (ARRAY['basic'::text, 'essential'::text, 'pro'::text, 'enterprise'::text])) OR (((e.value ->> 'plan_type'::text) = 'trial'::text) AND (((e.value ->> 'trial_ends_at'::text))::timestamp with time zone > now())))))$predicate$),
+    ($predicate$public$predicate$, $predicate$restaurants$predicate$, $predicate$active_venue_update$predicate$, $predicate$UPDATE$predicate$, $predicate$can_edit_catalog(id)$predicate$, $predicate$can_edit_catalog(id)$predicate$),
+    ($predicate$public$predicate$, $predicate$restaurants$predicate$, $predicate$active_venue_delete$predicate$, $predicate$DELETE$predicate$, $predicate$can_edit_catalog(id)$predicate$, NULL),
+    ($predicate$storage$predicate$, $predicate$objects$predicate$, $predicate$active_menu_media_insert$predicate$, $predicate$INSERT$predicate$, NULL, $predicate$((bucket_id <> 'menu-images'::text) OR (EXISTS ( SELECT 1 FROM restaurants r WHERE ((r.owner_id = ( SELECT auth.uid() AS uid)) AND can_edit_catalog(r.id)))))$predicate$),
+    ($predicate$storage$predicate$, $predicate$objects$predicate$, $predicate$active_menu_media_update$predicate$, $predicate$UPDATE$predicate$, $predicate$((bucket_id <> 'menu-images'::text) OR (EXISTS ( SELECT 1 FROM restaurants r WHERE ((r.owner_id = ( SELECT auth.uid() AS uid)) AND can_edit_catalog(r.id)))))$predicate$, $predicate$((bucket_id <> 'menu-images'::text) OR (EXISTS ( SELECT 1 FROM restaurants r WHERE ((r.owner_id = ( SELECT auth.uid() AS uid)) AND can_edit_catalog(r.id)))))$predicate$),
+    ($predicate$storage$predicate$, $predicate$objects$predicate$, $predicate$active_menu_media_delete$predicate$, $predicate$DELETE$predicate$, $predicate$((bucket_id <> 'menu-images'::text) OR (EXISTS ( SELECT 1 FROM restaurants r WHERE ((r.owner_id = ( SELECT auth.uid() AS uid)) AND can_edit_catalog(r.id)))))$predicate$, NULL)
+  ) expected(schema_name, table_name, policy_name, command, using_expr, check_expr)
+  WHERE NOT EXISTS (SELECT 1 FROM pg_policies p
+    WHERE p.schemaname=expected.schema_name AND p.tablename=expected.table_name
+      AND p.policyname=expected.policy_name AND p.cmd=expected.command
+      AND p.permissive='RESTRICTIVE' AND p.roles=ARRAY['authenticated']::name[]
+      AND regexp_replace(btrim(p.qual), '[[:space:]]+', ' ', 'g') IS NOT DISTINCT FROM expected.using_expr
+      AND regexp_replace(btrim(p.with_check), '[[:space:]]+', ' ', 'g') IS NOT DISTINCT FROM expected.check_expr
+  )) THEN RAISE EXCEPTION 'Políticas de acesso ativo divergentes.'; END IF;
   IF EXISTS (SELECT 1 FROM unnest(ARRAY['anon','authenticated']) AS role_name WHERE
     has_function_privilege(role_name,'public.staff_list_members(text)','EXECUTE')
     OR has_function_privilege(role_name,'public.staff_archive_orders(text,uuid[])','EXECUTE')) THEN

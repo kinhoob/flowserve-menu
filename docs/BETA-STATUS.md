@@ -7,7 +7,7 @@
 - Preços mensais de R$ 30, R$ 99 e R$ 199 conferidos no código. A suíte simula assinatura e retentativa do webhook, isolamento do sandbox e reconciliação. O banco também rejeita novo checkout quando existe assinatura pendente no mesmo ambiente.
 - O PostgreSQL local usa dados fictícios. A suíte cobre limite de QR em lote e sob concorrência, downgrade, preços calculados no servidor, duplicidade, horários, códigos, fechamento e isolamento de restaurantes. O procedimento de implantação está no [roteiro](DEPLOYMENT.md).
 
-Validação local aprovada em Windows com `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd test`, `npm.cmd run test:db`, `npm.cmd run build` e `npm.cmd run db:bootstrap`. A suíte de aplicação aprovou 166 testes e pulou 25 casos que exigem Supabase configurado para integração. O banco descartável confirmou a cadeia versionada, o consolidado aplicado duas vezes e a ponte legada com webhook simulado.
+Validação local aprovada em Windows com `npm.cmd run lint`, `npm.cmd run typecheck`, `npm.cmd test`, `npm.cmd run test:db`, `npm.cmd run build` e `npm.cmd run db:bootstrap`. A suíte de aplicação aprovou 166 testes e pulou 25 casos que exigem Supabase configurado para integração. O banco descartável confirmou a cadeia versionada, a reaplicação do consolidado e a ponte legada com webhook simulado. A revisão cobriu transições do titular, cozinha, garçom e perfil misto no Essential e Pro. O consolidado verifica os predicados de acesso ativo e rejeita alterações mesmo quando os nomes das políticas são preservados.
 
 ## Banco instalado e publicação
 

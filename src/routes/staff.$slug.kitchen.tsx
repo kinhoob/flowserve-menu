@@ -35,6 +35,7 @@ function StaffKitchen() {
   const role = plan.data?.role;
   const allowKitchen =
     (role === "kitchen" || role === "both") && planHasFeature(plan.data?.plan, "kitchen");
+  const canServe = role === "both" && planHasFeature(plan.data?.plan, "waiter");
 
   useEffect(() => {
     if (!session) navigate({ to: "/staff/$slug", params: { slug } });
@@ -189,29 +190,26 @@ function StaffKitchen() {
                           </li>
                         ))}
                       </ul>
-                      {col.next &&
-                        (col.next !== "served" ||
-                          session.role === "both" ||
-                          session.role === "waiter") && (
-                          <button
-                            onClick={() =>
-                              updateStatus.mutate({
-                                id: o.id,
-                                status: col.next!,
-                                expected: o.status,
-                              })
-                            }
-                            disabled={updateStatus.isPending}
-                            className="mt-3 w-full rounded-lg bg-primary px-3 min-h-11 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                          >
-                            <CheckCircle2 className="mr-1 inline h-3 w-3" /> Marcar como{" "}
-                            {col.next === "preparing"
-                              ? "preparando"
-                              : col.next === "ready"
-                                ? "pronto"
-                                : "entregue"}
-                          </button>
-                        )}
+                      {col.next && (col.next !== "served" || canServe) && (
+                        <button
+                          onClick={() =>
+                            updateStatus.mutate({
+                              id: o.id,
+                              status: col.next!,
+                              expected: o.status,
+                            })
+                          }
+                          disabled={updateStatus.isPending}
+                          className="mt-3 w-full rounded-lg bg-primary px-3 min-h-11 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                        >
+                          <CheckCircle2 className="mr-1 inline h-3 w-3" /> Marcar como{" "}
+                          {col.next === "preparing"
+                            ? "preparando"
+                            : col.next === "ready"
+                              ? "pronto"
+                              : "entregue"}
+                        </button>
+                      )}
                     </article>
                   ))
                 )}

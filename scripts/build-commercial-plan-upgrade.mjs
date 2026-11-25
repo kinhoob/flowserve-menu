@@ -47,6 +47,57 @@ const stages = [
   },
 ];
 
+function activeAccessPolicyContract() {
+  // pg_policies deparses these predicates with the consolidated script's search_path.
+  const operation = "can_manage_restaurant_operation(restaurant_id)";
+  const orderItems = "(EXISTS ( SELECT 1 FROM orders o WHERE (o.id = order_items.order_id)))";
+  const venue = "can_edit_catalog(id)";
+  const venueInsert =
+    "(EXISTS ( SELECT 1 FROM ( SELECT get_my_entitlement() AS value) e " +
+    "WHERE (((e.value ->> 'plan_type'::text) = ANY (ARRAY['basic'::text, 'essential'::text, 'pro'::text, 'enterprise'::text])) " +
+    "OR (((e.value ->> 'plan_type'::text) = 'trial'::text) AND (((e.value ->> 'trial_ends_at'::text))::timestamp with time zone > now())))))";
+  const media =
+    "((bucket_id <> 'menu-images'::text) OR (EXISTS ( SELECT 1 FROM restaurants r " +
+    "WHERE ((r.owner_id = ( SELECT auth.uid() AS uid)) AND can_edit_catalog(r.id)))))";
+  const policies = [
+    ...[
+      "venue_tables",
+      "orders",
+      "waiter_calls",
+      "staff_members",
+      "table_services",
+      "operation_events",
+    ].map((table) => ["public", table, "entitled_operation", "ALL", operation, operation]),
+    ["public", "order_items", "entitled_operation", "ALL", orderItems, orderItems],
+    ["public", "restaurants", "active_venue_insert", "INSERT", null, venueInsert],
+    ["public", "restaurants", "active_venue_update", "UPDATE", venue, venue],
+    ["public", "restaurants", "active_venue_delete", "DELETE", venue, null],
+    ["storage", "objects", "active_menu_media_insert", "INSERT", null, media],
+    ["storage", "objects", "active_menu_media_update", "UPDATE", media, media],
+    ["storage", "objects", "active_menu_media_delete", "DELETE", media, null],
+  ];
+  const sqlRows = policies.map(
+    (policy) =>
+      "    (" +
+      policy
+        .map((value) => (value === null ? "NULL" : "$predicate$" + value + "$predicate$"))
+        .join(", ") +
+      ")",
+  );
+  return [
+    "  IF EXISTS (SELECT 1 FROM (VALUES",
+    sqlRows.join(",\n"),
+    "  ) expected(schema_name, table_name, policy_name, command, using_expr, check_expr)",
+    "  WHERE NOT EXISTS (SELECT 1 FROM pg_policies p",
+    "    WHERE p.schemaname=expected.schema_name AND p.tablename=expected.table_name",
+    "      AND p.policyname=expected.policy_name AND p.cmd=expected.command",
+    "      AND p.permissive='RESTRICTIVE' AND p.roles=ARRAY['authenticated']::name[]",
+    "      AND regexp_replace(btrim(p.qual), '[[:space:]]+', ' ', 'g') IS NOT DISTINCT FROM expected.using_expr",
+    "      AND regexp_replace(btrim(p.with_check), '[[:space:]]+', ' ', 'g') IS NOT DISTINCT FROM expected.check_expr",
+    "  )) THEN RAISE EXCEPTION 'Políticas de acesso ativo divergentes.'; END IF;",
+  ].join("\n");
+}
+
 function installedContract() {
   const functions = [
     [0, "guard_operational_qr", "", []],
@@ -139,11 +190,7 @@ function installedContract() {
     "      OR (tablename='staff_members' AND policyname='operation_plan_staff_delete' AND cmd='DELETE' AND qual='can_manage_restaurant_operation(restaurant_id)')",
     "      OR (tablename='venue_tables' AND policyname='operation_plan_table_delete' AND cmd='DELETE' AND qual='can_manage_restaurant_operation(restaurant_id)')",
     "    )) <> 4 THEN RAISE EXCEPTION 'Políticas operacionais divergentes.'; END IF;",
-    "  IF (SELECT count(*) FROM pg_policies WHERE permissive='RESTRICTIVE' AND roles=ARRAY['authenticated']::name[] AND (",
-    "      (schemaname='public' AND policyname='entitled_operation' AND cmd='ALL' AND tablename IN ('venue_tables','orders','waiter_calls','staff_members','table_services','operation_events','order_items'))",
-    "      OR (schemaname='public' AND tablename='restaurants' AND policyname IN ('active_venue_insert','active_venue_update','active_venue_delete'))",
-    "      OR (schemaname='storage' AND tablename='objects' AND policyname IN ('active_menu_media_insert','active_menu_media_update','active_menu_media_delete'))",
-    "    )) <> 13 THEN RAISE EXCEPTION 'Políticas de acesso ativo divergentes.'; END IF;",
+    activeAccessPolicyContract(),
     "  IF EXISTS (SELECT 1 FROM unnest(ARRAY['anon','authenticated']) AS role_name WHERE",
     "    has_function_privilege(role_name,'public.staff_list_members(text)','EXECUTE')",
     "    OR has_function_privilege(role_name,'public.staff_archive_orders(text,uuid[])','EXECUTE')) THEN",

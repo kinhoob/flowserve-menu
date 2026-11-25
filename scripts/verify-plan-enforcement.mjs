@@ -51,6 +51,22 @@ export async function verifyPlanEnforcement(client) {
     .replace(/^BEGIN;\n/m, "")
     .replace(/\nCOMMIT;\n$/, "\n");
   for (const [change, error] of [
+    [
+      "ALTER POLICY entitled_operation ON public.orders USING (true)",
+      /Políticas de acesso ativo divergentes/,
+    ],
+    [
+      "ALTER POLICY entitled_operation ON public.order_items WITH CHECK (true)",
+      /Políticas de acesso ativo divergentes/,
+    ],
+    [
+      "ALTER POLICY active_venue_insert ON public.restaurants WITH CHECK (true)",
+      /Políticas de acesso ativo divergentes/,
+    ],
+    [
+      "ALTER POLICY active_menu_media_update ON storage.objects USING (true)",
+      /Políticas de acesso ativo divergentes/,
+    ],
     ["GRANT EXECUTE ON FUNCTION public.require_waiter_plan(uuid) TO anon", /grants divergentes/],
     [
       "CREATE OR REPLACE FUNCTION public.require_waiter_plan(p_restaurant_id uuid) RETURNS void LANGUAGE plpgsql AS $$ BEGIN RETURN; END $$",
@@ -172,6 +188,66 @@ export async function verifyPlanEnforcement(client) {
     client.query("SELECT release_table_service($1,$2,$3,$4)", [venue.id, table.id, id, token]);
   await assert.rejects(close(initial, staffToken), { code: "42501" });
   await close(initial);
+  await client.query("RESET ROLE");
+  await client.query(
+    "INSERT INTO staff_members(restaurant_id,name,pin,role) VALUES($1,'Perfil misto de teste','3267','both')",
+    [venue.id],
+  );
+  const mixedToken = (await client.query("SELECT token FROM staff_login($1,'3267')", [venue.slug]))
+    .rows[0].token;
+  const actors = [
+    { role: "owner", token: null },
+    { role: "kitchen", token },
+    { role: "waiter", token: staffToken },
+    { role: "both", token: mixedToken },
+  ];
+  const actions = [
+    ["pending", "accepted", "kitchen"],
+    ["accepted", "preparing", "kitchen"],
+    ["preparing", "ready", "kitchen"],
+    ["ready", "served", "waiter"],
+    ["pending", "cancelled", "waiter"],
+  ];
+  for (const tier of ["essential", "pro"]) {
+    await plan(tier);
+    for (const actor of actors) {
+      for (const [from, to, action] of actions) {
+        await client.query("RESET ROLE");
+        const {
+          rows: [order],
+        } = await client.query(
+          "INSERT INTO orders(restaurant_id,table_id,table_label,status,subtotal,currency,tracking_token_hash) VALUES($1,$2,$3,$4,10,'BRL',$5) RETURNING id",
+          [venue.id, table.id, "Mesa Essential", from, crypto.randomUUID()],
+        );
+        if (actor.role === "owner") await asOwner();
+        else {
+          await client.query("SELECT set_config('request.jwt.claim.sub','',false)");
+          await client.query("SET ROLE anon");
+        }
+        const change = client.query("SELECT transition_order($1,$2,$3,$4)", [
+          order.id,
+          from,
+          to,
+          actor.token,
+        ]);
+        const allowed =
+          actor.role === "owner" ||
+          (action === "kitchen" && ["kitchen", "both"].includes(actor.role)) ||
+          (action === "waiter" && tier === "pro" && ["waiter", "both"].includes(actor.role));
+        const caseLabel = [tier, actor.role, from, to].join(" / ");
+        if (allowed) await assert.doesNotReject(change, caseLabel);
+        else await assert.rejects(change, { code: "42501" }, caseLabel);
+        await client.query("RESET ROLE");
+        const {
+          rows: [persisted],
+        } = await client.query("SELECT status FROM orders WHERE id=$1", [order.id]);
+        assert.equal(persisted.status, allowed ? to : from, caseLabel);
+      }
+    }
+  }
+  await client.query("UPDATE orders SET archived=true WHERE table_id=$1", [table.id]);
+  await plan("essential");
+  await asOwner();
   const ensureNoStaffWrites = async () => {
     await assert.rejects(
       client.query(
@@ -287,7 +363,7 @@ export async function verifyPlanEnforcement(client) {
   await reserve("live");
   await client.query("RESET ROLE");
   console.log(
-    "PASS: Pro waiter RPCs, Essential owner access, expired access blocked and history restored by effective entitlement, staff and table writes gated by RLS, upgrade contract rejects partial repairs",
+    "PASS: owner and role/action transitions on Essential and Pro, active policy predicate drift rejected",
   );
   console.log(
     "PASS: legacy staged upgrade, staff role and effective plan, RLS catalog operations, active entitlement for historical reports",
