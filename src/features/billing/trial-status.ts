@@ -21,33 +21,15 @@ export function canContinueService(
   info: TrialInfo | null | undefined,
   feature: FeatureKey,
 ): boolean {
-  return (
-    canAccess(info, feature) ||
-    (feature === "tables" &&
-      info?.plan_type === "trial" &&
-      Number.isFinite(Date.parse(info.trial_ends_at))) ||
-    (!!info &&
-      isKnownPlan(info.plan_type) &&
-      !!info.service_wind_down &&
-      (feature === "tables" || feature === "kitchen"))
-  );
+  return canAccess(info, feature);
 }
 
 export function canReadAnalytics(info: TrialInfo | null | undefined): boolean {
-  return (
-    canAccess(info, "analytics") ||
-    (info?.plan_type === "trial" && Number.isFinite(Date.parse(info.trial_ends_at)))
-  );
+  return canAccess(info, "analytics");
 }
 
 export function canOpenFeature(info: TrialInfo | null | undefined, feature: FeatureKey): boolean {
-  if (feature === "analytics") return canReadAnalytics(info);
-  if (feature === "menu")
-    return (
-      canAccess(info, feature) ||
-      (info?.plan_type === "trial" && Number.isFinite(Date.parse(info.trial_ends_at)))
-    );
-  return canContinueService(info, feature);
+  return canAccess(info, feature);
 }
 
 export function useTrialStatus() {

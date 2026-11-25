@@ -23,6 +23,27 @@ export async function verifyLegacyPlanUpgrade(client) {
 export async function verifyPlanEnforcement(client) {
   await client.query("RESET ROLE");
   const consolidated = fs.readFileSync(file, "utf8");
+  await client.query("BEGIN");
+  try {
+    for (const version of [
+      "20261124150718_plan_enforcement_audit.sql",
+      "20261124152106_guard_staff_operations.sql",
+      "20261125033939_enforce_active_plan_access.sql",
+    ])
+      await client.query(
+        fs.readFileSync(new URL("../supabase/migrations/" + version, import.meta.url), "utf8"),
+      );
+    assert.equal(
+      (
+        await client.query(
+          "SELECT count(*)::int AS n FROM pg_policies WHERE policyname='entitled_operation'",
+        )
+      ).rows[0].n,
+      7,
+    );
+  } finally {
+    await client.query("ROLLBACK");
+  }
   await client.query(consolidated);
   await client.query(consolidated);
 
@@ -101,7 +122,7 @@ export async function verifyPlanEnforcement(client) {
   }
   await plan("trial", -1);
   await asOwner();
-  await analytics();
+  await assert.rejects(analytics(), { code: "42501" });
   assert.equal((await staff()).plan, "basic");
   await assert.rejects(catalog(), { code: "42501" });
   await assert.rejects(client.query("SELECT get_staff_entitlement('fake')"), { code: "42501" });
@@ -149,7 +170,8 @@ export async function verifyPlanEnforcement(client) {
   await assert.rejects(code(staffToken, false), { code: "42501" });
   const close = (id, token = null) =>
     client.query("SELECT release_table_service($1,$2,$3,$4)", [venue.id, table.id, id, token]);
-  await close(initial, staffToken);
+  await assert.rejects(close(initial, staffToken), { code: "42501" });
+  await close(initial);
   const ensureNoStaffWrites = async () => {
     await assert.rejects(
       client.query(
@@ -182,10 +204,62 @@ export async function verifyPlanEnforcement(client) {
   await ensureNoStaffWrites();
   assert.equal((await client.query("DELETE FROM venue_tables WHERE id=$1", [free.id])).rowCount, 0);
   await assert.rejects(start(staffToken), { code: "42501" });
-  await close(active, staffToken);
+  await assert.rejects(close(active, staffToken), { code: "42501" });
+  await assert.rejects(close(active), { code: "42501" });
+  await assert.rejects(client.query("SELECT staff_list_orders($1)", [token]), { code: "42501" });
+  await assert.rejects(client.query("SELECT get_table_events($1,NULL)", [table.id]), {
+    code: "42501",
+  });
+  await assert.rejects(client.query("SELECT hide_completed_orders($1)", [venue.id]), {
+    code: "42501",
+  });
+  await assert.rejects(
+    client.query("SELECT recover_internal_order($1,$2,NULL)", [table.id, crypto.randomUUID()]),
+    { code: "42501" },
+  );
+  assert.equal(
+    (await client.query("SELECT id FROM venue_tables WHERE id=$1", [table.id])).rowCount,
+    0,
+  );
+  assert.equal(
+    (await client.query("SELECT id FROM table_services WHERE id=$1", [active])).rowCount,
+    0,
+  );
+  assert.equal(
+    (await client.query("UPDATE restaurants SET name='Bloqueado' WHERE id=$1", [venue.id]))
+      .rowCount,
+    0,
+  );
+  await client.query("RESET ROLE");
+  await client.query(
+    "INSERT INTO platform_entitlements(user_id,plan_type,trial_ends_at) VALUES($1,'essential',now())",
+    [owner],
+  );
+  await asOwner();
+  assert.equal(
+    (await client.query("SELECT id FROM table_services WHERE id=$1 AND ended_at IS NULL", [active]))
+      .rowCount,
+    1,
+  );
+  await close(active);
+  await client.query("RESET ROLE");
+  await client.query("DELETE FROM platform_entitlements WHERE user_id=$1", [owner]);
   await plan("basic");
   await asOwner();
   await ensureNoStaffWrites();
+  assert.equal(
+    (await client.query("SELECT id FROM venue_tables WHERE id=$1", [table.id])).rowCount,
+    0,
+  );
+  await assert.rejects(
+    client.query("UPDATE restaurants SET kitchen_open=NOT kitchen_open WHERE id=$1", [venue.id]),
+    { code: "42501" },
+  );
+  assert.equal(
+    (await client.query("UPDATE restaurants SET name='Cardápio Basic' WHERE id=$1", [venue.id]))
+      .rowCount,
+    1,
+  );
   await plan("unrecognized");
   await asOwner();
   await ensureNoStaffWrites();
@@ -193,10 +267,29 @@ export async function verifyPlanEnforcement(client) {
   await asOwner(outsider);
   await ensureNoStaffWrites();
   await client.query("RESET ROLE");
+  await client.query(
+    "INSERT INTO subscriptions(user_id,stripe_subscription_id,stripe_customer_id,environment,status) VALUES($1,'sub_pending_plan_guard','cus_fixture','live','unpaid')",
+    [owner],
+  );
+  await client.query("SET ROLE service_role");
+  const reserve = (environment) =>
+    client.query(
+      "SELECT reserve_billing_checkout($1,$2,'price_fixture','cus_fixture','https://flux.example')",
+      [owner, environment],
+    );
+  await assert.rejects(reserve("live"), { code: "22023" });
+  await reserve("sandbox");
+  await client.query("RESET ROLE");
+  await client.query(
+    "UPDATE subscriptions SET status='canceled' WHERE stripe_subscription_id='sub_pending_plan_guard'",
+  );
+  await client.query("SET ROLE service_role");
+  await reserve("live");
+  await client.query("RESET ROLE");
   console.log(
-    "PASS: Pro waiter RPCs, Essential owner access, expired safe closure, staff and table writes gated by RLS, upgrade contract rejects partial repairs",
+    "PASS: Pro waiter RPCs, Essential owner access, expired access blocked and history restored by effective entitlement, staff and table writes gated by RLS, upgrade contract rejects partial repairs",
   );
   console.log(
-    "PASS: legacy staged upgrade, staff role and effective plan, RLS catalog operations, authorized historical reports and export access",
+    "PASS: legacy staged upgrade, staff role and effective plan, RLS catalog operations, active entitlement for historical reports",
   );
 }

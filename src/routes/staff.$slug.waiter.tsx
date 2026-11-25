@@ -51,7 +51,7 @@ function StaffWaiter() {
   const role = plan.data?.role;
   const isWaiter = role === "waiter" || role === "both";
   const canOperate = isWaiter && planHasFeature(plan.data?.plan, "waiter");
-  const canAccessOrders = canOperate || (isWaiter && plan.data?.service_wind_down);
+  const canAccessOrders = canOperate;
   const tablesQ = useQuery({
     queryKey: ["staff-tables", session?.token],
     enabled: !!canAccessOrders,

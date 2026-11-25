@@ -36,7 +36,7 @@ export function CommandPalette({
   const navigate = useNavigate();
   const tools = useDashboardTools();
   const { data: restaurant } = useRestaurant();
-  const tables = useTables(restaurant?.id);
+  const tables = useTables(canContinueService(trial, "tables") ? restaurant?.id : undefined);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (event.isComposing || event.defaultPrevented) return;
@@ -129,7 +129,7 @@ export function CommandPalette({
                 className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-widest [&_[cmdk-group-heading]]:text-muted-foreground"
               >
                 {NAV.map(({ to, label, icon: Icon, feature }) => {
-                  const locked = !!feature && !!trial && !canOpenFeature(trial, feature);
+                  const locked = !!feature && !canOpenFeature(trial, feature);
                   return (
                     <Command.Item
                       key={to}

@@ -15,7 +15,13 @@ import { NAV } from "./navigation";
 
 import { FluxLogo } from "@/components/brand/logo";
 import { useAuth } from "@/features/auth/use-auth";
-import { canOpenFeature, minimumPlan, useTrialStatus } from "@/features/billing/trial-status";
+import { FeatureLocked, TrialExpiredBlock } from "@/features/billing/trial-guard";
+import {
+  canOpenFeature,
+  isTrialExpired,
+  minimumPlan,
+  useTrialStatus,
+} from "@/features/billing/trial-status";
 import { UpgradeProModal } from "@/features/billing/upgrade-modal";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -39,6 +45,9 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
   }, []);
   const { user, signOut } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const searchStr = useRouterState({ select: (s) => s.location.searchStr });
+  const billingPage =
+    pathname === "/settings" && new URLSearchParams(searchStr).get("tab") === "billing";
   const { data: trial, isPending: planLoading, refetch: refetchPlan } = useTrialStatus();
   const [lockedLabel, setLockedLabel] = useState<string | null>(null);
   const [tourActive, setTourActive] = useState(false);
@@ -52,10 +61,19 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
     setMobileOpen(false);
   }, [pathname]);
 
-  const navBlock = (
+  const restricted = !canOpenFeature(trial, "dashboard");
+  const feature = NAV.find((item) => item.to === pathname)?.feature;
+
+  const navBlock = restricted ? (
+    <nav className="flex-1 px-6">
+      <Link to="/settings" search={{ tab: "billing" }} className="text-sm text-primary">
+        Assinatura
+      </Link>
+    </nav>
+  ) : (
     <nav className="flex-1 space-y-1 px-3">
       {NAV.map(({ label, to, icon: Icon, soon, id, feature }) => {
-        const locked = !!feature && !!trial && !canOpenFeature(trial, feature);
+        const locked = !!feature && !canOpenFeature(trial, feature);
         const active = pathname === to && !soon;
         return (
           <Link
@@ -147,28 +165,33 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
             </SheetContent>
           </Sheet>
 
-          <CommandPalette trial={trial} onLocked={setLockedLabel} />
+          {!restricted && <CommandPalette trial={trial} onLocked={setLockedLabel} />}
 
-          <RestaurantHeader />
+          {restricted ? <span className="font-display">Flux Menu</span> : <RestaurantHeader />}
 
           <div className="flex items-center gap-2">
             <span className="hidden sm:inline-flex">
               <BetaBadge />
             </span>
-            <MenuPreviewLink className="hidden rounded-lg border border-border px-3 py-2 text-xs lg:inline-flex" />
+            {!restricted && (
+              <MenuPreviewLink className="hidden rounded-lg border border-border px-3 py-2 text-xs lg:inline-flex" />
+            )}
             <button
               onClick={tools.shortcuts}
               aria-label="Mostrar atalhos de teclado"
-              className="hidden rounded-lg p-2 text-muted-foreground sm:block"
+              className={cn(
+                "hidden rounded-lg p-2 text-muted-foreground",
+                !restricted && "sm:block",
+              )}
             >
               <Keyboard className="h-4 w-4" />
             </button>
-            <NotificationBell />
+            {canOpenFeature(trial, "kitchen") && <NotificationBell />}
           </div>
         </header>
         <main className="min-w-0 flex-1 px-4 pb-28 pt-6 md:px-6 md:py-8">
           <ConnectionNotice />
-          {!betaDismissed && (
+          {!restricted && !betaDismissed && (
             <div className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-primary/15 bg-primary/5 px-4 py-3">
               <p className="text-xs leading-5 text-muted-foreground">
                 <strong className="font-medium text-primary">Flux em beta.</strong> Teste as
@@ -196,7 +219,9 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
           >
-            {!trial && pathname !== "/settings" ? (
+            {trial && isTrialExpired(trial) && !billingPage ? (
+              <TrialExpiredBlock />
+            ) : !trial && !billingPage ? (
               <div
                 role="status"
                 className="mx-auto max-w-lg rounded-2xl border border-border p-6 text-center"
@@ -215,6 +240,8 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
                   </button>
                 )}
               </div>
+            ) : feature && !canOpenFeature(trial, feature) ? (
+              <FeatureLocked feature={feature} />
             ) : (
               children
             )}
@@ -222,44 +249,50 @@ function DashboardShellContent({ children }: { children: ReactNode }) {
         </main>
       </div>
 
-      <nav
-        aria-label="Navegação rápida no celular"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-background px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))] md:hidden"
-      >
-        {NAV.filter((n) => ["/dashboard", "/kitchen", "/tables"].includes(n.to)).map(
-          ({ to, label, icon: Icon, feature }) => (
-            <Link
-              key={to}
-              to={to}
-              aria-current={pathname === to ? "page" : undefined}
-              onClick={(e) => {
-                if (feature && trial && !canOpenFeature(trial, feature)) {
-                  e.preventDefault();
-                  setLockedLabel(label + " · " + minimumPlan(feature));
-                }
-              }}
-              className={cn(
-                "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px]",
-                pathname === to ? "bg-primary/10 text-primary" : "text-muted-foreground",
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {to === "/dashboard" ? "Início" : label}
-            </Link>
-          ),
-        )}
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground"
+      {!restricted && (
+        <nav
+          aria-label="Navegação rápida no celular"
+          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-background px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))] md:hidden"
         >
-          <MoreHorizontal className="h-4 w-4" />
-          Mais
-        </button>
-      </nav>
-      <AdminTour onActiveChange={setTourActive} />
-      <FloatingAssistant hidden={tourActive || mobileOpen} />
+          {NAV.filter((n) => ["/dashboard", "/kitchen", "/tables"].includes(n.to)).map(
+            ({ to, label, icon: Icon, feature }) => (
+              <Link
+                key={to}
+                to={to}
+                aria-current={pathname === to ? "page" : undefined}
+                onClick={(e) => {
+                  if (feature && !canOpenFeature(trial, feature)) {
+                    e.preventDefault();
+                    setLockedLabel(label + " · " + minimumPlan(feature));
+                  }
+                }}
+                className={cn(
+                  "flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl text-[10px]",
+                  pathname === to ? "bg-primary/10 text-primary" : "text-muted-foreground",
+                )}
+              >
+                {feature && !canOpenFeature(trial, feature) ? (
+                  <Lock className="h-4 w-4 text-primary" />
+                ) : (
+                  <Icon className="h-4 w-4" />
+                )}
+                {to === "/dashboard" ? "Início" : label}
+              </Link>
+            ),
+          )}
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] text-muted-foreground"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+            Mais
+          </button>
+        </nav>
+      )}
+      {!restricted && <AdminTour onActiveChange={setTourActive} />}
+      {!restricted && <FloatingAssistant hidden={tourActive || mobileOpen} />}
       <UpgradeProModal
-        open={lockedLabel !== null}
+        open={!restricted && lockedLabel !== null}
         featureLabel={lockedLabel}
         onClose={() => setLockedLabel(null)}
       />

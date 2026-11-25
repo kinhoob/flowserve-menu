@@ -4,7 +4,7 @@ import { DashboardSkeleton, QueryError } from "@/features/dashboard/query-feedba
 import { MenuPreviewLink } from "@/features/dashboard/dashboard-tools";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/features/auth/use-auth";
-import { TrialBanner, ServiceWindDownNotice } from "@/features/billing/trial-guard";
+import { TrialBanner } from "@/features/billing/trial-guard";
 import { canAccess, canContinueService, useTrialStatus } from "@/features/billing/trial-status";
 import { STATUS_LABELS, useOrders, type Order } from "@/features/orders/order-queries";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
@@ -48,9 +48,12 @@ function DashboardPage() {
     isError: restaurantError,
     refetch: refetchRestaurant,
   } = useRestaurant();
-  const ordersQuery = useOrders(restaurant?.id, true);
+  const { data: trial } = useTrialStatus();
+  const canManageOrders = canContinueService(trial, "kitchen");
+  const operationalId = canManageOrders ? restaurant?.id : undefined;
+  const ordersQuery = useOrders(operationalId, true);
   const { data: orders } = ordersQuery;
-  const callsQuery = useWaiterCalls(restaurant?.id);
+  const callsQuery = useWaiterCalls(operationalId);
   const { data: waiterCalls = [] } = callsQuery;
   const resolveCall = useResolveWaiterCall(restaurant?.id);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -58,10 +61,7 @@ function DashboardPage() {
   const billCalls = pendingCalls.filter((c) => c.kind === "bill");
   const regularCalls = pendingCalls.filter((c) => c.kind !== "bill");
   const currency = restaurant?.currency ?? "BRL";
-  const { data: trial } = useTrialStatus();
-  const canManageOrders = canContinueService(trial, "kitchen");
-
-  const tablesQuery = useTables(restaurant?.id);
+  const tablesQuery = useTables(operationalId);
   const { data: tables = [] } = tablesQuery;
   const tablesCount = tables.length;
 
@@ -122,7 +122,7 @@ function DashboardPage() {
         retry={() => void refetchRestaurant()}
       />
     );
-  if (ordersQuery.isPending || callsQuery.isPending || tablesQuery.isPending)
+  if (canManageOrders && (ordersQuery.isPending || callsQuery.isPending || tablesQuery.isPending))
     return <DashboardSkeleton />;
   const refresh = () => {
     void ordersQuery.refetch();
@@ -130,9 +130,10 @@ function DashboardPage() {
     void tablesQuery.refetch();
   };
   if (
-    (ordersQuery.isError && !orders) ||
-    (callsQuery.isError && !callsQuery.data) ||
-    (tablesQuery.isError && !tablesQuery.data)
+    canManageOrders &&
+    ((ordersQuery.isError && !orders) ||
+      (callsQuery.isError && !callsQuery.data) ||
+      (tablesQuery.isError && !tablesQuery.data))
   )
     return (
       <QueryError
@@ -163,7 +164,6 @@ function DashboardPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-8">
-      {trial?.service_wind_down && <ServiceWindDownNotice />}
       <>
         {trial && <TrialBanner info={trial} />}
         <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
@@ -296,12 +296,14 @@ function DashboardPage() {
 
         <section aria-label="Ações rápidas" className="flex flex-wrap gap-3">
           <MenuPreviewLink className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium" />
-          <Link
-            to="/tables"
-            className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium"
-          >
-            Gerenciar mesas
-          </Link>
+          {canManageOrders && (
+            <Link
+              to="/tables"
+              className="inline-flex min-h-11 items-center rounded-xl border border-border bg-surface px-4 text-xs font-medium"
+            >
+              Gerenciar mesas
+            </Link>
+          )}
           <Link
             to="/menu"
             className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-border bg-surface px-4 text-xs font-medium"
@@ -315,59 +317,61 @@ function DashboardPage() {
             QR Codes
           </Link>
         </section>
-        <div className="rounded-2xl border border-border bg-surface p-6 animate-fade-up">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-xl tracking-tight">Atividade recente</h2>
-            <span className="text-xs text-muted-foreground">
-              {recent.length > 0 ? `${recent.length} mais recentes` : "Sem atividade ainda"}
-            </span>
-          </div>
-          {recent.length === 0 ? (
-            <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-                <Receipt className="h-5 w-5 text-primary" />
-              </div>
-              <p className="mt-4 text-sm font-medium">Nenhum pedido ainda</p>
-              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                Quando os clientes escanearem um QR e fizerem um pedido, ele aparecerá aqui em tempo
-                real.
-              </p>
+        {canManageOrders && (
+          <div className="rounded-2xl border border-border bg-surface p-6 animate-fade-up">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-xl tracking-tight">Atividade recente</h2>
+              <span className="text-xs text-muted-foreground">
+                {recent.length > 0 ? `${recent.length} mais recentes` : "Sem atividade ainda"}
+              </span>
             </div>
-          ) : (
-            <ul className="mt-5 divide-y divide-border">
-              {recent.map((o) => (
-                <li key={o.id}>
-                  <button
-                    onClick={() => setSelectedOrder(o)}
-                    className="flex w-full items-center justify-between gap-3 rounded-lg py-3 text-left transition hover:bg-background/60 px-2 -mx-2"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">
-                        {o.table_label ?? "Balcão"}
-                        {o.customer_name ? ` · ${o.customer_name}` : ""}
+            {recent.length === 0 ? (
+              <div className="mt-8 flex flex-col items-center justify-center py-10 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
+                  <Receipt className="h-5 w-5 text-primary" />
+                </div>
+                <p className="mt-4 text-sm font-medium">Nenhum pedido ainda</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  Quando os clientes escanearem um QR e fizerem um pedido, ele aparecerá aqui em
+                  tempo real.
+                </p>
+              </div>
+            ) : (
+              <ul className="mt-5 divide-y divide-border">
+                {recent.map((o) => (
+                  <li key={o.id}>
+                    <button
+                      onClick={() => setSelectedOrder(o)}
+                      className="flex w-full items-center justify-between gap-3 rounded-lg py-3 text-left transition hover:bg-background/60 px-2 -mx-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">
+                          {o.table_label ?? "Balcão"}
+                          {o.customer_name ? ` · ${o.customer_name}` : ""}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {o.order_items.length} {o.order_items.length === 1 ? "item" : "itens"} ·{" "}
+                          {new Date(o.created_at).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {o.order_items.length} {o.order_items.length === 1 ? "item" : "itens"} ·{" "}
-                        {new Date(o.created_at).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                      <div className="flex items-center gap-3">
+                        <span className="rounded-full bg-background px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground ring-1 ring-border">
+                          {STATUS_LABELS[o.status]}
+                        </span>
+                        <span className="font-display text-base tracking-tight">
+                          {formatPrice(Number(o.subtotal), currency)}
+                        </span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="rounded-full bg-background px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground ring-1 ring-border">
-                        {STATUS_LABELS[o.status]}
-                      </span>
-                      <span className="font-display text-base tracking-tight">
-                        {formatPrice(Number(o.subtotal), currency)}
-                      </span>
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         <Dialog open={!!selectedOrder} onOpenChange={(v) => !v && setSelectedOrder(null)}>
           <DialogContent className="max-w-md border-border bg-surface">

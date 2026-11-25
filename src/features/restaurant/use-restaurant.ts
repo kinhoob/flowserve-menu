@@ -6,11 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 
 export type Restaurant = Tables<"restaurants">;
 
-export function useRestaurant() {
+export function useRestaurant(enabled = true) {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["restaurant", user?.id],
-    enabled: !!user,
+    enabled: !!user && enabled,
     retry: false,
     queryFn: async (): Promise<Restaurant | null> => {
       const { data, error } = await supabase

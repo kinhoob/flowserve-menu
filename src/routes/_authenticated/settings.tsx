@@ -10,7 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/features/auth/use-auth";
-import { canAccess, daysLeft, useTrialStatus } from "@/features/billing/trial-status";
+import {
+  canAccess,
+  daysLeft,
+  isTrialExpired,
+  useTrialStatus,
+} from "@/features/billing/trial-status";
 import { EstablishmentSection } from "@/features/restaurant/establishment-section";
 import { useRestaurant } from "@/features/restaurant/use-restaurant";
 import { TeamSection } from "@/features/staff/team-section";
@@ -31,7 +36,6 @@ import {
   Loader2,
   Rocket,
   Sparkles,
-  Store,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -54,9 +58,10 @@ const PLANS = plans.map((plan) => ({
 
 function SettingsPage() {
   const { tab, plan: planParam } = Route.useSearch();
-  const { data: restaurant, isLoading, isError, error } = useRestaurant();
   const planQuery = useTrialStatus();
   const { data: trialInfo } = planQuery;
+  const billingOnly = !canAccess(trialInfo, "dashboard");
+  const { data: restaurant, isLoading, isError, refetch } = useRestaurant(!billingOnly);
   const { user } = useAuth();
   const qc = useQueryClient();
   const [kitchenOpen, setKitchenOpen] = useState(true);
@@ -207,41 +212,13 @@ function SettingsPage() {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (isError || !restaurant) {
-    return (
-      <div className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-          <Store className="h-5 w-5 text-primary" />
-        </div>
-        <p className="mt-4 text-sm font-medium">Nenhum item encontrado</p>
-        <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-          {isError
-            ? (error as Error).message
-            : "Configure seu restaurante para liberar as configurações."}
-        </p>
-        {!isError && (
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-5 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-          >
-            Recarregar
-          </button>
-        )}
-      </div>
-    );
-  }
-
   const profilePlan = trialInfo?.plan_type ?? null;
   const trialDays = daysLeft(trialInfo);
   const isTrial = profilePlan === "trial";
+  const trialExpired = isTrialExpired(trialInfo);
+  const paymentIssue = subscription?.status === "past_due" || subscription?.status === "unpaid";
+  const needsBillingAttention =
+    paymentIssue || subscription?.status === "paused" || subscription?.status === "incomplete";
 
   const currentPlanId = PLANS.find((plan) => plan.id === profilePlan)?.id ?? null;
   const effectivePlanName = isTrial
@@ -261,132 +238,162 @@ function SettingsPage() {
       </div>
 
       <Tabs
-        key={tab ?? (planParam ? "billing" : "operation")}
-        defaultValue={tab ?? (planParam ? "billing" : "operation")}
+        key={billingOnly ? "billing-only" : (tab ?? (planParam ? "billing" : "operation"))}
+        defaultValue={billingOnly ? "billing" : (tab ?? (planParam ? "billing" : "operation"))}
         className="w-full"
       >
         <TabsList className="max-w-full overflow-x-auto justify-start bg-surface">
-          <TabsTrigger value="operation">Operação</TabsTrigger>
-          <TabsTrigger value="establishment">Estabelecimento</TabsTrigger>
-          <TabsTrigger value="appearance">Personalização</TabsTrigger>
-          <TabsTrigger value="team">Equipe</TabsTrigger>
+          {!billingOnly && (
+            <>
+              <TabsTrigger value="operation">Operação</TabsTrigger>
+              <TabsTrigger value="establishment">Estabelecimento</TabsTrigger>
+              <TabsTrigger value="appearance">Personalização</TabsTrigger>
+              <TabsTrigger value="team">Equipe</TabsTrigger>
+            </>
+          )}
           <TabsTrigger value="billing">Assinatura</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="operation" className="mt-6 space-y-6">
-          <MascotPreference />
-          {planQuery.isPending ? (
+        {!billingOnly &&
+          !restaurant &&
+          tab !== "billing" &&
+          (isLoading ? (
             <DashboardSkeleton />
-          ) : !trialInfo ? (
+          ) : (
             <QueryError
-              message="Não foi possível verificar seu plano."
-              retry={() => void planQuery.refetch()}
+              message={
+                isError
+                  ? "Não foi possível carregar seu restaurante."
+                  : "Seu restaurante ainda está indisponível."
+              }
+              retry={() => void refetch()}
             />
-          ) : canAccess(trialInfo, "kitchen") ? (
-            <>
-              {" "}
-              <ServiceHoursEditor key={restaurant.id} restaurant={restaurant} />
+          ))}
+        {!billingOnly && restaurant && (
+          <>
+            <TabsContent value="operation" className="mt-6 space-y-6">
+              <MascotPreference />
+              {planQuery.isPending ? (
+                <DashboardSkeleton />
+              ) : !trialInfo ? (
+                <QueryError
+                  message="Não foi possível verificar seu plano."
+                  retry={() => void planQuery.refetch()}
+                />
+              ) : canAccess(trialInfo, "kitchen") ? (
+                <>
+                  {" "}
+                  <ServiceHoursEditor key={restaurant.id} restaurant={restaurant} />
+                  <section className="rounded-2xl border border-border bg-surface p-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
+                          <ChefHat className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <h2 className="font-display text-xl tracking-tight">Cozinha</h2>
+                          <p className="mt-1 max-w-md text-xs text-muted-foreground">
+                            Quando fechada, itens de comida são automaticamente desabilitados no
+                            cardápio público. As bebidas seguem a agenda e a pausa manual do bar.
+                          </p>
+                          <p className="mt-3 text-sm">
+                            Pausa manual:{" "}
+                            <span
+                              className={
+                                kitchenOpen
+                                  ? "font-medium text-emerald-400"
+                                  : "font-medium text-[oklch(0.78_0.18_25)]"
+                              }
+                            >
+                              {kitchenOpen ? "Habilitada (respeita a agenda)" : "Pausada"}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        aria-label="Habilitar cozinha"
+                        checked={kitchenOpen}
+                        onCheckedChange={toggleKitchen}
+                        disabled={update.isPending}
+                      />
+                    </div>
+                  </section>
+                </>
+              ) : (
+                <FeatureLocked feature="kitchen" />
+              )}
               <section className="rounded-2xl border border-border bg-surface p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-4">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-                      <ChefHat className="h-5 w-5 text-primary" />
+                      <Sparkles className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <h2 className="font-display text-xl tracking-tight">Cozinha</h2>
+                      <h2 className="font-display text-xl tracking-tight">Tutorial guiado</h2>
                       <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                        Quando fechada, itens de comida são automaticamente desabilitados no
-                        cardápio público. As bebidas seguem a agenda e a pausa manual do bar.
-                      </p>
-                      <p className="mt-3 text-sm">
-                        Pausa manual:{" "}
-                        <span
-                          className={
-                            kitchenOpen
-                              ? "font-medium text-emerald-400"
-                              : "font-medium text-[oklch(0.78_0.18_25)]"
-                          }
-                        >
-                          {kitchenOpen ? "Habilitada (respeita a agenda)" : "Pausada"}
-                        </span>
+                        Reveja o tour de boas-vindas com as principais áreas do Flux Menu: cardápio,
+                        QR Codes, análises e operação.
                       </p>
                     </div>
                   </div>
-                  <Switch
-                    aria-label="Habilitar cozinha"
-                    checked={kitchenOpen}
-                    onCheckedChange={toggleKitchen}
-                    disabled={update.isPending}
-                  />
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent("flux:start-tour"))}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+                  >
+                    Ver tutorial
+                  </button>
                 </div>
               </section>
-            </>
-          ) : (
-            <FeatureLocked feature="kitchen" />
-          )}
-          <section className="rounded-2xl border border-border bg-surface p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-soft ring-1 ring-[oklch(0.78_0.13_84_/_0.25)]">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h2 className="font-display text-xl tracking-tight">Tutorial guiado</h2>
-                  <p className="mt-1 max-w-md text-xs text-muted-foreground">
-                    Reveja o tour de boas-vindas com as principais áreas do Flux Menu: cardápio, QR
-                    Codes, análises e operação.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => window.dispatchEvent(new CustomEvent("flux:start-tour"))}
-                className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-              >
-                Ver tutorial
-              </button>
-            </div>
-          </section>
-        </TabsContent>
+            </TabsContent>
 
-        <TabsContent value="establishment" className="mt-6">
-          <EstablishmentSection
-            restaurantId={restaurant.id}
-            initialName={restaurant.name}
-            initialDescription={restaurant.description}
-            slug={restaurant.slug}
-            currency={restaurant.currency}
-            timezone={restaurant.timezone}
-            initialLogoUrl={restaurant.logo_url ?? null}
-            initialBanner={{
-              enabled: restaurant.banner_enabled ?? false,
-              title: restaurant.banner_title ?? "",
-              description: restaurant.banner_description ?? "",
-              image_url: restaurant.banner_image_url ?? null,
-              cta_label: restaurant.banner_cta_label ?? "",
-            }}
-          />
-        </TabsContent>
+            <TabsContent value="establishment" className="mt-6">
+              <EstablishmentSection
+                restaurantId={restaurant.id}
+                initialName={restaurant.name}
+                initialDescription={restaurant.description}
+                slug={restaurant.slug}
+                currency={restaurant.currency}
+                timezone={restaurant.timezone}
+                initialLogoUrl={restaurant.logo_url ?? null}
+                initialBanner={{
+                  enabled: restaurant.banner_enabled ?? false,
+                  title: restaurant.banner_title ?? "",
+                  description: restaurant.banner_description ?? "",
+                  image_url: restaurant.banner_image_url ?? null,
+                  cta_label: restaurant.banner_cta_label ?? "",
+                }}
+              />
+            </TabsContent>
 
-        <TabsContent value="appearance" className="mt-6">
-          <AppearanceEditor key={restaurant.id} restaurant={restaurant} />
-        </TabsContent>
-        <TabsContent value="team" className="mt-6">
+            <TabsContent value="appearance" className="mt-6">
+              <AppearanceEditor key={restaurant.id} restaurant={restaurant} />
+            </TabsContent>
+            <TabsContent value="team" className="mt-6">
+              {planQuery.isPending ? (
+                <DashboardSkeleton />
+              ) : !trialInfo ? (
+                <QueryError
+                  message="Não foi possível verificar seu plano."
+                  retry={() => void planQuery.refetch()}
+                />
+              ) : canAccess(trialInfo, "kitchen") ? (
+                <TeamSection restaurantId={restaurant.id} slug={restaurant.slug} />
+              ) : (
+                <FeatureLocked feature="kitchen" />
+              )}
+            </TabsContent>
+          </>
+        )}
+        <TabsContent value="billing" className="mt-6 space-y-6">
+          <PaymentTestModeBanner />
           {planQuery.isPending ? (
-            <DashboardSkeleton />
+            <p role="status">Verificando seu plano…</p>
           ) : !trialInfo ? (
             <QueryError
               message="Não foi possível verificar seu plano."
               retry={() => void planQuery.refetch()}
             />
-          ) : canAccess(trialInfo, "kitchen") ? (
-            <TeamSection restaurantId={restaurant.id} slug={restaurant.slug} />
-          ) : (
-            <FeatureLocked feature="kitchen" />
-          )}
-        </TabsContent>
-
-        <TabsContent value="billing" className="mt-6 space-y-6">
-          <PaymentTestModeBanner />
+          ) : null}
 
           {justUpgraded && (
             <div className="flex items-start justify-between gap-3 rounded-2xl border border-[oklch(0.78_0.13_84_/_0.5)] bg-gold-soft px-5 py-4 animate-fade-up">
@@ -412,28 +419,25 @@ function SettingsPage() {
           )}
 
           {/* Past-due / unpaid banner — access already revoked by webhook. */}
-          {subscription &&
-            (subscription.status === "past_due" || subscription.status === "unpaid") && (
-              <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/40 bg-red-500/10 px-5 py-4">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">
-                      Pagamento em atraso — acesso bloqueado
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Atualize seu método de pagamento para reativar seu plano imediatamente.
-                    </p>
-                  </div>
+          {paymentIssue && (
+            <div className="flex items-start justify-between gap-3 rounded-2xl border border-red-500/40 bg-red-500/10 px-5 py-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Pagamento em atraso</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Atualize seu método de pagamento no portal da assinatura.
+                  </p>
                 </div>
-                <button
-                  onClick={handleManageBilling}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90"
-                >
-                  Atualizar pagamento <ExternalLink className="h-3 w-3" />
-                </button>
               </div>
-            )}
+              <button
+                onClick={handleManageBilling}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition hover:opacity-90"
+              >
+                Atualizar pagamento <ExternalLink className="h-3 w-3" />
+              </button>
+            </div>
+          )}
 
           {/* Cancelamento agendado — usuário cancelou mas ainda tem período pago. */}
           {subscription?.cancel_at_period_end &&
@@ -472,28 +476,28 @@ function SettingsPage() {
                 </p>
                 <h2 className="mt-1 font-display text-2xl tracking-tight">{effectivePlanName}</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {isTrial
-                    ? `Período de teste — ${trialDays} ${trialDays === 1 ? "dia restante" : "dias restantes"}.`
-                    : subscription?.cancel_at_period_end && subscription.current_period_end
-                      ? `Acesso até ${new Date(subscription.current_period_end as string).toLocaleDateString("pt-BR")}.`
-                      : subscription?.current_period_end
-                        ? `Próxima cobrança em ${new Date(subscription.current_period_end as string).toLocaleDateString("pt-BR")}.`
-                        : "Faturamento mensal recorrente."}
+                  {trialExpired
+                    ? "Período de teste encerrado."
+                    : isTrial
+                      ? `Período de teste — ${trialDays} ${trialDays === 1 ? "dia restante" : "dias restantes"}.`
+                      : subscription?.cancel_at_period_end && subscription.current_period_end
+                        ? `Acesso até ${new Date(subscription.current_period_end as string).toLocaleDateString("pt-BR")}.`
+                        : subscription?.current_period_end
+                          ? `Próxima cobrança em ${new Date(subscription.current_period_end as string).toLocaleDateString("pt-BR")}.`
+                          : "Faturamento mensal recorrente."}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <span
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wider ring-1",
-                    subscription?.status === "past_due" || subscription?.status === "unpaid"
+                    billingOnly
                       ? "bg-red-500/10 text-red-400 ring-red-500/30"
                       : "bg-gold-soft text-primary ring-[oklch(0.78_0.13_84_/_0.3)]",
                   )}
                 >
                   <Check className="h-3 w-3" />
-                  {subscription?.status === "past_due" || subscription?.status === "unpaid"
-                    ? "Bloqueado"
-                    : "Ativo"}
+                  {!trialInfo ? "Indisponível" : trialExpired ? "Bloqueado" : "Ativo"}
                 </span>
                 {subscription?.stripe_customer_id && (
                   <button
@@ -507,12 +511,11 @@ function SettingsPage() {
             </div>
           </section>
 
-          {isTrial && (
+          {isTrial && !trialExpired && (
             <div className="flex items-start gap-3 rounded-2xl border border-[oklch(0.78_0.13_84_/_0.3)] bg-gold-soft px-5 py-4">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <p className="text-sm text-foreground">
-                Você está no plano <strong className="font-semibold">Trial</strong>. Faça o upgrade
-                para liberar todas as funções.
+                O Trial inclui os recursos do Pro até o fim do período de teste.
               </p>
             </div>
           )}
@@ -524,13 +527,19 @@ function SettingsPage() {
               // User has an active paid subscription on a different plan → swap (proration).
               const hasActiveSub =
                 !!subscription &&
-                (subscription.status === "active" || subscription.status === "trialing") &&
-                !!currentPlanId;
-              const canSwap = hasActiveSub && !isCurrent && !!plan.priceId && !plan.comingSoon;
-              const disabled = plan.comingSoon || isCurrent || swapPlan.isPending;
+                (subscription.status === "active" || subscription.status === "trialing");
+              const isBilledPlan = hasActiveSub && plan.id === subscription.plan_type;
+              const canSwap = hasActiveSub && !isBilledPlan && !!plan.priceId && !plan.comingSoon;
+              const disabled =
+                plan.comingSoon ||
+                isBilledPlan ||
+                (isCurrent && !canSwap && !needsBillingAttention) ||
+                swapPlan.isPending;
 
               const handleClick = () => {
-                if (canSwap && plan.priceId) {
+                if (needsBillingAttention) {
+                  void handleManageBilling();
+                } else if (canSwap && plan.priceId) {
                   if (
                     confirm(
                       `Trocar para o plano ${plan.name}? A diferença será cobrada proporcionalmente.`,
@@ -543,13 +552,15 @@ function SettingsPage() {
                 }
               };
 
-              const buttonLabel = isCurrent
-                ? "Plano atual"
-                : plan.comingSoon
-                  ? "Em breve"
-                  : canSwap
-                    ? "Trocar para este plano"
-                    : "Assinar agora";
+              const buttonLabel = plan.comingSoon
+                ? "Em breve"
+                : needsBillingAttention
+                  ? "Gerenciar assinatura"
+                  : isBilledPlan || (isCurrent && !canSwap)
+                    ? "Plano atual"
+                    : canSwap
+                      ? "Trocar para este plano"
+                      : "Assinar agora";
 
               return (
                 <div

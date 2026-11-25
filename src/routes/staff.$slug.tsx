@@ -1,3 +1,6 @@
+import { planHasFeature } from "@/features/billing/plan-matrix";
+import { DashboardSkeleton, QueryError } from "@/features/dashboard/query-feedback";
+import { useStaffEntitlement } from "@/features/staff/use-staff-entitlement";
 import { FluxLogo } from "@/components/brand/logo";
 import { staffLogin, staffLogout } from "@/features/staff/staff-rpc";
 import {
@@ -72,8 +75,25 @@ function roleLabel(role: string) {
 function StaffHome() {
   const { slug } = Route.useParams();
   const session = useStaffSession(slug);
-  const canWaiter = session?.role === "waiter" || session?.role === "both";
-  const canKitchen = session?.role === "kitchen" || session?.role === "both";
+  const plan = useStaffEntitlement(session?.token);
+  const role = plan.data?.role;
+  const canWaiter =
+    (role === "waiter" || role === "both") && planHasFeature(plan.data?.plan, "waiter");
+  const canKitchen =
+    (role === "kitchen" || role === "both") && planHasFeature(plan.data?.plan, "kitchen");
+
+  if (plan.isPending) return <DashboardSkeleton />;
+  if (plan.isError)
+    return (
+      <QueryError message="Não foi possível verificar o plano." retry={() => void plan.refetch()} />
+    );
+  if (!canWaiter && !canKitchen)
+    return (
+      <p className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground">
+        O plano e o perfil atuais não liberam áreas de operação. Fale com o responsável pelo
+        restaurante.
+      </p>
+    );
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">

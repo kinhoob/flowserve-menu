@@ -27,12 +27,24 @@ export type NavItem = {
 };
 
 export const NAV: NavItem[] = [
-  { label: "Visão geral", to: "/dashboard", icon: LayoutDashboard, id: "nav-dashboard" },
+  {
+    label: "Visão geral",
+    to: "/dashboard",
+    icon: LayoutDashboard,
+    id: "nav-dashboard",
+    feature: "dashboard",
+  },
   { label: "Pedidos", to: "/kitchen", icon: ClipboardList, id: "nav-kitchen", feature: "kitchen" },
   { label: "Garçom", to: "/waiter", icon: HandPlatter, id: "nav-waiter", feature: "waiter" },
   { label: "Cardápio", to: "/menu", icon: UtensilsCrossed, id: "nav-menu", feature: "menu" },
   { label: "Mesas", to: "/tables", icon: Armchair, id: "nav-tables", feature: "tables" },
-  { label: "QR Codes", to: "/qrcodes", icon: QrCode, id: "nav-qrcodes" },
+  {
+    label: "QR Codes",
+    to: "/qrcodes",
+    icon: QrCode,
+    id: "nav-qrcodes",
+    feature: "qrcodes",
+  },
   {
     label: "Análises",
     to: "/analytics",

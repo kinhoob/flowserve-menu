@@ -8,6 +8,7 @@ export function FeatureLocked({ feature }: { feature: FeatureKey }) {
     kitchenSound: "Alertas sonoros",
     waiter: "Rota do Garçom",
     menu: "Cardápio",
+    qrcodes: "QR geral",
     kitchen: "Pedidos",
     dashboard: "Dashboard",
     tables: "Mapa de Mesas",

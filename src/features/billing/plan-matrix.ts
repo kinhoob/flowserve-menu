@@ -10,6 +10,7 @@ export const ESSENTIAL_QR_LIMIT = 10;
 const FEATURE_MINIMUM = {
   dashboard: "basic",
   menu: "basic",
+  qrcodes: "basic",
   tables: "essential",
   kitchen: "essential",
   waiter: "pro",

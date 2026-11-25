@@ -34,8 +34,7 @@ function StaffKitchen() {
   const plan = useStaffEntitlement(session?.token);
   const role = plan.data?.role;
   const allowKitchen =
-    (role === "kitchen" || role === "both") &&
-    (planHasFeature(plan.data?.plan, "kitchen") || plan.data?.service_wind_down);
+    (role === "kitchen" || role === "both") && planHasFeature(plan.data?.plan, "kitchen");
 
   useEffect(() => {
     if (!session) navigate({ to: "/staff/$slug", params: { slug } });

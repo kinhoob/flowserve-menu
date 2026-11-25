@@ -19,9 +19,11 @@ import { Link } from "@tanstack/react-router";
 import { publicMenuUrl } from "@/lib/public-menu-url";
 
 export function DashboardTools({ children }: { children: ReactNode }) {
-  const { data: restaurant } = useRestaurant();
-  const tables = useTables(restaurant?.id);
   const { data: trial } = useTrialStatus();
+  const available = canAccess(trial, "dashboard");
+  const canOrder = canAccess(trial, "waiter");
+  const { data: restaurant } = useRestaurant(available);
+  const tables = useTables(canOrder ? restaurant?.id : undefined);
   const [selecting, setSelecting] = useState(false),
     [help, setHelp] = useState(false),
     [locked, setLocked] = useState(false);
@@ -56,13 +58,14 @@ export function DashboardTools({ children }: { children: ReactNode }) {
         }
       }
     };
+    if (!available) return;
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
-  }, []);
+  }, [available]);
   return (
     <DashboardToolsContext.Provider value={{ newOrder, shortcuts: () => setHelp(true) }}>
       {children}
-      <Dialog open={selecting} onOpenChange={setSelecting}>
+      <Dialog open={selecting && canOrder} onOpenChange={setSelecting}>
         <DialogContent className="border-border bg-surface">
           <DialogHeader>
             <DialogTitle>Novo pedido</DialogTitle>
@@ -109,7 +112,7 @@ export function DashboardTools({ children }: { children: ReactNode }) {
           )}
         </DialogContent>
       </Dialog>
-      {table && restaurant && (
+      {canOrder && table && restaurant && (
         <Suspense
           fallback={
             <p role="status" className="fixed bottom-24 left-4 z-50 rounded-xl bg-surface p-4">
@@ -127,7 +130,7 @@ export function DashboardTools({ children }: { children: ReactNode }) {
           />
         </Suspense>
       )}
-      <Dialog open={help} onOpenChange={setHelp}>
+      <Dialog open={help && available} onOpenChange={setHelp}>
         <DialogContent className="border-border bg-surface">
           <DialogHeader>
             <DialogTitle>Atalhos e preferências</DialogTitle>
@@ -157,7 +160,7 @@ export function DashboardTools({ children }: { children: ReactNode }) {
         </DialogContent>
       </Dialog>
       <UpgradeProModal
-        open={locked}
+        open={locked && available}
         featureLabel="Lançamento de pedidos pela equipe"
         onClose={() => setLocked(false)}
       />

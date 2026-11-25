@@ -37,6 +37,14 @@ const stages = [
       "EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND policyname IN ('operation_plan_staff_insert','operation_plan_staff_update','operation_plan_staff_delete','operation_plan_table_delete'))",
     ],
   },
+  {
+    file: "20261125033939_enforce_active_plan_access.sql",
+    markers: [
+      "EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='orders' AND policyname='entitled_operation')",
+      "EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='restaurants' AND policyname='active_venue_update')",
+      "EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='storage' AND tablename='objects' AND policyname='active_menu_media_insert')",
+    ],
+  },
 ];
 
 function installedContract() {
@@ -48,15 +56,23 @@ function installedContract() {
     [0, "platform_change_entitlement", "uuid,text,text,integer,text,bigint", ["authenticated"]],
     [1, "apply_billing_event", "text,bigint,text,jsonb", ["service_role"]],
     [1, "begin_billing_reconciliation", "text,text", ["service_role"]],
-    [1, "reserve_billing_checkout", "uuid,text,text,text,text", ["service_role"]],
-    [1, "release_table_service", "uuid,uuid,uuid,text,numeric,numeric", ["anon", "authenticated"]],
+    [4, "reserve_billing_checkout", "uuid,text,text,text,text", ["service_role"]],
+    [4, "release_table_service", "uuid,uuid,uuid,text,numeric,numeric", ["anon", "authenticated"]],
     [1, "release_table", "uuid,text,text,numeric,numeric", ["anon", "authenticated"]],
-    [2, "get_staff_entitlement", "text", ["anon", "authenticated"]],
-    [2, "get_restaurant_analytics", "uuid,timestamptz,timestamptz,integer", ["authenticated"]],
+    [4, "get_staff_entitlement", "text", ["anon", "authenticated"]],
+    [4, "get_restaurant_analytics", "uuid,timestamptz,timestamptz,integer", ["authenticated"]],
     [3, "start_table_service", "uuid,text", ["anon", "authenticated"]],
     [3, "table_order_code", "uuid,text,boolean", ["anon", "authenticated"]],
     [3, "can_manage_restaurant_operation", "uuid", ["authenticated"]],
     [3, "require_waiter_plan", "uuid", []],
+    [4, "staff_can_view_operation", "text,boolean", []],
+    [4, "transition_order", "uuid,text,text,text,text,text", ["anon", "authenticated"]],
+    [4, "get_table_events", "uuid,text", ["anon", "authenticated"]],
+    [4, "submit_internal_order", "uuid,uuid,jsonb,text,text", ["anon", "authenticated"]],
+    [4, "recover_internal_order", "uuid,uuid,text", ["anon", "authenticated"]],
+    [4, "hide_completed_orders", "uuid", ["authenticated"]],
+    [4, "staff_resolve_call", "text,uuid", ["anon", "authenticated"]],
+    [4, "guard_basic_operation_settings", "", []],
   ];
   const checks = functions.map(([stage, name, args, roles], index) => {
     const sql = fs.readFileSync(
@@ -109,7 +125,8 @@ function installedContract() {
     "    ('orders','commercial_guard_order','guard_new_order_plan',7),",
     "    ('orders','attach_table_service','attach_table_service',7),",
     "    ('waiter_calls','commercial_guard_call','guard_new_call_plan',7),",
-    "    ('waiter_calls','mark_service_bill','mark_service_bill',5)",
+    "    ('waiter_calls','mark_service_bill','mark_service_bill',5),",
+    "    ('restaurants','guard_basic_operation_settings','guard_basic_operation_settings',19)",
     "  ) expected(relation,trigger_name,function_name,kind) WHERE NOT EXISTS (",
     "    SELECT 1 FROM pg_trigger t WHERE t.tgrelid=to_regclass('public.' || relation)",
     "      AND t.tgname=trigger_name AND t.tgfoid=to_regprocedure('public.' || function_name || '()')",
@@ -122,6 +139,15 @@ function installedContract() {
     "      OR (tablename='staff_members' AND policyname='operation_plan_staff_delete' AND cmd='DELETE' AND qual='can_manage_restaurant_operation(restaurant_id)')",
     "      OR (tablename='venue_tables' AND policyname='operation_plan_table_delete' AND cmd='DELETE' AND qual='can_manage_restaurant_operation(restaurant_id)')",
     "    )) <> 4 THEN RAISE EXCEPTION 'Políticas operacionais divergentes.'; END IF;",
+    "  IF (SELECT count(*) FROM pg_policies WHERE permissive='RESTRICTIVE' AND roles=ARRAY['authenticated']::name[] AND (",
+    "      (schemaname='public' AND policyname='entitled_operation' AND cmd='ALL' AND tablename IN ('venue_tables','orders','waiter_calls','staff_members','table_services','operation_events','order_items'))",
+    "      OR (schemaname='public' AND tablename='restaurants' AND policyname IN ('active_venue_insert','active_venue_update','active_venue_delete'))",
+    "      OR (schemaname='storage' AND tablename='objects' AND policyname IN ('active_menu_media_insert','active_menu_media_update','active_menu_media_delete'))",
+    "    )) <> 13 THEN RAISE EXCEPTION 'Políticas de acesso ativo divergentes.'; END IF;",
+    "  IF EXISTS (SELECT 1 FROM unnest(ARRAY['anon','authenticated']) AS role_name WHERE",
+    "    has_function_privilege(role_name,'public.staff_list_members(text)','EXECUTE')",
+    "    OR has_function_privilege(role_name,'public.staff_archive_orders(text,uuid[])','EXECUTE')) THEN",
+    "    RAISE EXCEPTION 'RPC legada de equipe ainda exposta.'; END IF;",
     "END $commercial_contract$;",
   ].join("\n");
 }

@@ -18,6 +18,7 @@ describe("commercial plan policy", () => {
     (plan_type, limit, kitchen, audio) => {
       const info = { plan_type, trial_ends_at: later };
       expect(getTableLimit(info)).toBe(limit);
+      expect(canOpenFeature(info, "qrcodes")).toBe(plan_type !== "unrecognized");
       expect(canAccess(info, "kitchen")).toBe(kitchen);
       expect(canAccess(info, "kitchenSound")).toBe(audio);
       expect(canAccess(info, "waiter")).toBe(audio);
@@ -25,16 +26,17 @@ describe("commercial plan policy", () => {
     },
   );
 
-  it("closes access on an absent or invalid plan and retains historical data after trial expiry", () => {
+  it("closes access on an absent or invalid plan and blocks all features after trial expiry", () => {
     expect(getTableLimit(undefined)).toBeNull();
     expect(getTableLimit({ plan_type: "trial", trial_ends_at: "invalid" })).toBeNull();
     expect(canReadAnalytics({ plan_type: "trial", trial_ends_at: "invalid" })).toBe(false);
     const expired = { plan_type: "trial", trial_ends_at: earlier };
     expect(getTableLimit(expired)).toBeNull();
     expect(canAccess(expired, "kitchenSound")).toBe(false);
-    expect(canOpenFeature(expired, "analytics")).toBe(true);
-    expect(canOpenFeature(expired, "menu")).toBe(true);
-    expect(canOpenFeature(expired, "tables")).toBe(true);
+    expect(canOpenFeature(expired, "analytics")).toBe(false);
+    expect(canOpenFeature(expired, "menu")).toBe(false);
+    expect(canOpenFeature(expired, "qrcodes")).toBe(false);
+    expect(canOpenFeature(expired, "tables")).toBe(false);
     expect(minimumPlan("kitchen")).toBe("Essential");
     expect(minimumPlan("kitchenSound")).toBe("Pro");
   });

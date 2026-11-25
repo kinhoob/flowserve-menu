@@ -73,10 +73,11 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         .select("id")
         .eq("user_id", userId)
         .eq("environment", data.environment)
-        .in("status", ["active", "trialing", "past_due"])
+        .in("status", ["active", "trialing", "past_due", "unpaid", "incomplete", "paused"])
         .limit(1);
       if (activeError) throw activeError;
-      if (active?.length) throw new Error("Você já tem uma assinatura. Use a troca de plano.");
+      if (active?.length)
+        throw new Error("Você já tem uma assinatura. Gerencie-a na aba Assinatura.");
       const customerId = await resolveOrCreateCustomer(stripe, {
         userId,
         email: typeof claims.email === "string" ? claims.email : undefined,

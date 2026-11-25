@@ -1,3 +1,4 @@
+import { DashboardSkeleton, QueryError } from "@/features/dashboard/query-feedback";
 import { FeatureLocked } from "@/features/billing/trial-guard";
 import { TableAccessCode } from "@/features/tables/table-access-code";
 import { contrastRatio } from "@/features/menu/appearance/appearance";
@@ -41,11 +42,19 @@ export const Route = createFileRoute("/_authenticated/qrcodes")({
 const publicUrl = publicMenuUrl;
 
 function QRCodesPage() {
-  const { data: restaurant, isLoading: rLoading } = useRestaurant();
-  const { data: allTables = [], isLoading: tLoading, isError: tError } = useTables(restaurant?.id);
-  const { data: orders = [] } = useOrders(restaurant?.id);
+  const restaurantQuery = useRestaurant();
+  const { data: restaurant } = restaurantQuery;
   const { data: trial } = useTrialStatus();
-  const tableLimit = getTableLimit(trial) || null;
+  const limit = getTableLimit(trial);
+  const tableLimit = limit === 0 ? null : limit;
+  const operationalId = tableLimit === null ? undefined : restaurant?.id;
+  const {
+    data: allTables = [],
+    isLoading: tLoading,
+    isError: tError,
+    refetch: refetchTables,
+  } = useTables(operationalId);
+  const { data: orders = [] } = useOrders(operationalId);
   const activeTables = allTables.filter((table) => table.operational);
   const mustSelect = tableLimit !== null && activeTables.length > tableLimit;
   const [selection, setSelection] = useState<string[] | null>(null);
@@ -75,15 +84,14 @@ function QRCodesPage() {
   const [qrTitle, setQrTitle] = useState("");
   const qrValid = contrastRatio(qrColor, "#ffffff") >= 7;
 
-  // Restaurant is auto-created on signup; no redirect needed.
-
-  if (rLoading || !restaurant) {
+  if (restaurantQuery.isPending) return <DashboardSkeleton />;
+  if (!restaurant || restaurantQuery.isError)
     return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-      </div>
+      <QueryError
+        message="Não foi possível carregar seu restaurante."
+        retry={() => void restaurantQuery.refetch()}
+      />
     );
-  }
 
   const downloadPng = async (t?: VenueTable) => {
     if (!qrValid) {
@@ -245,19 +253,21 @@ function QRCodesPage() {
                 " QR Codes operacionais"}
           </div>
         </div>
-        <Button
-          onClick={downloadAllPdf}
-          disabled={downloading || tables.length === 0}
-          size="lg"
-          className="gap-2"
-        >
-          {downloading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-          Baixar PDF de todas
-        </Button>
+        {tableLimit !== null && (
+          <Button
+            onClick={downloadAllPdf}
+            disabled={downloading || tables.length === 0}
+            size="lg"
+            className="gap-2"
+          >
+            {downloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            Baixar PDF de todas
+          </Button>
+        )}
       </div>
 
       {!canExportQr() && (
@@ -266,7 +276,7 @@ function QRCodesPage() {
           clientes possam abrir sem login.
         </p>
       )}
-      {reachedLimit && (
+      {tableLimit !== null && !tError && reachedLimit && (
         <div className="rounded-2xl border border-[oklch(0.78_0.13_84_/_0.4)] bg-gold-soft px-5 py-3 text-sm text-foreground">
           Você atingiu o limite de <strong>{tableLimit}</strong> QR Codes do seu plano atual.{" "}
           <a
@@ -342,7 +352,12 @@ function QRCodesPage() {
         <FeatureLocked feature="tables" />
       ) : (
         <>
-          {tError && <p role="alert">Não foi possível carregar as mesas.</p>}
+          {tError && (
+            <QueryError
+              message="Não foi possível carregar as mesas."
+              retry={() => void refetchTables()}
+            />
+          )}
           {!!allTables.length && !tError && (
             <details
               className="rounded-2xl border border-border bg-surface p-5"
